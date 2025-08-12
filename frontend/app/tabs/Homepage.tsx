@@ -3,12 +3,17 @@ import { StyleSheet } from 'react-native';
 import EditScreenInfo from '@/components/EditScreenInfo';
 import { Text, View } from '@/components/Themed';
 
-export default function TabTwoScreen() {
+/**
+ * Homepage component that serves as the main landing page of the app.
+ * Displays development information and provides links to Expo documentation.
+ * Acts as a template screen that can be customized for the app's primary content.
+ */
+export default function Homepage() {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Tab Two</Text>
+      <Text style={styles.title}>Homepage</Text>
       <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
-      <EditScreenInfo path="app/(tabs)/two.tsx" />
+      <EditScreenInfo path="app/(tabs)/Homepage.tsx" />
     </View>
   );
 }

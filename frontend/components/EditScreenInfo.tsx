@@ -7,6 +7,11 @@ import { Text, View } from './Themed';
 
 import Colors from '@/constants/Colors';
 
+/**
+ * Development information component that displays helpful debugging and setup information.
+ * Shows the current file path and provides links to Expo documentation for troubleshooting.
+ * Includes instructions for hot reloading and app updates during development.
+ */
 export default function EditScreenInfo({ path }: { path: string }) {
   return (
     <View>
@@ -14,7 +19,7 @@ export default function EditScreenInfo({ path }: { path: string }) {
         <Text
           style={styles.getStartedText}
           lightColor="rgba(0,0,0,0.8)"
-          darkColor="rgba(255,255,255,0.8)">
+          darkColor="rgba(159, 197, 84, 0.8)">
           Open up the code for this screen:
         </Text>
 

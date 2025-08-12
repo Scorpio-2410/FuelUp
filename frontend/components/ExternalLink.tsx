@@ -3,6 +3,11 @@ import * as WebBrowser from 'expo-web-browser';
 import React from 'react';
 import { Platform } from 'react-native';
 
+/**
+ * External link component that handles opening URLs across different platforms.
+ * On web, opens links in new tabs; on native platforms, opens in in-app browser.
+ * Provides consistent link behavior and prevents default browser opening on mobile.
+ */
 export function ExternalLink(
   props: Omit<React.ComponentProps<typeof Link>, 'href'> & { href: string }
 ) {

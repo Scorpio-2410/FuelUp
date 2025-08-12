@@ -3,6 +3,11 @@ import { StyleSheet } from 'react-native';
 
 import { Text, View } from '@/components/Themed';
 
+/**
+ * Not found screen component that displays a message when a requested route is not found.
+ * Provides navigation links to the home screen and allows users to navigate back to the main app.
+ * Used as a fallback screen when a route does not exist or is invalid.
+ */
 export default function NotFoundScreen() {
   return (
     <>
@@ -18,6 +23,11 @@ export default function NotFoundScreen() {
   );
 }
 
+/**
+ * Styles for the not found screen component.
+ * Provides consistent styling for the container, title, link, and link text elements.
+ * Used to ensure consistent visual presentation of the not found screen across different devices and themes.
+ */
 const styles = StyleSheet.create({
   container: {
     flex: 1,

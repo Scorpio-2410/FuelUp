@@ -4,6 +4,11 @@ import { Platform, StyleSheet } from 'react-native';
 import EditScreenInfo from '@/components/EditScreenInfo';
 import { Text, View } from '@/components/Themed';
 
+/**
+ * Modal screen component that displays a modal overlay with development information.
+ * Shows the current file path and provides links to Expo documentation for debugging.
+ * Uses platform-specific status bar styling for proper modal presentation.
+ */
 export default function ModalScreen() {
   return (
     <View style={styles.container}>
