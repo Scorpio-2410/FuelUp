@@ -1,3 +1,5 @@
+import "react-native-reanimated";
+import "../global.css";
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
@@ -21,11 +23,6 @@ export const unstable_settings = {
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
-/**
- * Root layout component that handles app initialization and global configuration.
- * Loads custom fonts, manages splash screen, and sets up the navigation theme.
- * Provides error boundaries and handles loading states during app startup.
- */
 export default function RootLayout() {
   const [loaded, error] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
@@ -50,16 +47,11 @@ export default function RootLayout() {
   return <RootLayoutNav />;
 }
 
-/**
- * Navigation layout component that configures the main app navigation structure.
- * Sets up theme provider, stack navigation, and defines screen configurations.
- * Handles color scheme changes and provides consistent navigation experience.
- */
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
 
   return (
-    <ThemeProvider value={colorScheme === 'light' ? DefaultTheme : DarkTheme}>
+    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
