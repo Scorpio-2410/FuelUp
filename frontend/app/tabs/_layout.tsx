@@ -8,6 +8,12 @@ import { useColorScheme } from '@/components/useColorScheme';
 import { useClientOnlyValue } from '@/components/useClientOnlyValue';
 
 // You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
+
+/**
+ * Tab bar icon component that renders FontAwesome icons for tab navigation.
+ * Provides consistent icon sizing and styling across the tab bar interface.
+ * Used to display visual indicators for each tab in the bottom navigation.
+ */
 function TabBarIcon(props: {
   name: React.ComponentProps<typeof FontAwesome>['name'];
   color: string;
@@ -15,6 +21,11 @@ function TabBarIcon(props: {
   return <FontAwesome size={28} style={{ marginBottom: -3 }} {...props} />;
 }
 
+/**
+ * Tab layout component that configures the bottom tab navigation structure.
+ * Defines tab screens, icons, titles, and navigation options for the main app tabs.
+ * Handles theme-aware styling and provides navigation between different app sections.
+ */
 export default function TabLayout() {
   const colorScheme = useColorScheme();
 
@@ -27,7 +38,7 @@ export default function TabLayout() {
         headerShown: useClientOnlyValue(false, true),
       }}>
       <Tabs.Screen
-        name="homepage"
+        name="Homepage"
         options={{
           title: 'Home',
           tabBarIcon: ({ color }) => <TabBarIcon name="home" color={color} />,
@@ -48,24 +59,10 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="meal"
+        name="two"
         options={{
-          title: 'Meal',
-          tabBarIcon: ({ color }) => <TabBarIcon name="cutlery" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="fitness"
-        options={{
-          title: 'Fitness',
-          tabBarIcon: ({ color }) => <TabBarIcon name="heartbeat" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="user"
-        options={{
-          title: 'User',
-          tabBarIcon: ({ color }) => <TabBarIcon name="user" color={color} />,
+          title: 'Tab Two',
+          tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
         }}
       />
     </Tabs>
