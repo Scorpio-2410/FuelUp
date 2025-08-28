@@ -39,7 +39,7 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
-        name="homepage"
+        name="Homepage"
         options={{
           title: "Home",
           tabBarIcon: ({ color }) => <TabBarIcon name="home" color={color} />,
@@ -60,7 +60,7 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="meal"
+        name="two"
         options={{
           title: "Meal",
           tabBarIcon: ({ color }) => (
