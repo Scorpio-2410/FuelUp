@@ -36,22 +36,13 @@ Tips:
 - If the QR doesn’t open, paste the `exp://...` URL from the CLI into Expo Go.
 
 ### Project layout
-- `frontend/`: Expo Router app (React Native + TypeScript)
+- `frontend/`: Expo Router app (React Nativewind + TypeScript)
 - `backend/`: Server code (Nodejs, SQL,...)
 ### Styling stack
 Already configured in the repo (NativeWind v4 + Tailwind v3). You do not need to set up Babel or Tailwind locally—just install and run. For reference, see the official docs if you’re curious about the configuration details.
 
 Tips:
 - CSS gradients are web-only. For native gradients, add `expo-linear-gradient` when needed.
-
-### Run targets
-- Start Metro (interactive):
-```
-cd frontend
-npx expo start
-```
-- Open on Android emulator: press `a`.
-- Open on a device: scan the QR in the terminal using Expo Go.
 
 ### Useful commands
 ```

@@ -1,3 +1,27 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* FuelUp Color Palette */
+:root {
+  /* Primary App Colors */
+  --app-bg-dark: #1a1a1a;
+  --app-card-dark: #2a2a2a;
+  --app-text-primary: #ffffff;
+  --app-text-secondary: #a0a0a0;
+  
+  /* Accent Colors */
+  --homepage-yellow: #ffd93d;
+  --homepage-yellow-bg: #fff4b3;
+  --homepage-purple: #c59fc4;
+  --homepage-purple-light: #e6d7e5;
+  --homepage-green: #bbf246;
+  --homepage-green-dark: #8bc34a;
+  --homepage-orange: #ff6b35;
+  --homepage-orange-light: #ffab91;
+  
+  /* UI Colors */
+  --homepage-gray-light: #cbc9d9;
+  --homepage-gray-medium: #121212;
+  --homepage-gray-dark: #000000;
+}

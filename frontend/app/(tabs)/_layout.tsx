@@ -1,13 +1,16 @@
+// This file is the layout for the tabs in the app.
+// It is used to define the tabs and their icons.
+// It is also used to define the layout of the tabs.
+
 import React from 'react';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Link, Tabs } from 'expo-router';
-import { Pressable } from 'react-native';
+import { Tabs } from 'expo-router';
 
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useClientOnlyValue } from '@/components/useClientOnlyValue';
 
-// You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
+// built-in icon families and icons on the web https://icons.expo.fyi/
 function TabBarIcon(props: {
   name: React.ComponentProps<typeof FontAwesome>['name'];
   color: string;
@@ -32,20 +35,7 @@ export default function TabLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color }) => <TabBarIcon name="home" color={color} />,
-          headerRight: () => (
-            <Link href="/modal" asChild>
-              <Pressable>
-                {({ pressed }) => (
-                  <FontAwesome
-                    name="info-circle"
-                    size={25}
-                    color={Colors[colorScheme ?? 'light'].text}
-                    style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
-              </Pressable>
-            </Link>
-          ),
+          headerShown: false,
         }}
       />
       <Tabs.Screen
@@ -53,6 +43,7 @@ export default function TabLayout() {
         options={{
           title: 'Meal',
           tabBarIcon: ({ color }) => <TabBarIcon name="cutlery" color={color} />,
+          headerShown: false,
         }}
       />
       <Tabs.Screen
@@ -60,6 +51,7 @@ export default function TabLayout() {
         options={{
           title: 'Fitness',
           tabBarIcon: ({ color }) => <TabBarIcon name="heartbeat" color={color} />,
+          headerShown: false,
         }}
       />
       <Tabs.Screen
@@ -67,6 +59,7 @@ export default function TabLayout() {
         options={{
           title: 'User',
           tabBarIcon: ({ color }) => <TabBarIcon name="user" color={color} />,
+          headerShown: false,
         }}
       />
     </Tabs>
