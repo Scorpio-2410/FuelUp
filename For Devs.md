@@ -38,6 +38,7 @@ Tips:
 ### Project layout
 - `frontend/`: Expo Router app (React Nativewind + TypeScript)
 - `backend/`: Server code (Nodejs, SQL,...)
+
 ### Styling stack
 Already configured in the repo (NativeWind v4 + Tailwind v3). You do not need to set up Babel or Tailwind locally—just install and run. For reference, see the official docs if you’re curious about the configuration details.
 
@@ -71,5 +72,3 @@ Packages used (install when needed):
   - Use to render time-of-day gradients on Android/iOS.
   
 If anything in this guide becomes outdated, please update this file as part of your PR.
-
-
