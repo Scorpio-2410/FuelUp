@@ -1,3 +1,4 @@
+// app/(tabs)/user.tsx
 import { useState, useEffect } from "react";
 import {
   View,
@@ -27,6 +28,14 @@ type Profile = {
   notifications: boolean;
   avatarUri?: string;
   ethnicity?: string;
+  followUpFrequency?: "daily" | "weekly" | "monthly";
+  fitnessGoal?:
+    | "lose_weight"
+    | "build_muscle"
+    | "improve_strength"
+    | "increase_endurance"
+    | "recomposition"
+    | "general_health";
 };
 
 const defaultProfile: Profile = {
@@ -34,6 +43,9 @@ const defaultProfile: Profile = {
   fullName: "",
   email: "",
   notifications: true,
+  followUpFrequency: "daily",
+  fitnessGoal: "general_health",
+  ethnicity: "not_specified",
 };
 
 const ETHNICITY_ITEMS = [
@@ -58,6 +70,21 @@ const ETHNICITY_ITEMS = [
   { label: "Other", value: "other" },
 ];
 
+const FREQUENCY_ITEMS = [
+  { label: "Daily", value: "daily" },
+  { label: "Weekly", value: "weekly" },
+  { label: "Monthly", value: "monthly" },
+];
+
+const FITNESS_GOAL_ITEMS = [
+  { label: "Lose weight (fat loss)", value: "lose_weight" },
+  { label: "Build muscle (hypertrophy)", value: "build_muscle" },
+  { label: "Improve strength", value: "improve_strength" },
+  { label: "Increase endurance/cardio", value: "increase_endurance" },
+  { label: "Recomposition (lose fat & gain muscle)", value: "recomposition" },
+  { label: "General health & activity", value: "general_health" },
+];
+
 export default function UserTabProfile() {
   const [profile, setProfile] = useState<Profile>(defaultProfile);
   const [loading, setLoading] = useState(true);
@@ -65,8 +92,18 @@ export default function UserTabProfile() {
 
   useEffect(() => {
     (async () => {
-      const raw = await SecureStore.getItemAsync(K_PROFILE);
-      if (raw) setProfile(JSON.parse(raw));
+      try {
+        const raw = await SecureStore.getItemAsync(K_PROFILE);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          setProfile({ ...defaultProfile, ...parsed }); // merge with defaults
+        } else {
+          setProfile(defaultProfile);
+        }
+      } catch (e) {
+        console.warn("Profile load error:", e);
+        setProfile(defaultProfile);
+      }
       setLoading(false);
     })();
   }, []);
@@ -116,7 +153,7 @@ export default function UserTabProfile() {
       className="flex-1 bg-black">
       <ScrollView
         className="flex-1 px-5 pt-8"
-        contentContainerStyle={{ paddingBottom: 96 }}
+        contentContainerStyle={{ paddingBottom: 120 }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}>
         <Text className="text-2xl font-semibold text-white mb-4">
@@ -136,10 +173,11 @@ export default function UserTabProfile() {
             )}
           </View>
           <Text className="text-neutral-400 mt-2">
-            {profile.username ? `${profile.username}` : "username"}
+            {profile.username ? profile.username : "username"}
           </Text>
         </Pressable>
 
+        {/* Username */}
         <Field label="Username (shown in app)">
           <TextInput
             className="bg-neutral-900 text-white rounded-lg px-3 py-3 border border-neutral-800"
@@ -151,6 +189,7 @@ export default function UserTabProfile() {
           />
         </Field>
 
+        {/* Full name */}
         <Field label="Full name">
           <TextInput
             className="bg-neutral-900 text-white rounded-lg px-3 py-3 border border-neutral-800"
@@ -161,6 +200,7 @@ export default function UserTabProfile() {
           />
         </Field>
 
+        {/* Email */}
         <Field label="Email">
           <TextInput
             className="bg-neutral-900 text-white rounded-lg px-3 py-3 border border-neutral-800"
@@ -173,6 +213,7 @@ export default function UserTabProfile() {
           />
         </Field>
 
+        {/* DOB */}
         <Field label="Date of birth (YYYY-MM-DD)">
           <TextInput
             className="bg-neutral-900 text-white rounded-lg px-3 py-3 border border-neutral-800"
@@ -183,6 +224,7 @@ export default function UserTabProfile() {
           />
         </Field>
 
+        {/* Height */}
         <Field label="Height (cm)">
           <TextInput
             className="bg-neutral-900 text-white rounded-lg px-3 py-3 border border-neutral-800"
@@ -196,6 +238,7 @@ export default function UserTabProfile() {
           />
         </Field>
 
+        {/* Weight */}
         <Field label="Weight (kg)">
           <TextInput
             className="bg-neutral-900 text-white rounded-lg px-3 py-3 border border-neutral-800"
@@ -209,37 +252,47 @@ export default function UserTabProfile() {
           />
         </Field>
 
-        {/* Ethnicity (compact dropdown) */}
+        {/* Ethnicity */}
         <Field label="Ethnicity">
-          <View className="bg-neutral-900 border border-neutral-800 rounded-lg">
-            <RNPickerSelect
-              onValueChange={(v) => setProfile({ ...profile, ethnicity: v })}
-              value={profile.ethnicity ?? "not_specified"}
-              placeholder={{
-                label: "Select ethnicity",
-                value: "not_specified",
-              }}
-              items={ETHNICITY_ITEMS}
-              style={{
-                inputIOS: {
-                  paddingVertical: 12,
-                  paddingHorizontal: 12,
-                  color: "white",
-                },
-                inputAndroid: {
-                  paddingVertical: 8,
-                  paddingHorizontal: 12,
-                  color: "white",
-                },
-                placeholder: { color: "#9CA3AF" },
-                iconContainer: { top: 14, right: 12 },
-              }}
-              useNativeAndroidPickerStyle={false}
-              Icon={() => <Text style={{ color: "#9CA3AF" }}>▾</Text>}
-            />
-          </View>
+          <Dropdown
+            value={profile.ethnicity ?? "not_specified"}
+            items={ETHNICITY_ITEMS}
+            placeholderLabel="Select ethnicity"
+            onChange={(v) => setProfile({ ...profile, ethnicity: v })}
+          />
         </Field>
 
+        {/* Follow-up questions frequency */}
+        <Field label="Follow-up questions frequency">
+          <Dropdown
+            value={profile.followUpFrequency ?? "daily"}
+            items={FREQUENCY_ITEMS}
+            placeholderLabel="Choose frequency"
+            onChange={(v) =>
+              setProfile({
+                ...profile,
+                followUpFrequency: v as Profile["followUpFrequency"],
+              })
+            }
+          />
+        </Field>
+
+        {/* Fitness goal */}
+        <Field label="Fitness goal">
+          <Dropdown
+            value={profile.fitnessGoal ?? "general_health"}
+            items={FITNESS_GOAL_ITEMS}
+            placeholderLabel="Select primary goal"
+            onChange={(v) =>
+              setProfile({
+                ...profile,
+                fitnessGoal: v as Profile["fitnessGoal"],
+              })
+            }
+          />
+        </Field>
+
+        {/* Notifications */}
         <Row>
           <Text className="text-white font-medium">Notifications</Text>
           <Switch
@@ -249,7 +302,7 @@ export default function UserTabProfile() {
         </Row>
       </ScrollView>
 
-      {/* Sticky Save */}
+      {/* Save */}
       <View className="px-5 pb-6">
         <Pressable
           onPress={save}
@@ -285,6 +338,49 @@ function Row({ children }: { children: React.ReactNode }) {
   return (
     <View className="flex-row items-center justify-between bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-3 mb-4">
       {children}
+    </View>
+  );
+}
+
+/** Compact dropdown wrapper (RNPickerSelect) */
+function Dropdown({
+  value,
+  items,
+  onChange,
+  placeholderLabel,
+}: {
+  value: string;
+  items: { label: string; value: string }[];
+  onChange: (v: string) => void;
+  placeholderLabel: string;
+}) {
+  return (
+    <View className="bg-neutral-900 border border-neutral-800 rounded-lg">
+      <RNPickerSelect
+        onValueChange={(v) => {
+          // only update when a real value (not null placeholder)
+          if (typeof v === "string") onChange(v);
+        }}
+        value={value}
+        items={items}
+        placeholder={{ label: placeholderLabel, value: null }}
+        style={{
+          inputIOS: {
+            paddingVertical: 12,
+            paddingHorizontal: 12,
+            color: "white",
+          },
+          inputAndroid: {
+            paddingVertical: 8,
+            paddingHorizontal: 12,
+            color: "white",
+          },
+          placeholder: { color: "#9CA3AF" },
+          iconContainer: { top: 14, right: 12 },
+        }}
+        useNativeAndroidPickerStyle={false}
+        Icon={() => <Text style={{ color: "#9CA3AF" }}>▾</Text>}
+      />
     </View>
   );
 }
