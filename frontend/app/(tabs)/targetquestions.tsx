@@ -12,11 +12,11 @@ interface Question {
   id: number;
   question: string;
   options: string[];
-  correctAnswer?: number;
   isSlider?: boolean;
 }
 
 const questions: Question[] = [
+  //will be changed to adapt to the user's goals and preferences
   {
     id: 1,
     question: "What's our workout for today?",
