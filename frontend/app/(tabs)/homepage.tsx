@@ -19,15 +19,22 @@ import { useFocusEffect } from "expo-router";
 const AnimatedScrollView = Animated.createAnimatedComponent(ScrollView);
 const K_PROFILE = "fu_profile";
 
+type Profile = {
+  username: string;
+  avatarUri?: string;
+};
+
 export default function HomePageScreen() {
-  const insets = useSafeAreaInsets();
-  const { width } = Dimensions.get("window");
   const currentDate = new Date();
   const monthName = "August";
   const year = "2025";
+  const insets = useSafeAreaInsets();
+  const { width } = Dimensions.get("window");
 
-  // ✅ All state inside component
-  const [profileName, setProfileName] = useState<string>("");
+  // Profile state
+  const [profile, setProfile] = useState<Profile>({ username: "" });
+
+  // Refresh state
   const [refreshing, setRefreshing] = useState(false);
   const [stepCount, setStepCount] = useState(954);
   const [burnedCalories, setBurnedCalories] = useState(400);
@@ -36,14 +43,14 @@ export default function HomePageScreen() {
     "you r almost there! keep it up"
   );
 
-  // Animated values
+  // Facebook-style pull-to-refresh values
   const scrollY = useSharedValue(0);
   const pullDistance = useSharedValue(0);
   const spinRotation = useSharedValue(0);
   const lastVelocity = useSharedValue(0);
   const refreshThreshold = 130;
 
-  // ✅ Load profile when screen is focused
+  // Load profile whenever Home is focused
   useFocusEffect(
     useCallback(() => {
       let alive = true;
@@ -51,7 +58,10 @@ export default function HomePageScreen() {
         const raw = await SecureStore.getItemAsync(K_PROFILE);
         if (alive && raw) {
           const parsed = JSON.parse(raw);
-          setProfileName(parsed?.name || "");
+          setProfile({
+            username: parsed?.username || "",
+            avatarUri: parsed?.avatarUri,
+          });
         }
       })();
       return () => {
@@ -60,7 +70,7 @@ export default function HomePageScreen() {
     }, [])
   );
 
-  // Spin animation
+  // Spinning animation for refresh icon
   useEffect(() => {
     if (refreshing) {
       spinRotation.value = withRepeat(
@@ -73,20 +83,34 @@ export default function HomePageScreen() {
     }
   }, [refreshing]);
 
-  // Trigger refresh
+  // Facebook-style refresh function
   const triggerRefresh = useCallback(() => {
     if (refreshing) return;
+
     setRefreshing(true);
 
     setTimeout(() => {
       setStepCount(Math.floor(Math.random() * 2000) + 500);
       setBurnedCalories(Math.floor(Math.random() * 600) + 200);
 
-      const quotes = ["give up bro", "you dont got this!", "keep crying"];
+      const quotes = [
+        "give up bro",
+        "you dont got this!",
+        "keep crying",
+        "stay negative!",
+        "almost there! loser",
+        "one more step! loser",
+        "never give up! you are a loser!",
+      ];
       const goals = [
-        "you r almost there! keep it up",
-        "great progress today!",
-        "you're on fire! 🔥",
+        "you r almost there! keep it up loser",
+        "great progress today! loser",
+        "you're on fire! 🔥 loser",
+        "crushing your goals! loser",
+        "keep the momentum! loser",
+        "excellent work! loser",
+        "you're unstoppable! loser",
+        "amazing effort! loser",
       ];
 
       setQuote(quotes[Math.floor(Math.random() * quotes.length)]);
@@ -106,7 +130,6 @@ export default function HomePageScreen() {
       if (event.contentOffset.y <= 0) {
         const currentPull = Math.abs(event.contentOffset.y);
         pullDistance.value = currentPull;
-
         if (currentPull > refreshThreshold && !refreshing) {
           runOnJS(triggerRefresh)();
         }
@@ -126,7 +149,6 @@ export default function HomePageScreen() {
     { day: "S", date: "24" },
   ];
 
-  // Refresh indicator animation
   const refreshIndicatorStyle = useAnimatedStyle(() => {
     const opacity = interpolate(
       pullDistance.value,
@@ -141,7 +163,6 @@ export default function HomePageScreen() {
     const rotation = refreshing
       ? spinRotation.value
       : interpolate(pullDistance.value, [0, refreshThreshold], [0, 180]);
-
     return {
       opacity,
       transform: [{ translateY }, { rotate: `${rotation}deg` }],
@@ -181,20 +202,24 @@ export default function HomePageScreen() {
         onScroll={scrollHandler}
         scrollEventThrottle={16}
         bounces={true}>
-        {/* Header */}
         <View className="px-6 pb-6" style={{ paddingTop: insets.top + 24 }}>
+          {/* Header */}
           <View className="flex-row items-center justify-between mb-8 mt-4">
             <View className="flex-1 pr-4">
               <Text className="text-white text-2xl font-bold" numberOfLines={1}>
-                {profileName
-                  ? `Welcome back, ${profileName}!`
-                  : "Welcome back!"}
+                {profile.username ? `${profile.username}` : "Welcome back!"}
               </Text>
             </View>
             <View
-              className="w-20 h-20 rounded-full"
-              style={{ backgroundColor: "#2a2a2a" }}
-            />
+              className="w-20 h-20 rounded-full overflow-hidden"
+              style={{ backgroundColor: "#2a2a2a" }}>
+              {profile.avatarUri ? (
+                <Image
+                  source={{ uri: profile.avatarUri }}
+                  className="w-full h-full"
+                />
+              ) : null}
+            </View>
           </View>
 
           {/* Calendar */}
@@ -242,7 +267,7 @@ export default function HomePageScreen() {
             </View>
           </View>
 
-          {/* Steps + Goal */}
+          {/* Stats Cards Row */}
           <View className="flex-row gap-4 mb-6">
             <View
               className="flex-1 p-4 rounded-2xl"
@@ -263,7 +288,7 @@ export default function HomePageScreen() {
             </View>
           </View>
 
-          {/* Calories */}
+          {/* Calorie Progress */}
           <View
             className="p-6 rounded-2xl"
             style={{
@@ -301,7 +326,6 @@ export default function HomePageScreen() {
                   </Text>
                 </View>
               </View>
-
               <View className="relative items-center justify-center">
                 <Svg width="160" height="160">
                   <Circle
