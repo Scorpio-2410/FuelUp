@@ -41,7 +41,7 @@ const questions: Question[] = [
   },
   {
     id: 3,
-    question: "Rate your energy level today:",
+    question: "How's our energy levels today?",
     options: ["1", "2", "3", "4", "5"],
     isSlider: true,
   },
@@ -137,22 +137,22 @@ export default function QuestionSegment() {
           showsVerticalScrollIndicator={false}
         >
           {/* Back button */}
-          {currentQuestionIndex > 0 && (
-            <TouchableOpacity
-              style={{
-                padding: 12,
-                borderRadius: 12,
-                width: 48,
-                height: 48,
-                alignItems: "center",
-                justifyContent: "center",
-                marginRight: "auto",
-              }}
-              onPress={handlePrevious}
-            >
-              <FontAwesome name="arrow-left" size={20} color="#d4d4d8" />
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            style={{
+              padding: 12,
+              borderRadius: 12,
+              width: 48,
+              height: 48,
+              alignItems: "center",
+              justifyContent: "center",
+              marginRight: "auto",
+              opacity: currentQuestionIndex === 0 ? 0 : 1,
+            }}
+            onPress={handlePrevious}
+          >
+            <FontAwesome name="arrow-left" size={20} color="#d4d4d8" />
+          </TouchableOpacity>
+
           {/* Question Container */}
           <View
             style={{ flex: 1, justifyContent: "center", marginTop: "auto" }}
@@ -172,12 +172,13 @@ export default function QuestionSegment() {
             </Text>
 
             {/* Options Container */}
-            <View style={{ gap: 16 }}>
+            <View style={{ gap: 16, marginTop: 40 }}>
               {currentQuestion.isSlider ? (
                 <View
                   style={{
                     alignItems: "center",
                     paddingVertical: 24,
+                    marginTop: 80,
                   }}
                 >
                   {/* Slider Labels */}
@@ -189,12 +190,12 @@ export default function QuestionSegment() {
                       marginBottom: 16,
                     }}
                   >
-                    {[1, 2, 3, 4, 5].map((value) => (
+                    {["💤", "🥲", "😄", "⚡️", "🔥"].map((value) => (
                       <Text
                         key={value}
                         style={{
                           color: "#a1a1aa",
-                          fontSize: 14,
+                          fontSize: 28,
                           fontWeight: "500",
                         }}
                       >
@@ -251,17 +252,30 @@ export default function QuestionSegment() {
                         marginTop: -6,
                       }}
                     />
+                    <Text
+                      style={{
+                        position: "absolute",
+                        marginTop: 50,
+                        fontSize: 22,
+                        fontWeight: "500",
+                        color: "#C8FE3B",
+                        textAlign: "center",
+                        width: "100%",
+                        marginLeft: "auto",
+                        marginRight: "auto",
+                      }}
+                    >
+                      {sliderValue === 1
+                        ? "Not so good..."
+                        : sliderValue === 2
+                        ? "So-so"
+                        : sliderValue === 3
+                        ? "I'm good!"
+                        : sliderValue === 4
+                        ? "I'm raring to go!"
+                        : "Let's do this!!!"}
+                    </Text>
                   </TouchableOpacity>
-
-                  <Text
-                    style={{
-                      color: "#C8FE3B",
-                      fontSize: 18,
-                      fontWeight: "600",
-                    }}
-                  >
-                    Value: {Math.round(sliderValue)}
-                  </Text>
                 </View>
               ) : (
                 currentQuestion.options.map((option, index) => (
@@ -272,6 +286,8 @@ export default function QuestionSegment() {
                       borderRadius: 12,
                       borderWidth: 2,
                       alignItems: "center",
+                      flexDirection: "row",
+                      justifyContent: "center",
                       borderColor:
                         selectedOption === index ? "black" : "#3f3f46",
                       backgroundColor:
@@ -279,6 +295,41 @@ export default function QuestionSegment() {
                     }}
                     onPress={() => handleOptionSelect(index)}
                   >
+                    {/* Icon based on question and option */}
+                    {currentQuestion.id === 1 && (
+                      <FontAwesome
+                        name={
+                          option === "Strength"
+                            ? "bolt"
+                            : option === "Cardio"
+                            ? "heartbeat"
+                            : option === "Recovery"
+                            ? "bed"
+                            : "times"
+                        }
+                        size={20}
+                        color={selectedOption === index ? "black" : "#a1a1aa"}
+                        style={{ marginRight: 12 }}
+                      />
+                    )}
+                    {currentQuestion.id === 2 && (
+                      <FontAwesome
+                        name={
+                          option === "Low-carb"
+                            ? "leaf"
+                            : option === "High Protein"
+                            ? "check"
+                            : option === "Balanced"
+                            ? "balance-scale"
+                            : option === "Eating out"
+                            ? "cutlery"
+                            : "globe"
+                        }
+                        size={20}
+                        color={selectedOption === index ? "black" : "#a1a1aa"}
+                        style={{ marginRight: 12 }}
+                      />
+                    )}
                     <Text
                       style={{
                         fontSize: 16,
