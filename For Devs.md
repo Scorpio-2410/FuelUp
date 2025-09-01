@@ -66,8 +66,18 @@ tsc --noEmit
 
 ---
 
-## 🚀 Backend (Node.js + Express)
-Neon website : https://neon.com
+## 🚀 Backend (Node.js + Express + PostgreSQL)
+
+### Setup Steps **Check MSteams pinned message** for the `.env` file 
+
+### Environment Setup
+```bash
+cd backend
+npm install
+
+# Save the .env file from email as backend/.env
+# Then you're ready to go!
+```
 
 ### Quick Start
 ```bash
@@ -76,31 +86,15 @@ npm install
 npm run dev    # Auto-reload on changes
 ```
 
-### What It Does
-- Runs on `http://localhost:4000`
-- Node.js server using Express framework
-- CORS enabled for frontend connections
-
 ### Commands
 ```bash
 npm run dev    # Development with auto-reload (nodemon)
 npm start      # Production mode
 ```
 
+### Troubleshooting
+- **Database connection error**: Check your `DATABASE_URL` in `.env`
+- **JWT error**: Ensure `JWT_SECRET` is set in `.env`
+- **Port 4000 busy**: Use `PORT=4001 npm run dev` or kill the conflicting process
 
-```
-
-
-## 📁 Project Structure
-```
-FuelUp/
-├── frontend/     # Expo React Native app
-│   ├── app/      # File-based routing
-│   └── components/
-└── backend/      # Node.js API server
-    └── server.js
-```
-
-Reference: [NativeWind docs](https://www.nativewind.dev/docs/getting-started/installation)
-
-If anything becomes outdated, please update this file in your PR.
+If anything becomes outdated, please update this file.
