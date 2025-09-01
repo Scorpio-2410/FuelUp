@@ -1,17 +1,16 @@
-require("dotenv").config();
-
 const express = require("express");
+const cors = require("cors");
 const app = express();
 
-// .env port & fallback port.
 const PORT = process.env.PORT || 4000;
 
-// Middleware to parse JSON
+// Middleware
+app.use(cors());
 app.use(express.json());
 
-// Test route
+// Routes
 app.get("/", (req, res) => {
-  res.send("Hello from Node backend");
+  res.send("FuelUp Backend API");
 });
 
 // Start server

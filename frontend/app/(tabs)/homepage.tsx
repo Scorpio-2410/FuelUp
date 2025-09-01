@@ -1,6 +1,6 @@
 // app/(tabs)/homepage.tsx
 import React, { useState, useCallback, useEffect } from "react";
-import { View, Text, ScrollView, Dimensions, Image } from "react-native";
+import { View, Text, ScrollView, Dimensions, Image, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle } from "react-native-svg";
 import Animated, {
@@ -15,19 +15,40 @@ import Animated, {
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import * as SecureStore from "expo-secure-store";
 import { useFocusEffect } from "expo-router";
+import RealTimeCalendar from "../../components/RealTimeCalendar";
 
 const AnimatedScrollView = Animated.createAnimatedComponent(ScrollView);
 const K_PROFILE = "fu_profile";
+
+// Platform-safe storage functions
+const getStorageItem = async (key: string): Promise<string | null> => {
+  if (Platform.OS === 'web') {
+    // Use localStorage for web
+    return localStorage.getItem(key);
+  } else {
+    // Use SecureStore for native platforms
+    return await SecureStore.getItemAsync(key);
+  }
+};
+
+const setStorageItem = async (key: string, value: string): Promise<void> => {
+  if (Platform.OS === 'web') {
+    // Use localStorage for web
+    localStorage.setItem(key, value);
+  } else {
+    // Use SecureStore for native platforms
+    await SecureStore.setItemAsync(key, value);
+  }
+};
 
 type Profile = {
   username: string;
   avatarUri?: string;
 };
 
+// Homepage with fitness tracking, pull-to-refresh, and real-time calendar
+// Clean separation of concerns with reusable components
 export default function HomePageScreen() {
-  const currentDate = new Date();
-  const monthName = "August";
-  const year = "2025";
   const insets = useSafeAreaInsets();
   const { width } = Dimensions.get("window");
 
@@ -55,7 +76,7 @@ export default function HomePageScreen() {
     useCallback(() => {
       let alive = true;
       (async () => {
-        const raw = await SecureStore.getItemAsync(K_PROFILE);
+        const raw = await getStorageItem(K_PROFILE);
         if (alive && raw) {
           const parsed = JSON.parse(raw);
           setProfile({
@@ -139,15 +160,7 @@ export default function HomePageScreen() {
     },
   });
 
-  const calendarDays = [
-    { day: "M", date: "18" },
-    { day: "T", date: "19" },
-    { day: "W", date: "20", isToday: true },
-    { day: "T", date: "21" },
-    { day: "F", date: "22" },
-    { day: "S", date: "23" },
-    { day: "S", date: "24" },
-  ];
+
 
   const refreshIndicatorStyle = useAnimatedStyle(() => {
     const opacity = interpolate(
@@ -222,32 +235,8 @@ export default function HomePageScreen() {
             </View>
           </View>
 
-          {/* Calendar */}
-          <View className="mb-6">
-            <Text className="text-white text-lg font-semibold mb-3">
-              {monthName} {year}
-            </Text>
-            <View className="flex-row justify-between">
-              {calendarDays.map((item, index) => (
-                <View key={index} className="items-center">
-                  <Text style={{ color: "#a0a0a0" }} className="text-sm mb-2">
-                    {item.day}
-                  </Text>
-                  <View
-                    className={`w-8 h-8 rounded-full items-center justify-center ${
-                      item.isToday ? "bg-white" : ""
-                    }`}>
-                    <Text
-                      className={`text-sm font-medium ${
-                        item.isToday ? "text-black" : "text-white"
-                      }`}>
-                      {item.date}
-                    </Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-          </View>
+          {/* Real-time Calendar Component */}
+          <RealTimeCalendar className="mb-6" />
 
           {/* Quote of the day */}
           <View
