@@ -2,7 +2,7 @@
 // Displays calorie burn progress with circular progress indicator
 // Ready for future integration with fitness tracking APIs
 
-import React, { useState } from 'react';
+import React, { useState, forwardRef, useImperativeHandle } from 'react';
 import { View, Text } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 
@@ -11,7 +11,7 @@ interface HomepageCaloriesProps {
   onRefresh?: () => void; // Callback for when calories update
 }
 
-export default function HomepageCalories({ className, onRefresh }: HomepageCaloriesProps) {
+const HomepageCalories = forwardRef<any, HomepageCaloriesProps>(({ className, onRefresh }, ref) => {
   const [burnedCalories, setBurnedCalories] = useState(400);
   const targetCalories = 1000;
 
@@ -23,7 +23,7 @@ export default function HomepageCalories({ className, onRefresh }: HomepageCalor
   };
 
   // Expose update function for external refresh
-  React.useImperativeHandle(onRefresh, () => ({
+  useImperativeHandle(ref, () => ({
     updateCalories
   }));
 
@@ -72,4 +72,6 @@ export default function HomepageCalories({ className, onRefresh }: HomepageCalor
       </View>
     </View>
   );
-}
+});
+
+export default HomepageCalories;

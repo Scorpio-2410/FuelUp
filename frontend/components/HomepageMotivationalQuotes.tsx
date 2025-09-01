@@ -2,7 +2,7 @@
 // Ready for future AI integration to generate personalized motivation
 // Currently uses random selection from predefined quotes
 
-import React, { useState } from 'react';
+import React, { useState, forwardRef, useImperativeHandle } from 'react';
 import { View, Text, Image } from 'react-native';
 
 interface HomepageMotivationalQuotesProps {
@@ -10,7 +10,7 @@ interface HomepageMotivationalQuotesProps {
   onRefresh?: () => void; // Callback for when quote updates
 }
 
-export default function HomepageMotivationalQuotes({ className, onRefresh }: HomepageMotivationalQuotesProps) {
+const HomepageMotivationalQuotes = forwardRef<any, HomepageMotivationalQuotesProps>(({ className, onRefresh }, ref) => {
   const [quote, setQuote] = useState("give up bro");
 
   // Placeholder quotes - will be replaced with AI-generated content
@@ -32,7 +32,7 @@ export default function HomepageMotivationalQuotes({ className, onRefresh }: Hom
   };
 
   // Expose update function for external refresh
-  React.useImperativeHandle(onRefresh, () => ({
+  useImperativeHandle(ref, () => ({
     updateQuote
   }));
 
@@ -54,4 +54,6 @@ export default function HomepageMotivationalQuotes({ className, onRefresh }: Hom
       </View>
     </View>
   );
-}
+});
+
+export default HomepageMotivationalQuotes;

@@ -1,5 +1,5 @@
 // app/(tabs)/homepage.tsx
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import { View, Text, Dimensions, Image, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as SecureStore from "expo-secure-store";
@@ -50,6 +50,11 @@ export default function HomePageScreen() {
 
   // App state
   const [refreshing, setRefreshing] = useState(false);
+  
+  // Refs for triggering component refreshes
+  const stepsRef = useRef<{ updateSteps: () => void }>(null);
+  const quotesRef = useRef<{ updateQuote: () => void }>(null);
+  const caloriesRef = useRef<{ updateCalories: () => void }>(null);
 
   // Load profile whenever Home is focused
   useFocusEffect(
@@ -78,7 +83,11 @@ export default function HomePageScreen() {
     setRefreshing(true);
 
     setTimeout(() => {
-      // Components will handle their own refresh logic
+      // Trigger all component refreshes
+      stepsRef.current?.updateSteps();
+      quotesRef.current?.updateQuote();
+      caloriesRef.current?.updateCalories();
+      
       setRefreshing(false);
     }, 2000);
   }, [refreshing]);
@@ -112,16 +121,16 @@ export default function HomePageScreen() {
           <RealTimeCalendar className="mb-6" />
 
           {/* Motivational Quote Component */}
-          <HomepageMotivationalQuotes className="mb-6" />
+          <HomepageMotivationalQuotes ref={quotesRef} className="mb-6" />
 
           {/* Stats Cards Row */}
           <View className="flex-row gap-4 mb-6">
-            <HomepageSteps />
+            <HomepageSteps ref={stepsRef} />
             <HomepageGoalsMessage />
           </View>
 
           {/* Calorie Progress Component */}
-          <HomepageCaloriesTracking className="mb-4" />
+          <HomepageCaloriesTracking ref={caloriesRef} className="mb-4" />
         </View>
       </RefreshScroll>
     </View>

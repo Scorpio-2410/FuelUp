@@ -2,7 +2,7 @@
 // Displays current step count with placeholder data
 // Ready for future integration with step tracking APIs
 
-import React, { useState } from 'react';
+import React, { useState, forwardRef, useImperativeHandle } from 'react';
 import { View, Text } from 'react-native';
 
 interface HomepageStepsProps {
@@ -10,7 +10,7 @@ interface HomepageStepsProps {
   onRefresh?: () => void; // Callback for when steps update
 }
 
-export default function HomepageSteps({ className, onRefresh }: HomepageStepsProps) {
+const HomepageSteps = forwardRef<any, HomepageStepsProps>(({ className, onRefresh }, ref) => {
   const [stepCount, setStepCount] = useState(954);
 
   // Update steps with random value (placeholder for real step tracking)
@@ -21,7 +21,7 @@ export default function HomepageSteps({ className, onRefresh }: HomepageStepsPro
   };
 
   // Expose update function for external refresh
-  React.useImperativeHandle(onRefresh, () => ({
+  useImperativeHandle(ref, () => ({
     updateSteps
   }));
 
@@ -34,4 +34,6 @@ export default function HomepageSteps({ className, onRefresh }: HomepageStepsPro
       <Text className="text-black text-sm">Steps</Text>
     </View>
   );
-}
+});
+
+export default HomepageSteps;

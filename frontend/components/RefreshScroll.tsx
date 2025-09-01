@@ -2,9 +2,10 @@
 // Handles swipe logic and refresh indicators
 // Just pass your content and refresh function
 
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useRef } from 'react';
 import { ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -29,14 +30,18 @@ export default function RefreshScroll({
   children,
   refreshing,
   onRefresh,
-  refreshThreshold = 130
+  refreshThreshold = 110
 }: RefreshScrollProps) {
   const insets = useSafeAreaInsets();
+  const scrollViewRef = useRef<ScrollView>(null);
   
-  // Animation values for pull-to-refresh
+  // Animation values for Facebook-style pull-to-refresh
   const scrollY = useSharedValue(0);
   const pullDistance = useSharedValue(0);
   const spinRotation = useSharedValue(0);
+  const isUserTouching = useSharedValue(false);
+  const shouldRefreshOnRelease = useSharedValue(false);
+  const hasTriggeredHaptic = useSharedValue(false);
 
   // Spinning animation for refresh icon
   useEffect(() => {
@@ -51,24 +56,65 @@ export default function RefreshScroll({
     }
   }, [refreshing]);
 
-  // Handle scroll events and detect pull-to-refresh
+  // Trigger haptic feedback when refresh threshold is reached
+  const triggerHaptic = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  }, []);
+
+  // Handle touch start
+  const handleTouchStart = useCallback(() => {
+    isUserTouching.value = true;
+    hasTriggeredHaptic.value = false;
+  }, []);
+
+  // Handle touch end
+  const handleTouchEnd = useCallback(() => {
+    isUserTouching.value = false;
+    
+    // Only refresh if user released finger while above threshold
+    if (shouldRefreshOnRelease.value && !refreshing) {
+      onRefresh();
+    }
+    
+    // Reset all flags
+    shouldRefreshOnRelease.value = false;
+    hasTriggeredHaptic.value = false;
+  }, [onRefresh, refreshing]);
+
+  // Handle scroll events with Facebook-style pull-to-refresh logic
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
       scrollY.value = event.contentOffset.y;
 
-      if (event.contentOffset.y <= 0) {
+      if (event.contentOffset.y <= 0 && isUserTouching.value) {
         const currentPull = Math.abs(event.contentOffset.y);
         pullDistance.value = currentPull;
+        
+        // Mark for refresh if threshold reached while pulling
         if (currentPull > refreshThreshold && !refreshing) {
-          runOnJS(onRefresh)(); // Trigger refresh callback
+          shouldRefreshOnRelease.value = true;
+          
+          // Trigger haptic feedback once when threshold is reached
+          if (!hasTriggeredHaptic.value) {
+            hasTriggeredHaptic.value = true;
+            runOnJS(triggerHaptic)();
+          }
+        }
+        
+        // Reset refresh flag if user pulls back down below threshold
+        if (currentPull < refreshThreshold) {
+          shouldRefreshOnRelease.value = false;
+          hasTriggeredHaptic.value = false;
         }
       } else {
         pullDistance.value = 0;
+        shouldRefreshOnRelease.value = false;
+        hasTriggeredHaptic.value = false;
       }
     },
   });
 
-  // Animated style for the refresh indicator
+  // Animated style for the sophisticated refresh indicator
   const refreshIndicatorStyle = useAnimatedStyle(() => {
     const opacity = interpolate(
       pullDistance.value,
@@ -80,12 +126,20 @@ export default function RefreshScroll({
       [0, refreshThreshold],
       [-50, 0]
     );
+    
+    // Different rotation based on state
     const rotation = refreshing
       ? spinRotation.value
-      : interpolate(pullDistance.value, [0, refreshThreshold], [0, 180]);
+      : shouldRefreshOnRelease.value
+        ? 180 // Full rotation when ready to refresh
+        : interpolate(pullDistance.value, [0, refreshThreshold], [0, 150]);
+    
+    // Change background color when ready to refresh
+    const backgroundColor = shouldRefreshOnRelease.value ? '#bbf246' : '#2a2a2a';
     
     return {
       opacity,
+      backgroundColor,
       transform: [{ translateY }, { rotate: `${rotation}deg` }],
     };
   });
@@ -103,7 +157,6 @@ export default function RefreshScroll({
             zIndex: 1000,
             width: 30,
             height: 30,
-            backgroundColor: '#2a2a2a',
             borderRadius: 15,
             alignItems: 'center',
             justifyContent: 'center',
@@ -117,13 +170,17 @@ export default function RefreshScroll({
         )}
       </Animated.View>
 
-      {/* Scrollable content */}
+      {/* Scrollable content with touch tracking */}
       <AnimatedScrollView
+        ref={scrollViewRef}
         className="flex-1"
         showsVerticalScrollIndicator={false}
         onScroll={scrollHandler}
         scrollEventThrottle={16}
-        bounces={true}>
+        bounces={true}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}>
         {children}
       </AnimatedScrollView>
     </>
