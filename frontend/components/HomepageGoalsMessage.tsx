@@ -1,16 +1,16 @@
-// Goal message component with placeholder messages
+// Homepage goal message component with placeholder messages
 // Ready for future AI integration to generate personalized goal tracking
 // Currently uses random selection from predefined messages
 
 import React, { useState } from 'react';
 import { View, Text } from 'react-native';
 
-interface GoalMessageProps {
+interface HomepageGoalsMessageProps {
   className?: string;
   onRefresh?: () => void; // Callback for when message updates
 }
 
-export default function GoalMessage({ className, onRefresh }: GoalMessageProps) {
+export default function HomepageGoalsMessage({ className, onRefresh }: HomepageGoalsMessageProps) {
   const [goalMessage, setGoalMessage] = useState("you r almost there! keep it up");
 
   // Placeholder goal messages - will be replaced with AI-generated content

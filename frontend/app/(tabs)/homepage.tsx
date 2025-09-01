@@ -2,13 +2,14 @@
 import React, { useState, useCallback } from "react";
 import { View, Text, Dimensions, Image, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Svg, { Circle } from "react-native-svg";
 import * as SecureStore from "expo-secure-store";
 import { useFocusEffect } from "expo-router";
 import RealTimeCalendar from "../../components/RealTimeCalendar";
 import RefreshScroll from "../../components/RefreshScroll";
 import HomepageMotivationalQuotes from "../../components/HomepageMotivationalQuotes";
-import GoalMessage from "../../components/GoalMessage";
+import HomepageGoalsMessage from "../../components/HomepageGoalsMessage";
+import HomepageSteps from "../../components/HomepageSteps";
+import HomepageCaloriesTracking from "../../components/HomepageCaloriesTracking";
 
 const K_PROFILE = "fu_profile";
 
@@ -49,8 +50,6 @@ export default function HomePageScreen() {
 
   // App state
   const [refreshing, setRefreshing] = useState(false);
-  const [stepCount, setStepCount] = useState(954);
-  const [burnedCalories, setBurnedCalories] = useState(400);
 
   // Load profile whenever Home is focused
   useFocusEffect(
@@ -79,8 +78,7 @@ export default function HomePageScreen() {
     setRefreshing(true);
 
     setTimeout(() => {
-      setStepCount(Math.floor(Math.random() * 2000) + 500);
-      setBurnedCalories(Math.floor(Math.random() * 600) + 200);
+      // Components will handle their own refresh logic
       setRefreshing(false);
     }, 2000);
   }, [refreshing]);
@@ -118,79 +116,12 @@ export default function HomePageScreen() {
 
           {/* Stats Cards Row */}
           <View className="flex-row gap-4 mb-6">
-            <View
-              className="flex-1 p-4 rounded-2xl"
-              style={{ backgroundColor: "#c59fc4" }}>
-              <Text className="text-black text-xl font-bold mb-1">Steps</Text>
-              <Text className="text-black text-3xl font-bold">{stepCount}</Text>
-              <Text className="text-black text-sm">Steps</Text>
-            </View>
-            <GoalMessage />
+            <HomepageSteps />
+            <HomepageGoalsMessage />
           </View>
 
-          {/* Calorie Progress */}
-          <View
-            className="p-6 rounded-2xl"
-            style={{
-              backgroundColor: "#2a2a2a",
-              marginBottom: insets.bottom || 16,
-            }}>
-            <View className="flex-row items-center">
-              <View className="flex-1 pr-4">
-                <View className="mb-4">
-                  <View className="flex-row items-center mb-1">
-                    <View
-                      className="w-3 h-3 rounded-full mr-3"
-                      style={{ backgroundColor: "#bbf246" }}
-                    />
-                    <Text className="text-white text-2xl font-semibold">
-                      1000 Kcal
-                    </Text>
-                  </View>
-                  <Text style={{ color: "#a0a0a0" }} className="text-sm ml-6">
-                    Target
-                  </Text>
-                </View>
-                <View>
-                  <View className="flex-row items-center mb-1">
-                    <View
-                      className="w-3 h-3 rounded-full mr-3"
-                      style={{ backgroundColor: "#ff6b35" }}
-                    />
-                    <Text className="text-white text-2xl font-semibold">
-                      {burnedCalories} Kcal
-                    </Text>
-                  </View>
-                  <Text style={{ color: "#a0a0a0" }} className="text-sm ml-6">
-                    Burned
-                  </Text>
-                </View>
-              </View>
-              <View className="relative items-center justify-center">
-                <Svg width="160" height="160">
-                  <Circle
-                    cx="80"
-                    cy="80"
-                    r="62"
-                    stroke="#bbf246"
-                    strokeWidth="35"
-                    fill="transparent"
-                  />
-                  <Circle
-                    cx="80"
-                    cy="80"
-                    r="62"
-                    stroke="#ff6b35"
-                    strokeWidth="35"
-                    fill="transparent"
-                    strokeDasharray="156 233"
-                    strokeLinecap="round"
-                    transform="rotate(-80 80 80)"
-                  />
-                </Svg>
-              </View>
-            </View>
-          </View>
+          {/* Calorie Progress Component */}
+          <HomepageCaloriesTracking className="mb-4" />
         </View>
       </RefreshScroll>
     </View>
