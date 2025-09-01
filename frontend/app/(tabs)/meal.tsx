@@ -1,17 +1,12 @@
-import { useState } from 'react';
 import { View, Text } from 'react-native';
 import RefreshScroll from "../../components/RefreshScroll";
+import { useGlobalRefresh } from "../../components/useGlobalRefresh";
 
 export default function MealScreen() {
-  const [refreshing, setRefreshing] = useState(false);
-
-  // Simple refresh function - can be expanded later
-  const handleRefresh = () => {
-    setRefreshing(true);
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 1000);
-  };
+  // Global refresh hook (no custom logic needed for meal tab)
+  const { refreshing, handleRefresh } = useGlobalRefresh({
+    tabName: 'meal'
+  });
 
   return (
     <View style={{ flex: 1, backgroundColor: "#1a1a1a" }}>

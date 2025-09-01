@@ -42,6 +42,8 @@ export default function RefreshScroll({
   const isUserTouching = useSharedValue(false);
   const shouldRefreshOnRelease = useSharedValue(false);
   const hasTriggeredHaptic = useSharedValue(false);
+  const lastHapticTime = useSharedValue(0);
+  const isInThresholdZone = useSharedValue(false);
 
   // Spinning animation for refresh icon
   useEffect(() => {
@@ -59,6 +61,11 @@ export default function RefreshScroll({
   // Trigger haptic feedback when refresh threshold is reached
   const triggerHaptic = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  }, []);
+
+  // Trigger repeating light haptics while in threshold zone
+  const triggerRepeatingHaptic = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []);
 
   // Handle touch start
@@ -79,6 +86,8 @@ export default function RefreshScroll({
     // Reset all flags
     shouldRefreshOnRelease.value = false;
     hasTriggeredHaptic.value = false;
+    isInThresholdZone.value = false;
+    lastHapticTime.value = 0;
   }, [onRefresh, refreshing]);
 
   // Handle scroll events with Facebook-style pull-to-refresh logic
@@ -94,10 +103,18 @@ export default function RefreshScroll({
         if (currentPull > refreshThreshold && !refreshing) {
           shouldRefreshOnRelease.value = true;
           
-          // Trigger haptic feedback once when threshold is reached
+          // Trigger initial haptic feedback once when threshold is reached
           if (!hasTriggeredHaptic.value) {
             hasTriggeredHaptic.value = true;
+            isInThresholdZone.value = true;
             runOnJS(triggerHaptic)();
+          }
+          
+          // Trigger repeating light haptics while continuing to scroll in threshold zone
+          const currentTime = Date.now();
+          if (isInThresholdZone.value && currentTime - lastHapticTime.value > 200) {
+            lastHapticTime.value = currentTime;
+            runOnJS(triggerRepeatingHaptic)();
           }
         }
         
@@ -105,11 +122,15 @@ export default function RefreshScroll({
         if (currentPull < refreshThreshold) {
           shouldRefreshOnRelease.value = false;
           hasTriggeredHaptic.value = false;
+          isInThresholdZone.value = false;
+          lastHapticTime.value = 0;
         }
       } else {
         pullDistance.value = 0;
         shouldRefreshOnRelease.value = false;
         hasTriggeredHaptic.value = false;
+        isInThresholdZone.value = false;
+        lastHapticTime.value = 0;
       }
     },
   });

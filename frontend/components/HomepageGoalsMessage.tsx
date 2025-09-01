@@ -2,7 +2,7 @@
 // Ready for future AI integration to generate personalized goal tracking
 // Currently uses random selection from predefined messages
 
-import React, { useState } from 'react';
+import React, { useState, forwardRef, useImperativeHandle } from 'react';
 import { View, Text } from 'react-native';
 
 interface HomepageGoalsMessageProps {
@@ -10,7 +10,7 @@ interface HomepageGoalsMessageProps {
   onRefresh?: () => void; // Callback for when message updates
 }
 
-export default function HomepageGoalsMessage({ className, onRefresh }: HomepageGoalsMessageProps) {
+const HomepageGoalsMessage = forwardRef<any, HomepageGoalsMessageProps>(({ className, onRefresh }, ref) => {
   const [goalMessage, setGoalMessage] = useState("you r almost there! keep it up");
 
   // Placeholder goal messages - will be replaced with AI-generated content
@@ -33,7 +33,7 @@ export default function HomepageGoalsMessage({ className, onRefresh }: HomepageG
   };
 
   // Expose update function for external refresh
-  React.useImperativeHandle(onRefresh, () => ({
+  useImperativeHandle(ref, () => ({
     updateMessage
   }));
 
@@ -49,4 +49,6 @@ export default function HomepageGoalsMessage({ className, onRefresh }: HomepageG
       </Text>
     </View>
   );
-}
+});
+
+export default HomepageGoalsMessage;

@@ -1,5 +1,5 @@
 // app/(tabs)/user.tsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import * as SecureStore from "expo-secure-store";
 import * as ImagePicker from "expo-image-picker";
 import RNPickerSelect from "react-native-picker-select";
 import RefreshScroll from "../../components/RefreshScroll";
+import { useGlobalRefresh } from "../../components/useGlobalRefresh";
 
 const K_PROFILE = "fu_profile";
 
@@ -90,7 +91,22 @@ export default function UserTabProfile() {
   const [profile, setProfile] = useState<Profile>(defaultProfile);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
+  
+  // Global refresh hook with custom user profile refresh logic
+  const { refreshing, handleRefresh } = useGlobalRefresh({
+    tabName: 'user',
+    onInternalRefresh: async () => {
+      try {
+        const raw = await SecureStore.getItemAsync(K_PROFILE);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          setProfile({ ...defaultProfile, ...parsed });
+        }
+      } catch (e) {
+        console.warn("Profile refresh error:", e);
+      }
+    }
+  });
 
   useEffect(() => {
     (async () => {
@@ -130,20 +146,7 @@ export default function UserTabProfile() {
     }
   }
 
-  // Refresh profile data from storage
-  async function handleRefresh() {
-    setRefreshing(true);
-    try {
-      const raw = await SecureStore.getItemAsync(K_PROFILE);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        setProfile({ ...defaultProfile, ...parsed });
-      }
-    } catch (e) {
-      console.warn("Profile refresh error:", e);
-    }
-    setRefreshing(false);
-  }
+
 
   async function save() {
     if (!profile.username.trim()) {

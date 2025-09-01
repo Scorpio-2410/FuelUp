@@ -37,12 +37,11 @@ const HomepageMotivationalQuotes = forwardRef<any, HomepageMotivationalQuotesPro
   }));
 
   return (
-    <View
-      className={`p-6 rounded-2xl relative ${className}`}
+    <View className={`p-6 rounded-2xl relative ${className}`}
       style={{ backgroundColor: "#ffd93d", minHeight: 100 }}>
       <View className="pr-16 flex-1 justify-center">
         <Text className="text-black text-2xl font-bold leading-6">
-          quote of the day: {quote}
+          quote of the day: "{quote}"
         </Text>
       </View>
       <View className="absolute top-4 right-4 w-20 h-20 rounded-lg overflow-hidden">

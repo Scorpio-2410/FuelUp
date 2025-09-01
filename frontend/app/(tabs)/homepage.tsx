@@ -10,6 +10,7 @@ import HomepageMotivationalQuotes from "../../components/HomepageMotivationalQuo
 import HomepageGoalsMessage from "../../components/HomepageGoalsMessage";
 import HomepageSteps from "../../components/HomepageSteps";
 import HomepageCaloriesTracking from "../../components/HomepageCaloriesTracking";
+import { useGlobalRefresh } from "../../components/useGlobalRefresh";
 
 const K_PROFILE = "fu_profile";
 
@@ -48,13 +49,24 @@ export default function HomePageScreen() {
   // Profile state
   const [profile, setProfile] = useState<Profile>({ username: "" });
 
-  // App state
-  const [refreshing, setRefreshing] = useState(false);
-  
   // Refs for triggering component refreshes
   const stepsRef = useRef<{ updateSteps: () => void }>(null);
   const quotesRef = useRef<{ updateQuote: () => void }>(null);
   const caloriesRef = useRef<{ updateCalories: () => void }>(null);
+  const goalsRef = useRef<{ updateMessage: () => void }>(null);
+  
+  // Global refresh hook with custom homepage refresh logic
+  const { refreshing, handleRefresh } = useGlobalRefresh({
+    tabName: 'homepage',
+    refreshDuration: 2000,
+    onInternalRefresh: () => {
+      // Trigger all component refreshes
+      stepsRef.current?.updateSteps();
+      quotesRef.current?.updateQuote();
+      caloriesRef.current?.updateCalories();
+      goalsRef.current?.updateMessage();
+    }
+  });
 
   // Load profile whenever Home is focused
   useFocusEffect(
@@ -76,27 +88,13 @@ export default function HomePageScreen() {
     }, [])
   );
 
-  // Facebook-style refresh function
-  const triggerRefresh = useCallback(() => {
-    if (refreshing) return;
 
-    setRefreshing(true);
-
-    setTimeout(() => {
-      // Trigger all component refreshes
-      stepsRef.current?.updateSteps();
-      quotesRef.current?.updateQuote();
-      caloriesRef.current?.updateCalories();
-      
-      setRefreshing(false);
-    }, 2000);
-  }, [refreshing]);
 
   return (
     <View style={{ flex: 1, backgroundColor: "#1a1a1a" }}>
         <RefreshScroll
         refreshing={refreshing}
-        onRefresh={triggerRefresh}>
+        onRefresh={handleRefresh}>
         <View className="px-6 pb-6" style={{ paddingTop: insets.top + 24 }}>
           {/* Header */}
           <View className="flex-row items-center justify-between mb-8 mt-4">
@@ -126,7 +124,7 @@ export default function HomePageScreen() {
           {/* Stats Cards Row */}
           <View className="flex-row gap-4 mb-6">
             <HomepageSteps ref={stepsRef} />
-            <HomepageGoalsMessage />
+            <HomepageGoalsMessage ref={goalsRef} />
           </View>
 
           {/* Calorie Progress Component */}

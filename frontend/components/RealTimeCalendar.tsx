@@ -83,8 +83,8 @@ export default function RealTimeCalendar({ className }: RealTimeCalendarProps) {
               <Text
                 className={`text-sm ${
                   item.isToday 
-                    ? "text-black font-semibold" 
-                    : "text-white font-medium"
+                    ? "text-black font-bold" 
+                    : "text-white font-normal"
                 }`}>
                 {item.date}
               </Text>
