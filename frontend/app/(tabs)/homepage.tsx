@@ -1,23 +1,15 @@
 // app/(tabs)/homepage.tsx
-import React, { useState, useCallback, useEffect } from "react";
-import { View, Text, ScrollView, Dimensions, Image, Platform } from "react-native";
+import React, { useState, useCallback } from "react";
+import { View, Text, Dimensions, Image, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle } from "react-native-svg";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  useAnimatedScrollHandler,
-  withTiming,
-  withRepeat,
-  interpolate,
-  runOnJS,
-} from "react-native-reanimated";
-import FontAwesome from "@expo/vector-icons/FontAwesome";
 import * as SecureStore from "expo-secure-store";
 import { useFocusEffect } from "expo-router";
 import RealTimeCalendar from "../../components/RealTimeCalendar";
+import RefreshScroll from "../../components/RefreshScroll";
+import HomepageMotivationalQuotes from "../../components/HomepageMotivationalQuotes";
+import GoalMessage from "../../components/GoalMessage";
 
-const AnimatedScrollView = Animated.createAnimatedComponent(ScrollView);
 const K_PROFILE = "fu_profile";
 
 // Platform-safe storage functions
@@ -55,21 +47,10 @@ export default function HomePageScreen() {
   // Profile state
   const [profile, setProfile] = useState<Profile>({ username: "" });
 
-  // Refresh state
+  // App state
   const [refreshing, setRefreshing] = useState(false);
   const [stepCount, setStepCount] = useState(954);
   const [burnedCalories, setBurnedCalories] = useState(400);
-  const [quote, setQuote] = useState("give up bro");
-  const [goalMessage, setGoalMessage] = useState(
-    "you r almost there! keep it up"
-  );
-
-  // Facebook-style pull-to-refresh values
-  const scrollY = useSharedValue(0);
-  const pullDistance = useSharedValue(0);
-  const spinRotation = useSharedValue(0);
-  const lastVelocity = useSharedValue(0);
-  const refreshThreshold = 130;
 
   // Load profile whenever Home is focused
   useFocusEffect(
@@ -91,19 +72,6 @@ export default function HomePageScreen() {
     }, [])
   );
 
-  // Spinning animation for refresh icon
-  useEffect(() => {
-    if (refreshing) {
-      spinRotation.value = withRepeat(
-        withTiming(360, { duration: 1000 }),
-        -1,
-        false
-      );
-    } else {
-      spinRotation.value = 0;
-    }
-  }, [refreshing]);
-
   // Facebook-style refresh function
   const triggerRefresh = useCallback(() => {
     if (refreshing) return;
@@ -113,108 +81,15 @@ export default function HomePageScreen() {
     setTimeout(() => {
       setStepCount(Math.floor(Math.random() * 2000) + 500);
       setBurnedCalories(Math.floor(Math.random() * 600) + 200);
-
-      const quotes = [
-        "give up bro",
-        "you dont got this!",
-        "keep crying",
-        "stay negative!",
-        "almost there! loser",
-        "one more step! loser",
-        "never give up! you are a loser!",
-      ];
-      const goals = [
-        "you r almost there! keep it up loser",
-        "great progress today! loser",
-        "you're on fire! 🔥 loser",
-        "crushing your goals! loser",
-        "keep the momentum! loser",
-        "excellent work! loser",
-        "you're unstoppable! loser",
-        "amazing effort! loser",
-      ];
-
-      setQuote(quotes[Math.floor(Math.random() * quotes.length)]);
-      setGoalMessage(goals[Math.floor(Math.random() * goals.length)]);
-
       setRefreshing(false);
-      pullDistance.value = withTiming(0, { duration: 300 });
     }, 2000);
   }, [refreshing]);
 
-  // Scroll handler
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      scrollY.value = event.contentOffset.y;
-      lastVelocity.value = event.velocity ? event.velocity.y : 0;
-
-      if (event.contentOffset.y <= 0) {
-        const currentPull = Math.abs(event.contentOffset.y);
-        pullDistance.value = currentPull;
-        if (currentPull > refreshThreshold && !refreshing) {
-          runOnJS(triggerRefresh)();
-        }
-      } else {
-        pullDistance.value = 0;
-      }
-    },
-  });
-
-
-
-  const refreshIndicatorStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(
-      pullDistance.value,
-      [0, refreshThreshold * 0.4, refreshThreshold],
-      [0, 0.3, 1]
-    );
-    const translateY = interpolate(
-      pullDistance.value,
-      [0, refreshThreshold],
-      [-50, 0]
-    );
-    const rotation = refreshing
-      ? spinRotation.value
-      : interpolate(pullDistance.value, [0, refreshThreshold], [0, 180]);
-    return {
-      opacity,
-      transform: [{ translateY }, { rotate: `${rotation}deg` }],
-    };
-  });
-
   return (
     <View style={{ flex: 1, backgroundColor: "#1a1a1a" }}>
-      {/* Refresh indicator */}
-      <Animated.View
-        style={[
-          {
-            position: "absolute",
-            top: insets.top + 20,
-            left: "50%",
-            marginLeft: -15,
-            zIndex: 1000,
-            width: 30,
-            height: 30,
-            backgroundColor: "#2a2a2a",
-            borderRadius: 15,
-            alignItems: "center",
-            justifyContent: "center",
-          },
-          refreshIndicatorStyle,
-        ]}>
-        {refreshing ? (
-          <FontAwesome name="spinner" size={16} color="#bbf246" />
-        ) : (
-          <FontAwesome name="refresh" size={16} color="#bbf246" />
-        )}
-      </Animated.View>
-
-      <AnimatedScrollView
-        className="flex-1"
-        showsVerticalScrollIndicator={false}
-        onScroll={scrollHandler}
-        scrollEventThrottle={16}
-        bounces={true}>
+        <RefreshScroll
+        refreshing={refreshing}
+        onRefresh={triggerRefresh}>
         <View className="px-6 pb-6" style={{ paddingTop: insets.top + 24 }}>
           {/* Header */}
           <View className="flex-row items-center justify-between mb-8 mt-4">
@@ -238,23 +113,8 @@ export default function HomePageScreen() {
           {/* Real-time Calendar Component */}
           <RealTimeCalendar className="mb-6" />
 
-          {/* Quote of the day */}
-          <View
-            className="p-6 rounded-2xl mb-6 relative"
-            style={{ backgroundColor: "#ffd93d", minHeight: 100 }}>
-            <View className="pr-16 flex-1 justify-center">
-              <Text className="text-black text-2xl font-bold leading-6">
-                quote of the day: {quote}
-              </Text>
-            </View>
-            <View className="absolute top-4 right-4 w-20 h-20 rounded-lg overflow-hidden">
-              <Image
-                source={require("../../assets/images/motivational.jpg")}
-                className="w-full h-full"
-                style={{ resizeMode: "cover" }}
-              />
-            </View>
-          </View>
+          {/* Motivational Quote Component */}
+          <HomepageMotivationalQuotes className="mb-6" />
 
           {/* Stats Cards Row */}
           <View className="flex-row gap-4 mb-6">
@@ -265,16 +125,7 @@ export default function HomePageScreen() {
               <Text className="text-black text-3xl font-bold">{stepCount}</Text>
               <Text className="text-black text-sm">Steps</Text>
             </View>
-            <View
-              className="flex-1 p-4 rounded-2xl"
-              style={{ backgroundColor: "#bbf246" }}>
-              <Text className="text-black text-xl font-bold mb-1">
-                Your Goal
-              </Text>
-              <Text className="text-black text-base font-medium">
-                {goalMessage}
-              </Text>
-            </View>
+            <GoalMessage />
           </View>
 
           {/* Calorie Progress */}
@@ -341,7 +192,7 @@ export default function HomePageScreen() {
             </View>
           </View>
         </View>
-      </AnimatedScrollView>
+      </RefreshScroll>
     </View>
   );
 }

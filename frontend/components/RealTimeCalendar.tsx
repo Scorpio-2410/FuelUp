@@ -1,6 +1,6 @@
 // Real-time calendar that updates with your timezone
 // Shows current week with today highlighted in white
-// Perfect for day/night themes based on your location!
+// Perfect for day/night themes based on your location
 
 import React, { useState, useEffect } from 'react';
 import { View, Text } from 'react-native';
@@ -81,8 +81,10 @@ export default function RealTimeCalendar({ className }: RealTimeCalendarProps) {
                 item.isToday ? "bg-white" : ""
               }`}>
               <Text
-                className={`text-sm font-medium ${
-                  item.isToday ? "text-black" : "text-white"
+                className={`text-sm ${
+                  item.isToday 
+                    ? "text-black font-semibold" 
+                    : "text-white font-medium"
                 }`}>
                 {item.date}
               </Text>

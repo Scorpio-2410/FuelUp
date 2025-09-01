@@ -1,15 +1,15 @@
-// This file is the layout for the tabs in the app with swipe gestures.
+// Tab layout configuration with clean separation of concerns
+// Uses SwipeNavigate component for gesture handling
 
 import React from 'react';
 import { View } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Tabs, useRouter, useSegments } from 'expo-router';
-import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
-import { runOnJS } from 'react-native-reanimated';
 
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useClientOnlyValue } from '@/components/useClientOnlyValue';
+import SwipeNavigate from '@/components/SwipeNavigate';
 
 // built-in icon families and icons on the web https://icons.expo.fyi/
 function TabBarIcon(props: {
@@ -30,38 +30,21 @@ export default function TabLayout() {
   const currentTabName = segments[segments.length - 1] || 'homepage';
   const currentTabIndex = tabs.findIndex(tab => tab === currentTabName);
 
-  // Navigate to tab by index
-  const navigateToTab = (index: number) => {
-    if (index >= 0 && index < tabs.length && index !== currentTabIndex) {
-      router.push(`/(tabs)/${tabs[index]}` as any);
-    }
+  // Navigate to tab by index - simplified callback for swipe component
+  const handleTabChange = (index: number) => {
+    router.push(`/(tabs)/${tabs[index]}` as any);
   };
 
-  // Swipe gesture for navigation with improved sensitivity
-  const swipeGesture = Gesture.Pan()
-    .activeOffsetX([-15, 15]) // More sensitive horizontal activation
-    .failOffsetY([-20, 20]) // Larger vertical tolerance for scrolling
-    .onEnd((event) => {
-      'worklet';
-      const threshold = 60; // Lower threshold for easier swiping
-      const velocityThreshold = 300; // Lower velocity threshold for more responsive feel
-      
-      const shouldSwipeLeft = event.translationX < -threshold || event.velocityX < -velocityThreshold;
-      const shouldSwipeRight = event.translationX > threshold || event.velocityX > velocityThreshold;
-      
-      if (shouldSwipeLeft && currentTabIndex < tabs.length - 1) {
-        // Swipe left - go to next tab
-        runOnJS(navigateToTab)(currentTabIndex + 1);
-      } else if (shouldSwipeRight && currentTabIndex > 0) {
-        // Swipe right - go to previous tab  
-        runOnJS(navigateToTab)(currentTabIndex - 1);
-      }
-    });
-
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <GestureDetector gesture={swipeGesture}>
-        <View style={{ flex: 1 }}>
+    <SwipeNavigate
+      currentTabIndex={currentTabIndex}
+      totalTabs={tabs.length}
+      onTabChange={handleTabChange}
+      swipeThreshold={60}
+      velocityThreshold={300}
+      horizontalSensitivity={15}
+      verticalTolerance={20}
+    >
           <Tabs
             initialRouteName="homepage"
             screenOptions={{
@@ -116,8 +99,6 @@ export default function TabLayout() {
               }}
             />
           </Tabs>
-        </View>
-      </GestureDetector>
-    </GestureHandlerRootView>
+    </SwipeNavigate>
   );
 }

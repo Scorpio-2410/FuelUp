@@ -15,6 +15,7 @@ import {
 import * as SecureStore from "expo-secure-store";
 import * as ImagePicker from "expo-image-picker";
 import RNPickerSelect from "react-native-picker-select";
+import RefreshScroll from "../../components/RefreshScroll";
 
 const K_PROFILE = "fu_profile";
 
@@ -89,6 +90,7 @@ export default function UserTabProfile() {
   const [profile, setProfile] = useState<Profile>(defaultProfile);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -128,6 +130,21 @@ export default function UserTabProfile() {
     }
   }
 
+  // Refresh profile data from storage
+  async function handleRefresh() {
+    setRefreshing(true);
+    try {
+      const raw = await SecureStore.getItemAsync(K_PROFILE);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        setProfile({ ...defaultProfile, ...parsed });
+      }
+    } catch (e) {
+      console.warn("Profile refresh error:", e);
+    }
+    setRefreshing(false);
+  }
+
   async function save() {
     if (!profile.username.trim()) {
       Alert.alert("Username required", "Please enter a username.");
@@ -151,11 +168,8 @@ export default function UserTabProfile() {
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       className="flex-1 bg-black">
-      <ScrollView
-        className="flex-1 px-5 pt-8"
-        contentContainerStyle={{ paddingBottom: 120 }}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}>
+      <RefreshScroll refreshing={refreshing} onRefresh={handleRefresh}>
+        <View className="flex-1 px-5 pt-8" style={{ paddingBottom: 120 }}>
         <Text className="text-2xl font-semibold text-white mb-4">
           Your Profile
         </Text>
@@ -300,7 +314,8 @@ export default function UserTabProfile() {
             onValueChange={(v) => setProfile({ ...profile, notifications: v })}
           />
         </Row>
-      </ScrollView>
+        </View>
+      </RefreshScroll>
 
       {/* Save */}
       <View className="px-5 pb-6">
