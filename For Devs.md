@@ -3,11 +3,13 @@
 This guide helps new contributors get the app running quickly on web and devices.
 
 ### Requirements (Windows/macOS)
+
 - Install the latest Node.js (includes npm)
 - Install Git
 - Install Expo Go on your phone (Android/iOS) - for mobile testing
 
 #### macOS (Terminal)
+
 ```bash
 # Install Homebrew if needed: https://brew.sh
 brew install node git
@@ -20,10 +22,12 @@ Optional: Android Studio for emulator, Xcode for iOS simulator (macOS only).
 ## 📱 Frontend (React Native + Expo)
 
 Reference docs:
+
 - NativeWind Installation (Expo): [nativewind.dev/docs/getting-started/installation](https://www.
-nativewind.dev/docs/getting-started/installation)
+  nativewind.dev/docs/getting-started/installation)
 
 ### Quick Start
+
 ```bash
 cd frontend
 npm install
@@ -31,22 +35,26 @@ npx expo start (can also do this for hard reset run: npx expo start --clear)
 ```
 
 ### Running Options
+
 - **Mobile**: Scan QR code with Expo Go app
 - **Web**: Press `w` in terminal or `npm run web`
 - **Android Emulator**: Press `a` in terminal
 - **iOS Simulator**: Press `i` in terminal (macOS only)
 
 ### Troubleshooting
+
 - If phone can't connect: use `npx expo start --tunnel`
 - If QR fails: paste the `exp://...` URL into Expo Go manually
 
 ### Tech Stack
+
 - **Framework**: Expo Router (file-based routing)
 - **Styling**: NativeWind v4 + Tailwind CSS v3
 - **Language**: TypeScript
 - **Platform**: React Native (iOS/Android/Web)
 
 ### Useful Commands
+
 ```bash
 # From frontend/ folder
 npm run start            # same as `expo start`
@@ -61,6 +69,7 @@ tsc --noEmit
 ```
 
 ### Dependencies
+
 - Keep Tailwind on v3 for NativeWind v4 compatibility
 - Use `npx expo install` when adding Expo packages
 
@@ -68,9 +77,10 @@ tsc --noEmit
 
 ## 🚀 Backend (Node.js + Express + PostgreSQL)
 
-### Setup Steps **Check MSteams pinned message** for the `.env` file 
+### Setup Steps **Check MSteams pinned message** for the `.env` file
 
 ### Environment Setup
+
 ```bash
 cd backend
 npm install
@@ -80,6 +90,7 @@ npm install
 ```
 
 ### Quick Start
+
 ```bash
 cd backend
 npm install
@@ -87,12 +98,14 @@ npm run dev    # Auto-reload on changes
 ```
 
 ### Commands
+
 ```bash
 npm run dev    # Development with auto-reload (nodemon)
 npm start      # Production mode
 ```
 
 ### Troubleshooting
+
 - **Database connection error**: Check your `DATABASE_URL` in `.env`
 - **JWT error**: Ensure `JWT_SECRET` is set in `.env`
 - **Port 4000 busy**: Use `PORT=4001 npm run dev` or kill the conflicting process

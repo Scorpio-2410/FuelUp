@@ -16,7 +16,7 @@ const K_PROFILE = "fu_profile";
 
 // Platform-safe storage functions
 const getStorageItem = async (key: string): Promise<string | null> => {
-  if (Platform.OS === 'web') {
+  if (Platform.OS === "web") {
     // Use localStorage for web
     return localStorage.getItem(key);
   } else {
@@ -26,7 +26,7 @@ const getStorageItem = async (key: string): Promise<string | null> => {
 };
 
 const setStorageItem = async (key: string, value: string): Promise<void> => {
-  if (Platform.OS === 'web') {
+  if (Platform.OS === "web") {
     // Use localStorage for web
     localStorage.setItem(key, value);
   } else {
@@ -54,10 +54,10 @@ export default function HomePageScreen() {
   const quotesRef = useRef<{ updateQuote: () => void }>(null);
   const caloriesRef = useRef<{ updateCalories: () => void }>(null);
   const goalsRef = useRef<{ updateMessage: () => void }>(null);
-  
+
   // Global refresh hook with custom homepage refresh logic
   const { refreshing, handleRefresh } = useGlobalRefresh({
-    tabName: 'homepage',
+    tabName: "homepage",
     refreshDuration: 2000,
     onInternalRefresh: () => {
       // Trigger all component refreshes
@@ -65,7 +65,7 @@ export default function HomePageScreen() {
       quotesRef.current?.updateQuote();
       caloriesRef.current?.updateCalories();
       goalsRef.current?.updateMessage();
-    }
+    },
   });
 
   // Load profile whenever Home is focused
@@ -88,13 +88,9 @@ export default function HomePageScreen() {
     }, [])
   );
 
-
-
   return (
     <View style={{ flex: 1, backgroundColor: "#1a1a1a" }}>
-        <RefreshScroll
-        refreshing={refreshing}
-        onRefresh={handleRefresh}>
+      <RefreshScroll refreshing={refreshing} onRefresh={handleRefresh}>
         <View className="px-6 pb-6" style={{ paddingTop: insets.top + 24 }}>
           {/* Header */}
           <View className="flex-row items-center justify-between mb-8 mt-4">
@@ -105,7 +101,8 @@ export default function HomePageScreen() {
             </View>
             <View
               className="w-20 h-20 rounded-full overflow-hidden"
-              style={{ backgroundColor: "#2a2a2a" }}>
+              style={{ backgroundColor: "#2a2a2a" }}
+            >
               {profile.avatarUri ? (
                 <Image
                   source={{ uri: profile.avatarUri }}
