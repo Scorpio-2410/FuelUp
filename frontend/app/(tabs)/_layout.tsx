@@ -130,16 +130,7 @@ export default function TabLayout() {
                 headerShown: false,
               }}
             />
-            <Tabs.Screen
-              name="targetquestions"
-              options={{
-                title: "Target Questions",
-                tabBarIcon: ({ color }) => (
-                  <TabBarIcon name="question" color={color} />
-                ),
-                headerShown: false,
-              }}
-            />
+            {/** TargetQuestions removed from tab bar */}
           </Tabs>
         </View>
       </GestureDetector>
