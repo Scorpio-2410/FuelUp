@@ -1,5 +1,5 @@
 // app/(tabs)/user.tsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -15,6 +15,8 @@ import {
 import * as SecureStore from "expo-secure-store";
 import * as ImagePicker from "expo-image-picker";
 import RNPickerSelect from "react-native-picker-select";
+import RefreshScroll from "../../components/RefreshScroll";
+import { useGlobalRefresh } from "../../components/useGlobalRefresh";
 
 const K_PROFILE = "fu_profile";
 
@@ -90,6 +92,22 @@ export default function UserTabProfile() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  // Global refresh hook with custom user profile refresh logic
+  const { refreshing, handleRefresh } = useGlobalRefresh({
+    tabName: "user",
+    onInternalRefresh: async () => {
+      try {
+        const raw = await SecureStore.getItemAsync(K_PROFILE);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          setProfile({ ...defaultProfile, ...parsed });
+        }
+      } catch (e) {
+        console.warn("Profile refresh error:", e);
+      }
+    },
+  });
+
   useEffect(() => {
     (async () => {
       try {
@@ -150,166 +168,166 @@ export default function UserTabProfile() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
-      className="flex-1 bg-black">
-      <ScrollView
-        className="flex-1 px-5 pt-8"
-        contentContainerStyle={{ paddingBottom: 120 }}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}>
-        <Text className="text-2xl font-semibold text-white mb-4">
-          Your Profile
-        </Text>
-
-        {/* Avatar + username */}
-        <Pressable onPress={pickAvatar} className="items-center mb-4">
-          <View className="w-28 h-28 rounded-full bg-neutral-800 overflow-hidden items-center justify-center">
-            {profile.avatarUri ? (
-              <Image
-                source={{ uri: profile.avatarUri }}
-                className="w-full h-full"
-              />
-            ) : (
-              <Text className="text-neutral-400">Pick Avatar</Text>
-            )}
-          </View>
-          <Text className="text-neutral-400 mt-2">
-            {profile.username ? profile.username : "username"}
+      className="flex-1 bg-black"
+    >
+      <RefreshScroll refreshing={refreshing} onRefresh={handleRefresh}>
+        <View className="flex-1 px-5 pt-8" style={{ paddingBottom: 120 }}>
+          <Text className="text-2xl font-semibold text-white mb-4">
+            Your Profile
           </Text>
-        </Pressable>
 
-        {/* Username */}
-        <Field label="Username (shown in app)">
-          <TextInput
-            className="bg-neutral-900 text-white rounded-lg px-3 py-3 border border-neutral-800"
-            placeholder="username"
-            placeholderTextColor="#9CA3AF"
-            autoCapitalize="none"
-            value={profile.username}
-            onChangeText={(v) => setProfile({ ...profile, username: v })}
-          />
-        </Field>
+          {/* Avatar + username */}
+          <Pressable onPress={pickAvatar} className="items-center mb-4">
+            <View className="w-28 h-28 rounded-full bg-neutral-800 overflow-hidden items-center justify-center">
+              {profile.avatarUri ? (
+                <Image
+                  source={{ uri: profile.avatarUri }}
+                  className="w-full h-full"
+                />
+              ) : (
+                <Text className="text-neutral-400">Pick Avatar</Text>
+              )}
+            </View>
+            <Text className="text-neutral-400 mt-2">
+              {profile.username ? profile.username : "username"}
+            </Text>
+          </Pressable>
 
-        {/* Full name */}
-        <Field label="Full name">
-          <TextInput
-            className="bg-neutral-900 text-white rounded-lg px-3 py-3 border border-neutral-800"
-            placeholder="Your full name"
-            placeholderTextColor="#9CA3AF"
-            value={profile.fullName}
-            onChangeText={(v) => setProfile({ ...profile, fullName: v })}
-          />
-        </Field>
+          {/* Username */}
+          <Field label="Username (shown in app)">
+            <TextInput
+              className="bg-neutral-900 text-white rounded-lg px-3 py-3 border border-neutral-800"
+              placeholder="username"
+              placeholderTextColor="#9CA3AF"
+              autoCapitalize="none"
+              value={profile.username}
+              onChangeText={(v) => setProfile({ ...profile, username: v })}
+            />
+          </Field>
 
-        {/* Email */}
-        <Field label="Email">
-          <TextInput
-            className="bg-neutral-900 text-white rounded-lg px-3 py-3 border border-neutral-800"
-            placeholder="you@example.com"
-            placeholderTextColor="#9CA3AF"
-            autoCapitalize="none"
-            keyboardType="email-address"
-            value={profile.email}
-            onChangeText={(v) => setProfile({ ...profile, email: v })}
-          />
-        </Field>
+          {/* Full name */}
+          <Field label="Full name">
+            <TextInput
+              className="bg-neutral-900 text-white rounded-lg px-3 py-3 border border-neutral-800"
+              placeholder="Your full name"
+              placeholderTextColor="#9CA3AF"
+              value={profile.fullName}
+              onChangeText={(v) => setProfile({ ...profile, fullName: v })}
+            />
+          </Field>
 
-        {/* DOB */}
-        <Field label="Date of birth (YYYY-MM-DD)">
-          <TextInput
-            className="bg-neutral-900 text-white rounded-lg px-3 py-3 border border-neutral-800"
-            placeholder="1999-04-12"
-            placeholderTextColor="#9CA3AF"
-            value={profile.dob ?? ""}
-            onChangeText={(v) => setProfile({ ...profile, dob: v })}
-          />
-        </Field>
+          {/* Email */}
+          <Field label="Email">
+            <TextInput
+              className="bg-neutral-900 text-white rounded-lg px-3 py-3 border border-neutral-800"
+              placeholder="you@example.com"
+              placeholderTextColor="#9CA3AF"
+              autoCapitalize="none"
+              keyboardType="email-address"
+              value={profile.email}
+              onChangeText={(v) => setProfile({ ...profile, email: v })}
+            />
+          </Field>
 
-        {/* Height */}
-        <Field label="Height (cm)">
-          <TextInput
-            className="bg-neutral-900 text-white rounded-lg px-3 py-3 border border-neutral-800"
-            placeholder="175"
-            placeholderTextColor="#9CA3AF"
-            keyboardType="numeric"
-            value={profile.heightCm?.toString() ?? ""}
-            onChangeText={(v) =>
-              setProfile({ ...profile, heightCm: v ? Number(v) : undefined })
-            }
-          />
-        </Field>
+          {/* DOB */}
+          <Field label="Date of birth (YYYY-MM-DD)">
+            <TextInput
+              className="bg-neutral-900 text-white rounded-lg px-3 py-3 border border-neutral-800"
+              placeholder="1999-04-12"
+              placeholderTextColor="#9CA3AF"
+              value={profile.dob ?? ""}
+              onChangeText={(v) => setProfile({ ...profile, dob: v })}
+            />
+          </Field>
 
-        {/* Weight */}
-        <Field label="Weight (kg)">
-          <TextInput
-            className="bg-neutral-900 text-white rounded-lg px-3 py-3 border border-neutral-800"
-            placeholder="70"
-            placeholderTextColor="#9CA3AF"
-            keyboardType="numeric"
-            value={profile.weightKg?.toString() ?? ""}
-            onChangeText={(v) =>
-              setProfile({ ...profile, weightKg: v ? Number(v) : undefined })
-            }
-          />
-        </Field>
+          {/* Height */}
+          <Field label="Height (cm)">
+            <TextInput
+              className="bg-neutral-900 text-white rounded-lg px-3 py-3 border border-neutral-800"
+              placeholder="175"
+              placeholderTextColor="#9CA3AF"
+              keyboardType="numeric"
+              value={profile.heightCm?.toString() ?? ""}
+              onChangeText={(v) =>
+                setProfile({ ...profile, heightCm: v ? Number(v) : undefined })
+              }
+            />
+          </Field>
 
-        {/* Ethnicity */}
-        <Field label="Ethnicity">
-          <Dropdown
-            value={profile.ethnicity ?? "not_specified"}
-            items={ETHNICITY_ITEMS}
-            placeholderLabel="Select ethnicity"
-            onChange={(v) => setProfile({ ...profile, ethnicity: v })}
-          />
-        </Field>
+          {/* Weight */}
+          <Field label="Weight (kg)">
+            <TextInput
+              className="bg-neutral-900 text-white rounded-lg px-3 py-3 border border-neutral-800"
+              placeholder="70"
+              placeholderTextColor="#9CA3AF"
+              keyboardType="numeric"
+              value={profile.weightKg?.toString() ?? ""}
+              onChangeText={(v) =>
+                setProfile({ ...profile, weightKg: v ? Number(v) : undefined })
+              }
+            />
+          </Field>
 
-        {/* Follow-up questions frequency */}
-        <Field label="Follow-up questions frequency">
-          <Dropdown
-            value={profile.followUpFrequency ?? "daily"}
-            items={FREQUENCY_ITEMS}
-            placeholderLabel="Choose frequency"
-            onChange={(v) =>
-              setProfile({
-                ...profile,
-                followUpFrequency: v as Profile["followUpFrequency"],
-              })
-            }
-          />
-        </Field>
+          {/* Ethnicity */}
+          <Field label="Ethnicity">
+            <Dropdown
+              value={profile.ethnicity ?? "not_specified"}
+              items={ETHNICITY_ITEMS}
+              placeholderLabel="Select ethnicity"
+              onChange={(v) => setProfile({ ...profile, ethnicity: v })}
+            />
+          </Field>
 
-        {/* Fitness goal */}
-        <Field label="Fitness goal">
-          <Dropdown
-            value={profile.fitnessGoal ?? "general_health"}
-            items={FITNESS_GOAL_ITEMS}
-            placeholderLabel="Select primary goal"
-            onChange={(v) =>
-              setProfile({
-                ...profile,
-                fitnessGoal: v as Profile["fitnessGoal"],
-              })
-            }
-          />
-        </Field>
+          {/* Follow-up questions frequency */}
+          <Field label="Follow-up questions frequency">
+            <Dropdown
+              value={profile.followUpFrequency ?? "daily"}
+              items={FREQUENCY_ITEMS}
+              placeholderLabel="Choose frequency"
+              onChange={(v) =>
+                setProfile({
+                  ...profile,
+                  followUpFrequency: v as Profile["followUpFrequency"],
+                })
+              }
+            />
+          </Field>
 
-        {/* Notifications */}
-        <Row>
-          <Text className="text-white font-medium">Notifications</Text>
-          <Switch
-            value={profile.notifications}
-            onValueChange={(v) => setProfile({ ...profile, notifications: v })}
-          />
-        </Row>
-      </ScrollView>
+          {/* Fitness goal */}
+          <Field label="Fitness goal">
+            <Dropdown
+              value={profile.fitnessGoal ?? "general_health"}
+              items={FITNESS_GOAL_ITEMS}
+              placeholderLabel="Select primary goal"
+              onChange={(v) =>
+                setProfile({
+                  ...profile,
+                  fitnessGoal: v as Profile["fitnessGoal"],
+                })
+              }
+            />
+          </Field>
+
+          {/* Notifications */}
+          <Row>
+            <Text className="text-white font-medium">Notifications</Text>
+            <Switch
+              value={profile.notifications}
+              onValueChange={(v) =>
+                setProfile({ ...profile, notifications: v })
+              }
+            />
+          </Row>
+        </View>
+      </RefreshScroll>
 
       {/* Save */}
       <View className="px-5 pb-6">
         <Pressable
           onPress={save}
           disabled={saving}
-          className={`rounded-xl p-3 ${
-            saving ? "bg-blue-400" : "bg-blue-600"
-          }`}>
+          className={`rounded-xl p-3 ${saving ? "bg-blue-400" : "bg-blue-600"}`}
+        >
           <Text className="text-white text-center font-semibold">
             {saving ? "Saving…" : "Save"}
           </Text>

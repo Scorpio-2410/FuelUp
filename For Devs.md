@@ -1,74 +1,113 @@
 ## For Dev
 
-This guide helps new contributors get the app running quickly on web and devices, and explains our Expo + NativeWind/Tailwind setup.
-
-Reference docs:
-- NativeWind Installation (Expo): [nativewind.dev/docs/getting-started/installation](https://www.nativewind.dev/docs/getting-started/installation)
+This guide helps new contributors get the app running quickly on web and devices.
 
 ### Requirements (Windows/macOS)
+
 - Install the latest Node.js (includes npm)
 - Install Git
-- Install Expo Go on your phone (Android/iOS)
+- Install Expo Go on your phone (Android/iOS) - for mobile testing
 
 #### macOS (Terminal)
-```
+
+```bash
 # Install Homebrew if needed: https://brew.sh
 brew install node git
 ```
 
-Optional (both OS): Android Studio for emulator. Xcode for iOS simulator (macOS only).
+Optional: Android Studio for emulator, Xcode for iOS simulator (macOS only).
 
-### Quick start
-```
+---
+
+## 📱 Frontend (React Native + Expo)
+
+Reference docs:
+
+- NativeWind Installation (Expo): [nativewind.dev/docs/getting-started/installation](https://www.
+  nativewind.dev/docs/getting-started/installation)
+
+### Quick Start
+
+```bash
 cd frontend
 npm install
-npx expo start
-# If your phone is not on the same Wi‑Fi, use:
-# npx expo start --tunnel
+npx expo start (can also do this for hard reset run: npx expo start --clear)
 ```
 
-- Scan the QR from the terminal. If scanning fails, press Enter URL and paste the `exp://...exp.direct` link shown by Expo.
-- Web: `npm run web`
-- Android emulator (optional): run `npx expo start` then press `a` in the CLI
+### Running Options
 
-Tips:
-- Use the default connection first; switch to `--tunnel` if your phone and laptop aren’t on the same network.
-- If the QR doesn’t open, paste the `exp://...` URL from the CLI into Expo Go.
+- **Mobile**: Scan QR code with Expo Go app
+- **Web**: Press `w` in terminal or `npm run web`
+- **Android Emulator**: Press `a` in terminal
+- **iOS Simulator**: Press `i` in terminal (macOS only)
 
-### Project layout
-- `frontend/`: Expo Router app (React Nativewind + TypeScript)
-- `backend/`: Server code (Nodejs, SQL,...)
+### Troubleshooting
 
-### Styling stack
-Already configured in the repo (NativeWind v4 + Tailwind v3). You do not need to set up Babel or Tailwind locally—just install and run. For reference, see the official docs if you’re curious about the configuration details.
+- If phone can't connect: use `npx expo start --tunnel`
+- If QR fails: paste the `exp://...` URL into Expo Go manually
 
-Tips:
-- CSS gradients are web-only. For native gradients, add `expo-linear-gradient` when needed.
+### Tech Stack
 
-### Useful commands
-```
-# From the frontend folder
+- **Framework**: Expo Router (file-based routing)
+- **Styling**: NativeWind v4 + Tailwind CSS v3
+- **Language**: TypeScript
+- **Platform**: React Native (iOS/Android/Web)
+
+### Useful Commands
+
+```bash
+# From frontend/ folder
 npm run start            # same as `expo start`
-npm run android          # start Android target directly
+npm run android          # start Android directly
+npm run web              # start web directly
 
-# Clear Metro cache if bundling behaves oddly
+# Clear Metro cache if issues
 npx expo start --clear
 
-# Lint/typecheck (if configured in scripts)
-npm run typecheck || tsc --noEmit
+# TypeScript check
+tsc --noEmit
 ```
 
-### Dependency notes
-- Keep Tailwind on v3 (e.g., `tailwindcss@3.4.17`) for NativeWind v4 compatibility.
-- When upgrading Expo SDK, use `npx expo install` to align versions.
+### Dependencies
 
-Packages used (install when needed):
-- Native gradients: `expo-linear-gradient`
-  - Install:
-    ```
-    cd frontend
-    npx expo install expo-linear-gradient
-    ```
-  - Use to render time-of-day gradients on Android/iOS.
-  
-If anything in this guide becomes outdated, please update this file as part of your PR.
+- Keep Tailwind on v3 for NativeWind v4 compatibility
+- Use `npx expo install` when adding Expo packages
+
+---
+
+## 🚀 Backend (Node.js + Express + PostgreSQL)
+
+### Setup Steps **Check MSteams pinned message** for the `.env` file
+
+### Environment Setup
+
+```bash
+cd backend
+npm install
+
+# Save the .env file from email as backend/.env
+# Then you're ready to go!
+```
+
+### Quick Start
+
+```bash
+cd backend
+npm install
+npm run dev    # Auto-reload on changes
+```
+
+### Commands
+
+```bash
+npm run dev    # Development with auto-reload (nodemon)
+npm start      # Production mode
+```
+
+### Troubleshooting
+
+- **Database connection error**: Check your `DATABASE_URL` in `.env`
+- **JWT error**: Ensure `JWT_SECRET` is set in `.env`
+- **Port 4000 busy**: Use `PORT=4001 npm run dev` or kill the conflicting process
+
+If anything becomes outdated, please update this file.
