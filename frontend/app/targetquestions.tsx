@@ -44,7 +44,7 @@ const randomDailyQuestions: Question[] = [
   },
   {
     id: 3,
-    question: "What's is our stress level today?",
+    question: "What's is our stress level today?", //change slider options to different emoji
     options: ["1", "2", "3", "4"],
     isSlider: true,
   },
@@ -330,18 +330,22 @@ export default function QuestionSegment() {
                       marginBottom: 16,
                     }}
                   >
-                    {["💤", "🥲", "😄", "⚡️", "🔥"].map((value) => (
-                      <Text
-                        key={value}
-                        style={{
-                          color: "#a1a1aa",
-                          fontSize: 28,
-                          fontWeight: "500",
-                        }}
-                      >
-                        {value}
-                      </Text>
-                    ))}
+                    {["💤", "🥲", "😄", "⚡️", "🔥"].map(
+                      (
+                        value //change slider options to different emoji for different questions
+                      ) => (
+                        <Text
+                          key={value}
+                          style={{
+                            color: "#a1a1aa",
+                            fontSize: 28,
+                            fontWeight: "500",
+                          }}
+                        >
+                          {value}
+                        </Text>
+                      )
+                    )}
                   </View>
 
                   {/* Slider Track */}
@@ -498,7 +502,8 @@ export default function QuestionSegment() {
                     onPress={() => handleOptionSelect(index)}
                   >
                     {/* Icon based on question and option */}
-                    {currentQuestion.id === 1 && (
+                    {currentQuestion.question ===
+                      "What's our workout for today?" && (
                       <FontAwesome
                         name={
                           option === "Strength"
@@ -514,7 +519,7 @@ export default function QuestionSegment() {
                         style={{ marginRight: 12 }}
                       />
                     )}
-                    {currentQuestion.id === 2 && (
+                    {currentQuestion.question === "Plans for our meals?" && (
                       <FontAwesome
                         name={
                           option === "Low-carb"
@@ -532,63 +537,6 @@ export default function QuestionSegment() {
                         style={{ marginRight: 12 }}
                       />
                     )}
-                    {/* Icons for random daily questions
-                    {currentQuestion.question.includes("sleeping") && (
-                      <FontAwesome
-                        name="bed"
-                        size={20}
-                        color={selectedOption === index ? "black" : "#a1a1aa"}
-                        style={{ marginRight: 12 }}
-                      />
-                    )}
-                    {currentQuestion.question.includes("exercise") && (
-                      <FontAwesome
-                        name="clock-o"
-                        size={20}
-                        color={selectedOption === index ? "black" : "#a1a1aa"}
-                        style={{ marginRight: 12 }}
-                      />
-                    )}
-                    {currentQuestion.question.includes("stress") && (
-                      <FontAwesome
-                        name="exclamation-triangle"
-                        size={20}
-                        color={selectedOption === index ? "black" : "#a1a1aa"}
-                        style={{ marginRight: 12 }}
-                      />
-                    )}
-                    {currentQuestion.question.includes("soreness") && (
-                      <FontAwesome
-                        name="medkit"
-                        size={20}
-                        color={selectedOption === index ? "black" : "#a1a1aa"}
-                        style={{ marginRight: 12 }}
-                      />
-                    )}
-                    {currentQuestion.question.includes("progress") && (
-                      <FontAwesome
-                        name="trophy"
-                        size={20}
-                        color={selectedOption === index ? "black" : "#a1a1aa"}
-                        style={{ marginRight: 12 }}
-                      />
-                    )}
-                    {currentQuestion.question.includes("cravings") && (
-                      <FontAwesome
-                        name="heart"
-                        size={20}
-                        color={selectedOption === index ? "black" : "#a1a1aa"}
-                        style={{ marginRight: 12 }}
-                      />
-                    )}
-                    {currentQuestion.question.includes("hydration") && (
-                      <FontAwesome
-                        name="tint"
-                        size={20}
-                        color={selectedOption === index ? "black" : "#a1a1aa"}
-                        style={{ marginRight: 12 }}
-                      />
-                    )} */}
                     <Text
                       style={{
                         fontSize: 16,
