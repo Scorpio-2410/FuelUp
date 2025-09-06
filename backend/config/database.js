@@ -99,6 +99,9 @@ const initializeDatabase = async () => {
       CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
     `);
 
+
+
+
     console.log('✅ Database tables initialized successfully');
     client.release();
   } catch (err) {
