@@ -29,13 +29,14 @@ export default function QuestionSlider({
   const trackW = useSharedValue(1);
   const startXRef = useRef<number>(0);
   const hasDraggedRef = useRef<boolean>(false);
+  const trackXRef = useRef<number>(0);
 
   const stepCount = maxValue - minValue + 1;
 
-  // Update progress when value changes
+  // Update progress when value changes (but not during drag)
   useEffect(() => {
-    const p = (value - minValue) / (stepCount - 1);
     if (!isDragging) {
+      const p = (value - minValue) / (stepCount - 1);
       progress.value = withTiming(p, { duration: 180 });
     }
   }, [value, isDragging, minValue, stepCount]);
@@ -109,30 +110,31 @@ export default function QuestionSlider({
           position: "relative",
         }}
         onLayout={(e) => {
-          const w = e.nativeEvent.layout.width;
-          trackW.value = w;
+          const { width, x } = e.nativeEvent.layout;
+          trackW.value = width;
+          trackXRef.current = x;
         }}
         onStartShouldSetResponder={() => true}
         onMoveShouldSetResponder={() => true}
         onResponderGrant={(event) => {
-          startXRef.current = event.nativeEvent.locationX;
+          const { pageX } = event.nativeEvent;
+          startXRef.current = pageX;
           hasDraggedRef.current = false;
           setIsDragging(true);
         }}
         onResponderMove={(event) => {
-          const touchX = event.nativeEvent.locationX;
-          const dragDistance = Math.abs(touchX - startXRef.current);
+          const { pageX } = event.nativeEvent;
+          const dragDistance = Math.abs(pageX - startXRef.current);
 
           // Only start dragging after moving 6px
           if (!hasDraggedRef.current && dragDistance < 6) return;
 
           hasDraggedRef.current = true;
 
-          // Update slider position - to fix
-          const newProgress = Math.max(
-            0,
-            Math.min(stepCount - 1, Math.abs(touchX / trackW.value))
-          );
+          // Calculate relative position within the track
+          const relativeX = pageX - trackXRef.current;
+          const clampedX = Math.max(0, Math.min(trackW.value, relativeX));
+          const newProgress = clampedX / trackW.value;
           progress.value = newProgress;
 
           // Update value if changed
