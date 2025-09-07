@@ -179,6 +179,22 @@ class User {
     }
   }
 
+  static async addCheckIn(userId, { date, weightKg, steps, adherencePct }) {
+    const q = `
+      INSERT INTO check_ins (user_id, checkin_date, weight_kg, steps, adherence_pct)
+      VALUES ($1,$2,$3,$4,$5) RETURNING *`;
+    const v = [userId, date || new Date(), weightKg, steps ?? null, adherencePct ?? null];
+    const { rows } = await pool.query(q, v);
+    return rows[0];
+  }
+
+
+  static async getLastTwoCheckIns(userId) {
+    const q = `SELECT * FROM check_ins WHERE user_id=$1 ORDER BY checkin_date DESC LIMIT 2`;
+    const { rows } = await pool.query(q, [userId]);
+    return rows;
+  }
+
   // Get user without password (for API responses)
   toJSON() {
     const { password, ...userWithoutPassword } = this;
@@ -200,6 +216,11 @@ class User {
     if (!this.weightKg || !this.heightCm || !this.dob) {
       return this.dailyCalorieGoal || 2000;
     }
+
+    const w = parseFloat(this.weightKg);
+    const h = parseFloat(this.heightCm);
+    if (!w || !h || !this.dob) return this.dailyCalorieGoal || 2000;
+
 
     // Calculate age
     const today = new Date();
@@ -254,7 +275,7 @@ class User {
     if (!this.weightKg) {
       return { calories, protein_g: null, fat_g: null, carbs_g: null };
     }
-
+    const goal = this.fitnessGoal || 'general_health';
     const PROTEIN_PER_KG = {
       general_health: 1.6,
       recomposition: 2.0,
@@ -263,11 +284,12 @@ class User {
       build_muscle: 1.8,
       lose_weight: 2.0  //high protein to maintain muscle mass
     };
-    const goal = this.fitnessGoal || 'general_health';
     const proteinPerKg = PROTEIN_PER_KG[goal] ?? 1.6;
+
     //calculate protein and carbs
     const protein_g = Math.round(proteinPerKg * this.weightKg);
     const fat_g = Math.round(Math.max(0.6 * this.weightKg, 0));
+
     //calculate allocated calories for fat and protein and remainder is used for carbs
     const usedCal = protein_g * 4 + fat_g * 9; // 1g protein has 4 cals, 1g fat has 9 cals.
     const carbs_g = Math.max(0, Math.round((calories - usedCal) / 4)); // 1g carb has 4 cals. hence total cals - used /4
@@ -284,6 +306,8 @@ class User {
       flags
     };
   }
+
+
 }
 
 

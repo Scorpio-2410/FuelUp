@@ -91,6 +91,19 @@ const initializeDatabase = async () => {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+      
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS check_ins (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        checkin_date DATE NOT NULL DEFAULT CURRENT_DATE,
+        weight_kg DECIMAL(5,2) NOT NULL,
+        steps INTEGER,
+        adherence_pct DECIMAL(5,2),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_checkins_user_date ON check_ins(user_id, checkin_date);
+  `);
 
     // Create indexes for better performance
     await client.query(`
@@ -98,17 +111,17 @@ const initializeDatabase = async () => {
       CREATE INDEX IF NOT EXISTS idx_exercises_user_date ON exercises(user_id, exercise_date);
       CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
     `);
-
-
-
-
+  
     console.log('✅ Database tables initialized successfully');
     client.release();
   } catch (err) {
     console.error('❌ Database initialization error:', err.message);
     throw err;
   }
+  
 };
+
+
 
 module.exports = {
   pool,

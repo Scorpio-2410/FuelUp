@@ -204,7 +204,8 @@ class UserController {
         recommendedCalories: user.getRecommendedCalories(),
         currentGoal: user.dailyCalorieGoal,
         fitnessGoal: user.fitnessGoal,
-        activityLevel: user.activityLevel
+        activityLevel: user.activityLevel,
+        plan: user.getMacroPlan()
       };
 
       res.json({
@@ -217,6 +218,58 @@ class UserController {
       });
     }
   }
+  
+  static async addCheckIn(req, res) {
+  try {
+    const { date, weightKg, steps, adherencePct } = req.body;
+    if (weightKg == null) return res.status(400).json({ error: 'weightKg is required' });
+
+    const user = await User.findById(req.userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const inserted = await User.addCheckIn(req.userId, { date, weightKg, steps, adherencePct });
+
+    // Auto-adjust using last 2 weights (≈ weekly)
+    const lastTwo = await User.getLastTwoCheckIns(req.userId);
+    let adjustedCalories = null;
+
+    if (lastTwo.length === 2) {
+      const now = parseFloat(lastTwo[0].weight_kg);
+      const prev = parseFloat(lastTwo[1].weight_kg);
+      const delta = now - prev; // kg change since previous check-in
+
+      const goal = user.fitnessGoal || 'general_health';
+      let tweak = 0;
+
+      if (goal === 'lose_weight') {
+        if (delta > -0.2) tweak = -150;      // not losing → trim 150 kcal
+        else if (delta < -0.8) tweak = +150; // losing too fast → add 150
+      } else if (goal === 'build_muscle' || goal === 'improve_strength') {
+        if (delta < 0.1) tweak = +150;       // gaining too slow
+        else if (delta > 0.5) tweak = -150;  // too fast → back off
+      }
+
+      if (tweak !== 0) {
+        const current = user.getRecommendedCalories(); // your goal-aware calc
+        let nextCals = current + tweak;
+
+        // Reuse your safety floor
+        if (nextCals < 1200) nextCals = 1200;
+
+        // Persist so UI shows the updated target
+        await user.update({ daily_calorie_goal: nextCals });
+        adjustedCalories = nextCals;
+      }
+    }
+
+    res.status(201).json({ checkIn: inserted, adjustedCalories });
+  } catch (e) {
+    console.error('addCheckIn error:', e);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+
 }
 
 module.exports = UserController;
