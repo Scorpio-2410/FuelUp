@@ -1,39 +1,133 @@
 // app/(tabs)/homepage.tsx
-import { View, Text, Pressable } from "react-native";
+import React, { useState, useCallback, useRef } from "react";
+import { View, Text, Dimensions, Image, Platform } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import * as SecureStore from "expo-secure-store";
+import { useFocusEffect } from "expo-router";
+import RealTimeCalendar from "../../components/RealTimeCalendar";
+import RefreshScroll from "../../components/RefreshScroll";
+import HomepageMotivationalQuotes from "../../components/HomepageMotivationalQuotes";
+import HomepageGoalsMessage from "../../components/HomepageGoalsMessage";
+import HomepageSteps from "../../components/HomepageSteps";
+import HomepageCaloriesTracking from "../../components/HomepageCaloriesTracking";
+import { useGlobalRefresh } from "../../components/useGlobalRefresh";
 
+const K_PROFILE = "fu_profile";
+
+// Platform-safe storage functions
+const getStorageItem = async (key: string): Promise<string | null> => {
+  if (Platform.OS === "web") {
+    // Use localStorage for web
+    return localStorage.getItem(key);
+  } else {
+    // Use SecureStore for native platforms
+    return await SecureStore.getItemAsync(key);
+  }
+};
+
+const setStorageItem = async (key: string, value: string): Promise<void> => {
+  if (Platform.OS === "web") {
+    // Use localStorage for web
+    localStorage.setItem(key, value);
+  } else {
+    // Use SecureStore for native platforms
+    await SecureStore.setItemAsync(key, value);
+  }
+};
+
+type Profile = {
+  username: string;
+  avatarUri?: string;
+};
+
+// Homepage with fitness tracking, pull-to-refresh, and real-time calendar
+// Clean separation of concerns with reusable components
 export default function HomePageScreen() {
+  const insets = useSafeAreaInsets();
+  const { width } = Dimensions.get("window");
+
+  // Profile state
+  const [profile, setProfile] = useState<Profile>({ username: "" });
+
+  // Refs for triggering component refreshes
+  const stepsRef = useRef<{ updateSteps: () => void }>(null);
+  const quotesRef = useRef<{ updateQuote: () => void }>(null);
+  const caloriesRef = useRef<{ updateCalories: () => void }>(null);
+  const goalsRef = useRef<{ updateMessage: () => void }>(null);
+
+  // Global refresh hook with custom homepage refresh logic
+  const { refreshing, handleRefresh } = useGlobalRefresh({
+    tabName: "homepage",
+    refreshDuration: 2000,
+    onInternalRefresh: () => {
+      // Trigger all component refreshes
+      stepsRef.current?.updateSteps();
+      quotesRef.current?.updateQuote();
+      caloriesRef.current?.updateCalories();
+      goalsRef.current?.updateMessage();
+    },
+  });
+
+  // Load profile whenever Home is focused
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
+      (async () => {
+        const raw = await getStorageItem(K_PROFILE);
+        if (alive && raw) {
+          const parsed = JSON.parse(raw);
+          setProfile({
+            username: parsed?.username || "",
+            avatarUri: parsed?.avatarUri,
+          });
+        }
+      })();
+      return () => {
+        alive = false;
+      };
+    }, [])
+  );
+
   return (
-    <View className="flex-1 items-center justify-center p-6 bg-slate-50">
-      <View className="w-full max-w-md rounded-2xl bg-white/90 p-6 shadow-lg">
-        <Text className="text-3xl font-extrabold tracking-tight text-blue-600">Tailwind is Working</Text>
-
-        <Text className="mt-2 text-base text-neutral-600">
-          Edit <Text className="font-mono">app/(tabs)/homepage.tsx</Text> and watch styles update.
-        </Text>
-
-        <View className="my-6 h-px w-full bg-neutral-200" />
-
-        <View className="flex-row items-center justify-between">
-          <View className="rounded-full bg-emerald-100 px-3 py-1">
-            <Text className="text-sm font-medium text-emerald-700">Tailwind Active</Text>
+    <View style={{ flex: 1, backgroundColor: "#1a1a1a" }}>
+      <RefreshScroll refreshing={refreshing} onRefresh={handleRefresh}>
+        <View className="px-6 pb-6" style={{ paddingTop: insets.top + 24 }}>
+          {/* Header */}
+          <View className="flex-row items-center justify-between mb-8 mt-4">
+            <View className="flex-1 pr-4">
+              <Text className="text-white text-2xl font-bold" numberOfLines={1}>
+                {profile.username ? `${profile.username}` : "Welcome back!"}
+              </Text>
+            </View>
+            <View
+              className="w-20 h-20 rounded-full overflow-hidden"
+              style={{ backgroundColor: "#2a2a2a" }}
+            >
+              {profile.avatarUri ? (
+                <Image
+                  source={{ uri: profile.avatarUri }}
+                  className="w-full h-full"
+                />
+              ) : null}
+            </View>
           </View>
-        </View>
 
-        <View className="mt-5 gap-3">
-          <Pressable className="rounded-md bg-blue-600 px-4 py-3">
-            <Text className="text-center font-semibold text-white">Primary Button</Text>
-          </Pressable>
-          <Pressable className="rounded-md bg-emerald-600 px-4 py-3">
-            <Text className="text-center font-semibold text-white">Success Button</Text>
-          </Pressable>
-        </View>
+          {/* Real-time Calendar Component */}
+          <RealTimeCalendar className="mb-6" />
 
-        <Text className="mt-6 text-center text-xs text-neutral-400">
-          Colors update on all platforms.
-        </Text>
-      </View>
+          {/* Motivational Quote Component */}
+          <HomepageMotivationalQuotes ref={quotesRef} className="mb-6" />
+
+          {/* Stats Cards Row */}
+          <View className="flex-row gap-4 mb-6">
+            <HomepageSteps ref={stepsRef} />
+            <HomepageGoalsMessage ref={goalsRef} />
+          </View>
+
+          {/* Calorie Progress Component */}
+          <HomepageCaloriesTracking ref={caloriesRef} className="mb-4" />
+        </View>
+      </RefreshScroll>
     </View>
   );
 }
-
-

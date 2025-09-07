@@ -1,17 +1,26 @@
-import { View, Text } from 'react-native';
+
+import { View, Text } from "react-native";
+import RefreshScroll from "../../components/RefreshScroll";
+import { useGlobalRefresh } from "../../components/useGlobalRefresh";
 import WeeklySchedule from '../../components/WeeklySchedule';
 
 export default function FitnessScreen() {
-  return (
-    <WeeklySchedule />
+  // Global refresh hook (no custom logic needed for fitness tab)
+  const { refreshing, handleRefresh } = useGlobalRefresh({
+    tabName: "fitness",
+  });
 
-    // <View className="flex-1 items-center justify-center bg-slate-50">
-      // {/* <WeeklySchedule /> */}
-      // <Text className="text-2xl font-bold text-emerald-700">Fitness</Text>
-      // <Text className="mt-2 text-neutral-600">Track workouts and progress here.</Text>
-    // </View>
-    
+  return (
+    <View style={{ flex: 1, backgroundColor: "#1a1a1a" }}>
+      <RefreshScroll refreshing={refreshing} onRefresh={handleRefresh}>
+        <View className="flex-1 items-center justify-center px-6 py-20">
+          <Text className="text-2xl font-bold text-emerald-400">Fitness</Text>
+          <Text className="mt-2 text-neutral-400 text-center">
+            Track workouts and progress here.
+          </Text>
+          <WeeklySchedule />
+        </View>
+      </RefreshScroll>
+    </View>
   );
 }
-
-
