@@ -1,0 +1,17 @@
+backend
+
+what does the following do:
+app.app.get("/see-all-dbtables", async (req, res) => {
+
+app - This is your Express application instance that handles HTTP requests and routing.
+
+.get() - This is the HTTP method that defines this route will respond to GET requests.
+
+"/see-all-dbtables" - This is the route path/endpoint URL that clients will access to trigger this handler.
+
+async (req, res) => { - This is the route handler function with two parameters:
+
+  req - The request object containing information about the HTTP request (headers, query parameters, body, etc.)
+  res - The response object used to send data back to the client
+
+The async keyword indicates this is an asynchronous function that can use await for database operations or other asynchronous tasks.
