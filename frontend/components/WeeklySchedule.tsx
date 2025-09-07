@@ -141,19 +141,21 @@ export default function WeeklySchedule() {
           selectedDayBackgroundColor: "#F9FF6E",
           selectedDayTextColor: "black",
         }}
-        style={{height: 380}}
+        style={{height: 390}}
         current={selected}
         onDayPress={(day) => setSelected(day.dateString)}
           markedDates={markedDates}
           markingType={"multi-dot"}/>
 
       {/* Tasks List */}
+      {/* <View style={{  flexShrink: 1 }}> */}
       <FlatList
         data={tasksForDay}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: 16 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: 150, paddingTop: 32 }}
+        style={{ flex: 1 }} 
         ListEmptyComponent={
-          <Text style={{color: "white", textAlign: "center", marginTop: 8, fontSize: 16}}>
+          <Text style={{color: "white", textAlign: "center", fontSize: 16}}>
             No tasks scheduled for this day
           </Text>}
         renderItem={({ item }) => (
@@ -167,9 +169,6 @@ export default function WeeklySchedule() {
                 <TouchableOpacity onPress={() => handleDeleteTask(item.id)} style={{ marginRight: 8 }}>
                   <Ionicons name="trash-outline" size={20} color="black" />
                 </TouchableOpacity>
-                {/* <TouchableOpacity> */}
-                  {/* <Ionicons name="ellipsis-horizontal" size={20} color="black" /> */}
-                {/* </TouchableOpacity> */}
               </View>
             </View>
             <Text style={{ color: "black", fontWeight: "500", marginTop: 4, fontSize: 20 }}>
@@ -180,7 +179,7 @@ export default function WeeklySchedule() {
             </Text>
           </View>
           )}/>
-
+          {/* </View> */}
 
       {/* Tasks Add Button */}
         <View style={{position: "absolute", bottom: 80, alignSelf: "center"}}>
