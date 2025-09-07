@@ -145,9 +145,13 @@ app.use((error, req, res, next) => {
 // Initialize database and start server
 const startServer = async () => {
   try {
+    // Test database connection
     await testConnection();
+
+    // Initialize database tables
     await initializeDatabase();
-    
+
+    // Start server
     app.listen(PORT, () => {
       console.log(`🚀 Server running at http://localhost:${PORT}`);
       console.log(`📊 API Documentation available at http://localhost:${PORT}`);
