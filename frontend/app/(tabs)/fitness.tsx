@@ -1,6 +1,8 @@
+
 import { View, Text } from "react-native";
 import RefreshScroll from "../../components/RefreshScroll";
 import { useGlobalRefresh } from "../../components/useGlobalRefresh";
+import WeeklySchedule from '../../components/WeeklySchedule';
 
 export default function FitnessScreen() {
   // Global refresh hook (no custom logic needed for fitness tab)
@@ -16,6 +18,7 @@ export default function FitnessScreen() {
           <Text className="mt-2 text-neutral-400 text-center">
             Track workouts and progress here.
           </Text>
+          <WeeklySchedule />
         </View>
       </RefreshScroll>
     </View>
