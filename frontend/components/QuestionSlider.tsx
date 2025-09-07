@@ -25,35 +25,20 @@ export default function QuestionSlider({
   maxValue = 5,
 }: QuestionSliderProps) {
   const [isDragging, setIsDragging] = useState(false);
-  const [trackWidth, setTrackWidth] = useState(0);
   const progress = useSharedValue(0.5);
   const trackW = useSharedValue(1);
-  const lastProgressRef = useRef(0.5);
   const startXRef = useRef<number>(0);
   const hasDraggedRef = useRef<boolean>(false);
-  const uiUpdateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingUiValueRef = useRef<number | null>(null);
 
   const stepCount = maxValue - minValue + 1;
 
-  // Animate progress when value changes programmatically
+  // Update progress when value changes
   useEffect(() => {
     const p = (value - minValue) / (stepCount - 1);
-    lastProgressRef.current = p;
     if (!isDragging) {
       progress.value = withTiming(p, { duration: 180 });
     }
   }, [value, isDragging, minValue, stepCount]);
-
-  // Cleanup any pending UI debounce on unmount
-  useEffect(() => {
-    return () => {
-      if (uiUpdateTimeoutRef.current) {
-        clearTimeout(uiUpdateTimeoutRef.current);
-        uiUpdateTimeoutRef.current = null;
-      }
-    };
-  }, []);
 
   // Animated styles for fill and thumb
   const fillAnimatedStyle = useAnimatedStyle(() => {
@@ -70,18 +55,6 @@ export default function QuestionSlider({
       ),
     };
   });
-
-  const handleSliderChange = (newValue: number, commit: boolean = true) => {
-    if (commit) {
-      onValueChange(newValue);
-      if (uiUpdateTimeoutRef.current) {
-        clearTimeout(uiUpdateTimeoutRef.current);
-        uiUpdateTimeoutRef.current = null;
-      }
-    } else {
-      pendingUiValueRef.current = newValue;
-    }
-  };
 
   const getFeedbackText = () => {
     const index = value - minValue;
@@ -137,63 +110,50 @@ export default function QuestionSlider({
         }}
         onLayout={(e) => {
           const w = e.nativeEvent.layout.width;
-          setTrackWidth(w);
           trackW.value = w;
         }}
         onStartShouldSetResponder={() => true}
         onMoveShouldSetResponder={() => true}
         onResponderGrant={(event) => {
-          const { locationX } = event.nativeEvent;
-          startXRef.current = locationX;
+          startXRef.current = event.nativeEvent.locationX;
           hasDraggedRef.current = false;
           setIsDragging(true);
         }}
         onResponderMove={(event) => {
-          const { locationX } = event.nativeEvent;
-          const delta = Math.abs(locationX - startXRef.current);
-          if (!hasDraggedRef.current && delta < 6) {
-            return;
-          }
+          const touchX = event.nativeEvent.locationX;
+          const dragDistance = Math.abs(touchX - startXRef.current);
+
+          // Only start dragging after moving 6px
+          if (!hasDraggedRef.current && dragDistance < 6) return;
 
           hasDraggedRef.current = true;
-          const clamped = Math.max(0, Math.min(trackW.value, locationX));
-          const p = clamped / trackW.value;
-          lastProgressRef.current = p;
-          progress.value = p;
 
-          const liveValue = Math.round(p * (stepCount - 1)) + minValue;
-          if (liveValue !== value) {
+          // Update slider position - to fix
+          const newProgress = Math.max(
+            0,
+            Math.min(stepCount - 1, Math.abs(touchX / trackW.value))
+          );
+          progress.value = newProgress;
+
+          // Update value if changed
+          const newValue = Math.round(newProgress * (stepCount - 1)) + minValue;
+          if (newValue !== value) {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-            pendingUiValueRef.current = liveValue;
-            if (uiUpdateTimeoutRef.current) {
-              clearTimeout(uiUpdateTimeoutRef.current);
-            }
-            uiUpdateTimeoutRef.current = setTimeout(() => {
-              if (pendingUiValueRef.current != null) {
-                handleSliderChange(pendingUiValueRef.current, false);
-              }
-              uiUpdateTimeoutRef.current = null;
-            }, 200);
+            onValueChange(newValue);
           }
-          value = liveValue;
         }}
         onResponderRelease={() => {
-          if (!hasDraggedRef.current) {
-            const pSaved = (value - minValue) / (stepCount - 1);
-            progress.value = withTiming(pSaved, { duration: 120 });
+          if (hasDraggedRef.current) {
+            // Snap to nearest step after dragging
+            const finalValue =
+              Math.round(progress.value * (stepCount - 1)) + minValue;
+            const snapProgress = (finalValue - minValue) / (stepCount - 1);
+            progress.value = withTiming(snapProgress, { duration: 120 });
+            onValueChange(finalValue);
           } else {
-            const snappedStep = Math.round(
-              lastProgressRef.current * (stepCount - 1)
-            );
-            const snappedP = snappedStep / (stepCount - 1);
-            progress.value = withTiming(snappedP, { duration: 120 });
-            const newValue = snappedStep + minValue;
-            if (uiUpdateTimeoutRef.current) {
-              clearTimeout(uiUpdateTimeoutRef.current);
-              uiUpdateTimeoutRef.current = null;
-            }
-            handleSliderChange(newValue, true);
+            // Revert to original position if no drag
+            const originalProgress = (value - minValue) / (stepCount - 1);
+            progress.value = withTiming(originalProgress, { duration: 120 });
           }
           setIsDragging(false);
         }}
