@@ -1,22 +1,22 @@
-const { Pool } = require('pg');
-require('dotenv').config();
+const { Pool } = require("pg");
+require("dotenv").config();
 
 // Neon PostgreSQL connection pool
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
-    rejectUnauthorized: false
-  }
+    rejectUnauthorized: false,
+  },
 });
 
 // Test database connection
 const testConnection = async () => {
   try {
     const client = await pool.connect();
-    console.log('Neon PostgreSQL database');
+    console.log("Neon PostgreSQL database");
     client.release();
   } catch (err) {
-    console.error('❌ Database connection error:', err.message);
+    console.error("Database connection error:", err.message);
     process.exit(1);
   }
 };
@@ -25,7 +25,7 @@ const testConnection = async () => {
 const initializeDatabase = async () => {
   try {
     const client = await pool.connect();
-    
+
     // Create Users table - aligned with frontend Profile type
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
@@ -99,10 +99,10 @@ const initializeDatabase = async () => {
       CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
     `);
 
-    console.log('✅ Database tables initialized successfully');
+    console.log("Database tables initialized successfully");
     client.release();
   } catch (err) {
-    console.error('❌ Database initialization error:', err.message);
+    console.error("Database initialization error:", err.message);
     throw err;
   }
 };
@@ -110,5 +110,5 @@ const initializeDatabase = async () => {
 module.exports = {
   pool,
   testConnection,
-  initializeDatabase
+  initializeDatabase,
 };
