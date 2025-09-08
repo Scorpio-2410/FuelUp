@@ -13,7 +13,7 @@ const pool = new Pool({
 const testConnection = async () => {
   try {
     const client = await pool.connect();
-    console.log("Neon PostgreSQL database");
+    console.log("Connected to Neon PostgreSQL database");
     client.release();
   } catch (err) {
     console.error("Database connection error:", err.message);
@@ -26,7 +26,7 @@ const initializeDatabase = async () => {
   try {
     const client = await pool.connect();
 
-    // Create Users table - aligned with frontend Profile type
+    // Users table (profile)
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -46,10 +46,10 @@ const initializeDatabase = async () => {
         daily_calorie_goal INTEGER DEFAULT 2000,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
+      );
     `);
 
-    // Create Meals table
+    // Meals table
     await client.query(`
       CREATE TABLE IF NOT EXISTS meals (
         id SERIAL PRIMARY KEY,
@@ -67,10 +67,10 @@ const initializeDatabase = async () => {
         notes TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
+      );
     `);
 
-    // Create Exercises table
+    // Exercises table
     await client.query(`
       CREATE TABLE IF NOT EXISTS exercises (
         id SERIAL PRIMARY KEY,
@@ -89,14 +89,91 @@ const initializeDatabase = async () => {
         notes TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
+      );
     `);
 
-    // Create indexes for better performance
+    // Schedule Events table (for one-off + recurring)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS schedule_events (
+        id BIGSERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        title VARCHAR(255) NOT NULL,
+        subtitle TEXT,
+        category VARCHAR(20) NOT NULL CHECK (category IN ('work','personal','outing','gym','mealprep')),
+        color VARCHAR(20),
+
+        event_date DATE, -- optional if recurring
+        start_time TIME NOT NULL,
+        end_time TIME NOT NULL,
+
+        recurrence JSONB, -- {"freq":"none|daily|weekly","daysOfWeek":[0..6],"startDate":"YYYY-MM-DD"}
+
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Schedule Preferences table (per-user)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS schedule_prefs (
+        user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        gym_frequency_per_week INTEGER DEFAULT 3 CHECK (gym_frequency_per_week >= 0 AND gym_frequency_per_week <= 14),
+        preferred_windows TEXT[],  -- e.g. {'06:30-08:30','17:00-19:30'}
+        goals TEXT[],              -- e.g. {'strength','hypertrophy','endurance','fatloss'}
+        min_gym_min INTEGER DEFAULT 35,
+        max_gym_min INTEGER DEFAULT 70,
+        include_meal_prep BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Indexes
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_meals_user_date ON meals(user_id, meal_date);
       CREATE INDEX IF NOT EXISTS idx_exercises_user_date ON exercises(user_id, exercise_date);
       CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+
+      CREATE INDEX IF NOT EXISTS idx_schedule_events_user_date ON schedule_events(user_id, event_date);
+      CREATE INDEX IF NOT EXISTS idx_schedule_events_user_cat ON schedule_events(user_id, category);
+      CREATE INDEX IF NOT EXISTS idx_schedule_events_recurrence_gin ON schedule_events USING GIN (recurrence);
+    `);
+
+    // Trigger function to auto-update updated_at
+    await client.query(`
+      CREATE OR REPLACE FUNCTION set_updated_at() RETURNS trigger AS $$
+      BEGIN
+        NEW.updated_at = NOW();
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+    `);
+
+    // Apply triggers to tables
+    await client.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'tr_users_updated_at') THEN
+          CREATE TRIGGER tr_users_updated_at BEFORE UPDATE ON users
+          FOR EACH ROW EXECUTE PROCEDURE set_updated_at();
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'tr_meals_updated_at') THEN
+          CREATE TRIGGER tr_meals_updated_at BEFORE UPDATE ON meals
+          FOR EACH ROW EXECUTE PROCEDURE set_updated_at();
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'tr_exercises_updated_at') THEN
+          CREATE TRIGGER tr_exercises_updated_at BEFORE UPDATE ON exercises
+          FOR EACH ROW EXECUTE PROCEDURE set_updated_at();
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'tr_schedule_events_updated_at') THEN
+          CREATE TRIGGER tr_schedule_events_updated_at BEFORE UPDATE ON schedule_events
+          FOR EACH ROW EXECUTE PROCEDURE set_updated_at();
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'tr_schedule_prefs_updated_at') THEN
+          CREATE TRIGGER tr_schedule_prefs_updated_at BEFORE UPDATE ON schedule_prefs
+          FOR EACH ROW EXECUTE PROCEDURE set_updated_at();
+        END IF;
+      END$$;
     `);
 
     console.log("Database tables initialized successfully");
