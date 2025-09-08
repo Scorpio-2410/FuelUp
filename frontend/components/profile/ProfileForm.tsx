@@ -56,8 +56,7 @@ const numericItems = (
     return { label, value: String(v) };
   });
 
-// DOB items (three separate dropdowns)
-const dayItems = numericItems(1, 31, 1, (v) => pad2(v));
+// month/year constants
 const monthItems = Array.from({ length: 12 }, (_, i) => {
   const mm = i + 1;
   const names = [
@@ -81,6 +80,12 @@ const yearItems = (() => {
   const start = now - 100;
   return numericItems(start, now, 1).reverse();
 })();
+
+// days in month helper
+const daysInMonth = (y: number, m: number) => {
+  if (!y || !m) return 31;
+  return new Date(y, m, 0).getDate();
+};
 
 type Props = {
   profile: Profile;
@@ -171,6 +176,28 @@ export default function ProfileForm({ profile, setProfile }: Props) {
     setProfile({ ...profile, weightKg: Math.round(kg) });
   };
 
+  // ----- Day items react to current month/year and (critically) use PADDED values -----
+  const dynamicDayItems = useMemo(() => {
+    const y = Number(dobYear || "0");
+    const m = Number(dobMonth || "0");
+    const max = daysInMonth(y, m || 1);
+    // 👇 PAD both label and value so "03" matches items' values
+    return Array.from({ length: max }, (_, i) => {
+      const val = pad2(i + 1);
+      return { label: val, value: val };
+    });
+  }, [dobMonth, dobYear]);
+
+  const clampDayIfNeeded = (yStr: string, mStr: string) => {
+    const y = Number(yStr || "0");
+    const m = Number(mStr || "0");
+    const max = daysInMonth(y, m || 1);
+    if (dobDay && Number(dobDay) > max) {
+      setDobDay(pad2(max));
+      onDobChange("d", pad2(max));
+    }
+  };
+
   return (
     <>
       <ProfileAvatar profile={profile as any} setProfile={setProfile as any} />
@@ -213,26 +240,34 @@ export default function ProfileForm({ profile, setProfile }: Props) {
         <View className="flex-row gap-3">
           <View style={{ flex: 1 }}>
             <ProfileDropdown
-              value={dobDay}
-              items={dayItems}
+              value={dobDay || null}
+              items={dynamicDayItems}
               placeholderLabel="DD"
-              onChange={(v) => onDobChange("d", v)}
+              onChange={(v) => onDobChange("d", v ?? "")}
             />
           </View>
           <View style={{ flex: 1.2 }}>
             <ProfileDropdown
-              value={dobMonth}
+              value={dobMonth || null}
               items={monthItems}
               placeholderLabel="MM"
-              onChange={(v) => onDobChange("m", v)}
+              onChange={(v) => {
+                const next = v ?? "";
+                clampDayIfNeeded(dobYear, next);
+                onDobChange("m", next);
+              }}
             />
           </View>
           <View style={{ flex: 1.2 }}>
             <ProfileDropdown
-              value={dobYear}
+              value={dobYear || null}
               items={yearItems}
               placeholderLabel="YYYY"
-              onChange={(v) => onDobChange("y", v)}
+              onChange={(v) => {
+                const next = v ?? "";
+                clampDayIfNeeded(next, dobMonth);
+                onDobChange("y", next);
+              }}
             />
           </View>
         </View>
@@ -256,15 +291,17 @@ export default function ProfileForm({ profile, setProfile }: Props) {
               value={profile.heightUnit ?? "cm"}
               items={HEIGHT_UNITS}
               placeholderLabel="Unit"
-              onChange={(u) => setProfile({ ...profile, heightUnit: u as any })}
+              onChange={(u) =>
+                setProfile({ ...profile, heightUnit: (u ?? "cm") as any })
+              }
             />
           </View>
         }>
         <ProfileDropdown
-          value={heightSelected}
+          value={heightSelected || null}
           items={heightItems}
           placeholderLabel="Value"
-          onChange={handleHeight}
+          onChange={(v) => handleHeight(v ?? "")}
         />
       </ProfileField>
 
@@ -277,15 +314,17 @@ export default function ProfileForm({ profile, setProfile }: Props) {
               value={profile.weightUnit ?? "kg"}
               items={WEIGHT_UNITS}
               placeholderLabel="Unit"
-              onChange={(u) => setProfile({ ...profile, weightUnit: u as any })}
+              onChange={(u) =>
+                setProfile({ ...profile, weightUnit: (u ?? "kg") as any })
+              }
             />
           </View>
         }>
         <ProfileDropdown
-          value={weightSelected}
+          value={weightSelected || null}
           items={weightItems}
           placeholderLabel="Value"
-          onChange={handleWeight}
+          onChange={(v) => handleWeight(v ?? "")}
         />
       </ProfileField>
 
@@ -295,7 +334,9 @@ export default function ProfileForm({ profile, setProfile }: Props) {
           value={profile.ethnicity ?? "not_specified"}
           items={ETHNICITY_ITEMS}
           placeholderLabel="Select ethnicity"
-          onChange={(v) => setProfile({ ...profile, ethnicity: v })}
+          onChange={(v) =>
+            setProfile({ ...profile, ethnicity: v ?? "not_specified" })
+          }
         />
       </ProfileField>
 
@@ -306,7 +347,7 @@ export default function ProfileForm({ profile, setProfile }: Props) {
           items={FREQUENCY_ITEMS}
           placeholderLabel="Choose frequency"
           onChange={(v) =>
-            setProfile({ ...profile, followUpFrequency: v as any })
+            setProfile({ ...profile, followUpFrequency: (v ?? "daily") as any })
           }
         />
       </ProfileField>
@@ -317,7 +358,12 @@ export default function ProfileForm({ profile, setProfile }: Props) {
           value={profile.fitnessGoal ?? "general_health"}
           items={FITNESS_GOAL_ITEMS}
           placeholderLabel="Select primary goal"
-          onChange={(v) => setProfile({ ...profile, fitnessGoal: v as any })}
+          onChange={(v) =>
+            setProfile({
+              ...profile,
+              fitnessGoal: (v ?? "general_health") as any,
+            })
+          }
         />
       </ProfileField>
 

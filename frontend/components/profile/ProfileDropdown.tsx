@@ -4,9 +4,9 @@ import RNPickerSelect, { Item } from "react-native-picker-select";
 
 type DropdownItem = { label: string; value: string };
 type Props = {
-  value: string;
+  value: string | null; // 👈 allow null for "no selection"
   items: readonly DropdownItem[];
-  onChange: (v: string) => void;
+  onChange: (v: string | null) => void; // 👈 may return null
   placeholderLabel: string;
   disabled?: boolean;
   containerStyle?: ViewStyle;
@@ -40,12 +40,13 @@ export default function ProfileDropdown({
       style={[{ minWidth: 100 }, containerStyle]}>
       <RNPickerSelect
         onValueChange={(v) => {
-          if (typeof v === "string") onChange(v);
+          // RNPickerSelect can deliver string | number | null
+          if (typeof v === "string" || v === null) onChange(v);
         }}
-        value={value}
+        value={value ?? null} // 👈 keep null when nothing is selected
         items={pickerItems}
         disabled={disabled}
-        placeholder={{ label: placeholderLabel, value: null }}
+        placeholder={{ label: placeholderLabel, value: null }} // 👈 placeholder uses null
         useNativeAndroidPickerStyle={false}
         style={{
           inputIOS: {
