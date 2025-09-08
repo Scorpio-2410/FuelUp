@@ -27,15 +27,15 @@ export default function FitnessScreen() {
           </View>
 
          {/* calendar icon  */}
-      <View style={{ alignItems: "center", marginTop: 24 }}>
+      <View style={{ alignItems: "flex-start", marginTop: 24, marginLeft: 30 }}>
         <TouchableOpacity
           style={{
             backgroundColor: "#4ade80",
-            padding: 12,
+            padding: 16,
             borderRadius: 50,
           }}
           onPress={() => setModalVisible(true)}>
-          <Ionicons name="calendar-outline" size={28} color="white" />
+          <Ionicons name="calendar-outline" size={38} color="Black" />
         </TouchableOpacity>
       </View>
 
@@ -43,7 +43,6 @@ export default function FitnessScreen() {
       <WeeklySchedulePopUp
         visible={modalVisible}
         onClose={() => setModalVisible(false)}/>
-    
       </SafeAreaView>
  
   );

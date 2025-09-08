@@ -21,10 +21,7 @@ export default function WeeklySchedulePopUp({ visible, onClose }: WeeklySchedule
           <Pressable style={styles.closeButton} onPress={onClose}>
             <Ionicons name="close-circle" size={28} color="#4ade80" />
           </Pressable>
-          <ScrollView>
-          {/* <View> */}
             <WeeklySchedule  />
-          </ScrollView>
         </View>
       </View>
     </Modal>
@@ -38,12 +35,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  modalContainer: {
-    backgroundColor: "#1a1a1a",
-    borderRadius: 16,
-    width: "98%", 
-    maxHeight: "90%", 
-    padding: 16,
+    modalContainer: {
+      backgroundColor: "#1a1a1a",
+      borderRadius: 20,
+      width: "100%",
+      maxHeight: "85%",
+      padding: 16,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      position: "absolute",
+      bottom: 0,
   },
   closeButton: {
     alignSelf: "flex-end",

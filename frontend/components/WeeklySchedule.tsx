@@ -121,7 +121,7 @@ export default function WeeklySchedule() {
     <SafeAreaView style={{flex: 1, backgroundColor: "black"}}>
       <View style={{flex:1, backgroundColor: "black"}}>
 
-      <View style={{alignItems: "center", paddingVertical: 24}}>
+      <View style={{alignItems: "center", paddingVertical: 34}}>
         <Text style={{color: "white", fontSize: 28, fontWeight: "800", textAlign: "center"}}>Weekly Schedule</Text>
       </View>
 
@@ -141,14 +141,13 @@ export default function WeeklySchedule() {
           selectedDayBackgroundColor: "#F9FF6E",
           selectedDayTextColor: "black",
         }}
-        style={{height: 390}}
+        style={{height: 390, marginTop:16}}
         current={selected}
         onDayPress={(day) => setSelected(day.dateString)}
           markedDates={markedDates}
           markingType={"multi-dot"}/>
 
       {/* Tasks List */}
-      {/* <View style={{  flexShrink: 1 }}> */}
       <FlatList
         data={tasksForDay}
         keyExtractor={(item) => item.id}
@@ -179,7 +178,6 @@ export default function WeeklySchedule() {
             </Text>
           </View>
           )}/>
-          {/* </View> */}
 
       {/* Tasks Add Button */}
         <View style={{position: "absolute", bottom: 80, alignSelf: "center"}}>
