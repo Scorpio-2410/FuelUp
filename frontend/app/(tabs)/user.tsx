@@ -1,20 +1,27 @@
 import { useEffect, useState } from "react";
-import { View, Text, KeyboardAvoidingView, Platform } from "react-native";
+import {
+  View,
+  Text,
+  KeyboardAvoidingView,
+  Platform,
+  Alert,
+  TouchableOpacity,
+  ActivityIndicator,
+} from "react-native";
 import * as SecureStore from "expo-secure-store";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useRouter } from "expo-router";
 
 import RefreshScroll from "@/components/RefreshScroll";
 import { useGlobalRefresh } from "@/components/useGlobalRefresh";
 import SaveButton from "@/components/profile/SaveButton";
 import ProfileForm from "@/components/profile/ProfileForm";
 
-const K_PROFILE = "fu_profile";
-
-/** Profile type */
 export type Profile = {
   username: string;
   fullName: string;
   email: string;
-  dob?: string; // YYYY-MM-DD
+  dob?: string;
   heightCm?: number;
   weightKg?: number;
   heightUnit?: "cm" | "ft";
@@ -44,39 +51,142 @@ const defaultProfile: Profile = {
   weightUnit: "kg",
 };
 
+const API_BASE = "http://localhost:4000"; // change when testing on device
+const K_PROFILE = "fu_profile";
+
+// small helper to normalize numeric-ish values
+const num = (v: any) =>
+  v === null || v === undefined || v === "" ? undefined : Number(v);
+
 export default function UserTabProfile() {
   const [profile, setProfile] = useState<Profile>(defaultProfile);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const router = useRouter();
+
+  // -------- Mapper helpers --------
+  // Accept BOTH snake_case (DB/raw) and camelCase (API .toJSON()).
+  const mapFromServer = (u: any): Profile => ({
+    username: u.username ?? "",
+    fullName: u.full_name ?? u.fullName ?? "",
+    email: u.email ?? "",
+    dob: u.dob ?? undefined,
+    heightCm: num(u.height_cm ?? u.heightCm),
+    weightKg: num(u.weight_kg ?? u.weightKg),
+    notifications: (u.notifications ?? true) as boolean,
+    avatarUri: u.avatar_uri ?? u.avatarUri ?? undefined,
+    ethnicity: u.ethnicity ?? "not_specified",
+    followUpFrequency: u.follow_up_frequency ?? u.followUpFrequency ?? "daily",
+    fitnessGoal: u.fitness_goal ?? u.fitnessGoal ?? "general_health",
+    heightUnit: "cm",
+    weightUnit: "kg",
+  });
+
+  const mapToServer = (p: Profile) => ({
+    username: p.username,
+    full_name: p.fullName,
+    email: p.email,
+    dob: p.dob,
+    height_cm: p.heightCm,
+    weight_kg: p.weightKg,
+    notifications: p.notifications,
+    avatar_uri: p.avatarUri,
+    ethnicity: p.ethnicity,
+    follow_up_frequency: p.followUpFrequency,
+    fitness_goal: p.fitnessGoal,
+  });
+
+  // -------- Load profile --------
+  const loadProfile = async () => {
+    try {
+      const token = await AsyncStorage.getItem("authToken");
+      if (!token) {
+        router.replace("/auth/login");
+        return;
+      }
+
+      const res = await fetch(`${API_BASE}/api/users/profile`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (res.status === 401) {
+        await AsyncStorage.removeItem("authToken");
+        router.replace("/auth/login");
+        return;
+      }
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || "Failed to load profile");
+
+      const mapped = mapFromServer(json.user);
+      setProfile({ ...defaultProfile, ...mapped });
+      await SecureStore.setItemAsync(K_PROFILE, JSON.stringify(mapped));
+    } catch {
+      const raw = await SecureStore.getItemAsync(K_PROFILE);
+      setProfile(
+        raw ? { ...defaultProfile, ...JSON.parse(raw) } : defaultProfile
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadProfile();
+  }, []);
 
   const { refreshing, handleRefresh } = useGlobalRefresh({
     tabName: "user",
-    onInternalRefresh: async () => {
-      const raw = await SecureStore.getItemAsync(K_PROFILE);
-      if (raw) setProfile({ ...defaultProfile, ...JSON.parse(raw) });
-    },
+    onInternalRefresh: loadProfile,
   });
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const raw = await SecureStore.getItemAsync(K_PROFILE);
-        setProfile(
-          raw ? { ...defaultProfile, ...JSON.parse(raw) } : defaultProfile
-        );
-      } catch (e) {
-        console.warn("Profile load error:", e);
-        setProfile(defaultProfile);
-      } finally {
-        setLoading(false);
+  // -------- Save profile --------
+  const saveProfile = async () => {
+    try {
+      setSaving(true);
+      const token = await AsyncStorage.getItem("authToken");
+      if (!token) throw new Error("Not logged in");
+
+      const payload = mapToServer(profile);
+      const res = await fetch(`${API_BASE}/api/users/profile`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const json = await res.json();
+      if (res.status === 401) {
+        await AsyncStorage.removeItem("authToken");
+        router.replace("/auth/login");
+        return;
       }
-    })();
-  }, []);
+      if (!res.ok) throw new Error(json?.error || "Failed to update profile");
+
+      const mapped = mapFromServer(json.user);
+      setProfile(mapped);
+      await SecureStore.setItemAsync(K_PROFILE, JSON.stringify(mapped));
+      Alert.alert("Saved", "Your profile has been updated.");
+    } catch (e: any) {
+      Alert.alert("Save failed", e.message || "Could not update profile.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // -------- Logout --------
+  const logout = async () => {
+    await AsyncStorage.removeItem("authToken");
+    await SecureStore.deleteItemAsync(K_PROFILE);
+    router.replace("/auth/login");
+  };
 
   if (loading) {
     return (
       <View className="flex-1 bg-black items-center justify-center">
-        <Text className="text-white">Loading…</Text>
+        <ActivityIndicator color="#B3FF6E" />
       </View>
     );
   }
@@ -90,17 +200,22 @@ export default function UserTabProfile() {
           <Text className="text-2xl font-semibold text-white mb-4">
             Your Profile
           </Text>
-
           <ProfileForm profile={profile} setProfile={setProfile} />
         </View>
       </RefreshScroll>
 
       <View className="px-5 pb-6">
-        <SaveButton
-          profile={profile as any}
-          saving={saving}
-          setSaving={setSaving}
-        />
+        <SaveButton saving={saving} onSave={saveProfile} />
+        <TouchableOpacity
+          onPress={logout}
+          style={{
+            marginTop: 16,
+            padding: 14,
+            borderRadius: 12,
+            backgroundColor: "#ef4444",
+          }}>
+          <Text className="text-center text-white font-semibold">Log out</Text>
+        </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
   );
