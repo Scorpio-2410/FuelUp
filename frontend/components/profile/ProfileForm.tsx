@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, Switch } from "react-native";
 
 import ProfileAvatar from "@/components/profile/ProfileAvatar";
@@ -19,9 +19,11 @@ import type { Profile } from "@/app/(tabs)/user";
 // ---------- Helpers ----------
 const pad2 = (n: number) => String(n).padStart(2, "0");
 
+// Accept strictly "YYYY-MM-DD"; ignore times/timezones by normalizing first
 const parseISO = (iso?: string) => {
   if (!iso) return undefined;
-  const [y, m, d] = iso.split("-").map(Number);
+  const only = String(iso).split("T")[0];
+  const [y, m, d] = only.split("-").map(Number);
   if (!y || !m || !d) return undefined;
   return { y, m, d };
 };
@@ -86,30 +88,46 @@ type Props = {
 };
 
 export default function ProfileForm({ profile, setProfile }: Props) {
-  // ----- DOB (3 dropdowns inline) -----
-  const dobParts = parseISO(profile.dob);
-  const dd = dobParts ? pad2(dobParts.d) : "";
-  const mm = dobParts ? pad2(dobParts.m) : "";
-  const yyyy = dobParts ? String(dobParts.y) : "";
+  // ----- Local DOB state so pickers don't reset while choosing -----
+  const initialDob = parseISO(profile.dob);
+  const [dobDay, setDobDay] = useState<string>(
+    initialDob ? pad2(initialDob.d) : ""
+  );
+  const [dobMonth, setDobMonth] = useState<string>(
+    initialDob ? pad2(initialDob.m) : ""
+  );
+  const [dobYear, setDobYear] = useState<string>(
+    initialDob ? String(initialDob.y) : ""
+  );
 
-  const handleDobPart = (part: "d" | "m" | "y", v: string) => {
-    const D = part === "d" ? Number(v) : Number(dd || "0");
-    const M = part === "m" ? Number(v) : Number(mm || "0");
-    const Y = part === "y" ? Number(v) : Number(yyyy || "0");
+  // keep local DOB in sync if profile.dob changes from outside (e.g., server reload)
+  useEffect(() => {
+    const parts = parseISO(profile.dob);
+    setDobDay(parts ? pad2(parts.d) : "");
+    setDobMonth(parts ? pad2(parts.m) : "");
+    setDobYear(parts ? String(parts.y) : "");
+  }, [profile.dob]);
+
+  // when any DOB part changes, write to profile only if valid; otherwise keep local-only
+  const onDobChange = (part: "d" | "m" | "y", value: string) => {
+    if (part === "d") setDobDay(value);
+    if (part === "m") setDobMonth(value);
+    if (part === "y") setDobYear(value);
+
+    const D = Number(part === "d" ? value : dobDay || "0");
+    const M = Number(part === "m" ? value : dobMonth || "0");
+    const Y = Number(part === "y" ? value : dobYear || "0");
+
     if (isValidYMD(Y, M, D)) {
       setProfile({ ...profile, dob: toISO(Y, M, D) });
-    } else {
-      setProfile({ ...profile, dob: undefined });
     }
   };
 
   // ----- Height items (cm or ft) — labels are numbers only
   const heightItems = useMemo(() => {
     if ((profile.heightUnit ?? "cm") === "cm") {
-      // 120–220 cm, integers
       return numericItems(120, 220, 1);
     } else {
-      // 4.0–7.5 ft, step 0.1
       return numericItems(4.0, 7.5, 0.1, (v) => v.toFixed(1));
     }
   }, [profile.heightUnit]);
@@ -117,10 +135,8 @@ export default function ProfileForm({ profile, setProfile }: Props) {
   // ----- Weight items (kg or lb) — labels are numbers only
   const weightItems = useMemo(() => {
     if ((profile.weightUnit ?? "kg") === "kg") {
-      // 30–200 kg
       return numericItems(30, 200, 1);
     } else {
-      // 66–440 lb
       return numericItems(66, 440, 1);
     }
   }, [profile.weightUnit]);
@@ -197,35 +213,32 @@ export default function ProfileForm({ profile, setProfile }: Props) {
         <View className="flex-row gap-3">
           <View style={{ flex: 1 }}>
             <ProfileDropdown
-              value={dd}
+              value={dobDay}
               items={dayItems}
               placeholderLabel="DD"
-              onChange={(v) => handleDobPart("d", v)}
+              onChange={(v) => onDobChange("d", v)}
             />
           </View>
           <View style={{ flex: 1.2 }}>
             <ProfileDropdown
-              value={mm}
+              value={dobMonth}
               items={monthItems}
               placeholderLabel="MM"
-              onChange={(v) => handleDobPart("m", v)}
+              onChange={(v) => onDobChange("m", v)}
             />
           </View>
           <View style={{ flex: 1.2 }}>
             <ProfileDropdown
-              value={yyyy}
+              value={dobYear}
               items={yearItems}
               placeholderLabel="YYYY"
-              onChange={(v) => handleDobPart("y", v)}
+              onChange={(v) => onDobChange("y", v)}
             />
           </View>
         </View>
         {profile.dob ? (
           <Text className="text-neutral-400 mt-2">
-            Selected:{" "}
-            {dobParts
-              ? `${pad2(dobParts.d)}-${pad2(dobParts.m)}-${dobParts.y}`
-              : ""}
+            Selected: {profile.dob.split("-").reverse().join("-")}
           </Text>
         ) : (
           <Text className="text-neutral-500 mt-2">
@@ -234,7 +247,7 @@ export default function ProfileForm({ profile, setProfile }: Props) {
         )}
       </ProfileField>
 
-      {/* Height (dropdown + unit selector on right; options show numbers only) */}
+      {/* Height */}
       <ProfileField
         label="Height"
         rightAccessory={
@@ -250,14 +263,12 @@ export default function ProfileForm({ profile, setProfile }: Props) {
         <ProfileDropdown
           value={heightSelected}
           items={heightItems}
-          placeholderLabel={
-            (profile.heightUnit ?? "cm") === "cm" ? "Value" : "Value"
-          }
+          placeholderLabel="Value"
           onChange={handleHeight}
         />
       </ProfileField>
 
-      {/* Weight (dropdown + unit selector on right; options show numbers only) */}
+      {/* Weight */}
       <ProfileField
         label="Weight"
         rightAccessory={
