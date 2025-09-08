@@ -1,10 +1,10 @@
 import React, { useMemo } from "react";
 import { View, Text, Switch } from "react-native";
 
-import ProfileAvatar from "@/components/profile/ProfileAvatar";
-import ProfileField from "@/components/profile/ProfileField";
-import ProfileDropdown from "@/components/profile/ProfileDropdown";
-import ProfileRow from "@/components/profile/ProfileRow";
+import ProfileAvatar from "./ProfileAvatar";
+import ProfileField from "./ProfileField";
+import ProfileDropdown from "./ProfileDropdown";
+import ProfileRow from "./ProfileRow";
 
 import {
   ETHNICITY_ITEMS,
@@ -12,9 +12,9 @@ import {
   FITNESS_GOAL_ITEMS,
   HEIGHT_UNITS,
   WEIGHT_UNITS,
-} from "@/components/profile/profileConstants";
+} from "./profileConstants";
 
-import type { Profile } from "@/app/(tabs)/user";
+import type { Profile } from "../../app/(tabs)/user";
 
 // ---------- Helpers ----------
 const pad2 = (n: number) => String(n).padStart(2, "0");

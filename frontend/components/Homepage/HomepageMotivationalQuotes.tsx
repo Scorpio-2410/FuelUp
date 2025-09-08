@@ -46,7 +46,7 @@ const HomepageMotivationalQuotes = forwardRef<any, HomepageMotivationalQuotesPro
       </View>
       <View className="absolute top-4 right-4 w-20 h-20 rounded-lg overflow-hidden">
         <Image
-          source={require("../assets/images/motivational.jpg")}
+          source={require("../../assets/images/motivational.jpg")}
           className="w-full h-full"
           style={{ resizeMode: "cover" }}
         />

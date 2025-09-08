@@ -2,8 +2,8 @@ import { View, Text, SafeAreaView,TouchableOpacity, Modal, Pressable } from "rea
 import RefreshScroll from "../../components/RefreshScroll";
 import { Ionicons } from "@expo/vector-icons"; 
 import { useGlobalRefresh } from "../../components/useGlobalRefresh";
-import WeeklySchedule from '../../components/WeeklySchedule';
-import WeeklySchedulePopUp from '../../components/WeeklySchedulePopUp';
+import WeeklySchedule from '../../components/Fitness/WeeklySchedule';
+import WeeklySchedulePopUp from '../../components/Fitness/WeeklySchedulePopUp';
 import { useState } from "react";
 import { ScrollView } from "react-native-gesture-handler";
 

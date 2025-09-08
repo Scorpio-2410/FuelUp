@@ -13,7 +13,7 @@ import {
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import QuestionSlider from "../components/QuestionSlider";
+import QuestionSlider from "../components/TargetQuestions/QuestionSlider";
 
 interface Question {
   id: number;

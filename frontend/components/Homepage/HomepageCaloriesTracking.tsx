@@ -11,7 +11,7 @@ interface HomepageCaloriesProps {
   onRefresh?: () => void; // Callback for when calories update
 }
 
-const HomepageCalories = forwardRef<any, HomepageCaloriesProps>(({ className, onRefresh }, ref) => {
+const HomepageCaloriesTracking = forwardRef<any, HomepageCaloriesProps>(({ className, onRefresh }, ref) => {
   const [burnedCalories, setBurnedCalories] = useState(400);
   const targetCalories = 1000;
 
@@ -74,4 +74,4 @@ const HomepageCalories = forwardRef<any, HomepageCaloriesProps>(({ className, on
   );
 });
 
-export default HomepageCalories;
+export default HomepageCaloriesTracking;

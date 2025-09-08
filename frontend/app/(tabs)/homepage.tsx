@@ -4,12 +4,12 @@ import { View, Text, Dimensions, Image, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as SecureStore from "expo-secure-store";
 import { useFocusEffect } from "expo-router";
-import RealTimeCalendar from "../../components/RealTimeCalendar";
+import RealTimeCalendar from "../../components/Homepage/RealTimeCalendar";
 import RefreshScroll from "../../components/RefreshScroll";
-import HomepageMotivationalQuotes from "../../components/HomepageMotivationalQuotes";
-import HomepageGoalsMessage from "../../components/HomepageGoalsMessage";
-import HomepageSteps from "../../components/HomepageSteps";
-import HomepageCaloriesTracking from "../../components/HomepageCaloriesTracking";
+import HomepageMotivationalQuotes from "../../components/Homepage/HomepageMotivationalQuotes";
+import HomepageGoalsMessage from "../../components/Homepage/HomepageGoalsMessage";
+import HomepageSteps from "../../components/Homepage/HomepageSteps";
+import HomepageCaloriesTracking from "../../components/Homepage/HomepageCaloriesTracking";
 import { useGlobalRefresh } from "../../components/useGlobalRefresh";
 
 const K_PROFILE = "fu_profile";

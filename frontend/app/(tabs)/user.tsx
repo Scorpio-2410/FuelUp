@@ -2,10 +2,10 @@ import { useEffect, useState } from "react";
 import { View, Text, KeyboardAvoidingView, Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
 
-import RefreshScroll from "@/components/RefreshScroll";
-import { useGlobalRefresh } from "@/components/useGlobalRefresh";
-import SaveButton from "@/components/profile/SaveButton";
-import ProfileForm from "@/components/profile/ProfileForm";
+import RefreshScroll from "../../components/RefreshScroll";
+import { useGlobalRefresh } from "../../components/useGlobalRefresh";
+import SaveButton from "../../components/User/SaveButton";
+import ProfileForm from "../../components/User/ProfileForm";
 
 const K_PROFILE = "fu_profile";
 

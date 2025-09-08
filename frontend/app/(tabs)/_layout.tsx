@@ -6,10 +6,10 @@ import { View } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Tabs, useRouter, useSegments } from "expo-router";
 
-import Colors from "@/constants/Colors";
-import { useColorScheme } from "@/components/useColorScheme";
-import { useClientOnlyValue } from "@/components/useClientOnlyValue";
-import SwipeNavigate from "@/components/SwipeNavigate";
+import Colors from "../../constants/Colors";
+import { useColorScheme } from "../../components/useColorScheme";
+import { useClientOnlyValue } from "../../components/useClientOnlyValue";
+import SwipeNavigate from "../../components/SwipeNavigate";
 
 // built-in icon families and icons on the web https://icons.expo.fyi/
 function TabBarIcon(props: {
