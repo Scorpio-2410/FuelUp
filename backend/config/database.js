@@ -32,6 +32,7 @@ const initializeDatabase = async () => {
       DROP TABLE IF EXISTS exercises CASCADE;
       DROP TABLE IF EXISTS schedule_events CASCADE;
       DROP TABLE IF EXISTS schedule_prefs CASCADE;
+      DROP TABLE IF EXISTS fitness CASCADE;
     `);
     
     // Create Users table - exactly matching diagram
@@ -60,16 +61,16 @@ const initializeDatabase = async () => {
       CREATE TABLE IF NOT EXISTS fitness (
         id SERIAL PRIMARY KEY,
         user_id INTEGER,
-        goal VARCHAR(255),
-        activity_level VARCHAR(255),
-        experience_level VARCHAR(255),
+        goal VARCHAR(100),
+        activity_level VARCHAR(50),
+        experience_level VARCHAR(50),
         days_per_week INTEGER,
         session_length_min INTEGER,
-        training_location VARCHAR(255),
+        training_location VARCHAR(100),
         equipment_available TEXT,
         preferred_activities TEXT,
         injuries_or_limitations TEXT,
-        coaching_style VARCHAR(255),
+        coaching_style VARCHAR(50),
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id)
       )
