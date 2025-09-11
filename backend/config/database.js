@@ -33,6 +33,7 @@ const initializeDatabase = async () => {
       DROP TABLE IF EXISTS schedule_events CASCADE;
       DROP TABLE IF EXISTS schedule_prefs CASCADE;
       DROP TABLE IF EXISTS fitness CASCADE;
+      DROP TABLE IF EXISTS playing_with_neon CASCADE;
     `);
     
     // Create Users table - exactly matching diagram
