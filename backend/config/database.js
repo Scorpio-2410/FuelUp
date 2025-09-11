@@ -37,7 +37,7 @@ const initializeDatabase = async () => {
     // Create Users table - exactly matching diagram
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY,
+        id SERIAL PRIMARY KEY,
         email VARCHAR(255) NOT NULL,
         username VARCHAR(255) NOT NULL,
         password_hash TEXT NOT NULL,
@@ -48,17 +48,17 @@ const initializeDatabase = async () => {
         gender VARCHAR(255),
         avatar_uri TEXT,
         notifications_enabled BOOLEAN,
-        last_login_at DATETIME,
+        last_login_at TIMESTAMP,
         follow_up_frequency VARCHAR(255),
-        created_at DATETIME,
-        updated_at DATETIME
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
     // Create Fitness table - exactly matching diagram
     await client.query(`
       CREATE TABLE IF NOT EXISTS fitness (
-        id INTEGER PRIMARY KEY,
+        id SERIAL PRIMARY KEY,
         user_id INTEGER,
         goal VARCHAR(255),
         activity_level VARCHAR(255),
@@ -70,7 +70,7 @@ const initializeDatabase = async () => {
         preferred_activities TEXT,
         injuries_or_limitations TEXT,
         coaching_style VARCHAR(255),
-        updated_at DATETIME,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id)
       )
     `);
