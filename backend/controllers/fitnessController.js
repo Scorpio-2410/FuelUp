@@ -1,6 +1,6 @@
-const Exercise = require('../models/Exercise');
+const Fitness = require('../models/Fitness');
 
-class ExerciseController {
+class FitnessController {
   // Create a new exercise entry
   static async createExercise(req, res) {
     try {
@@ -27,14 +27,14 @@ class ExerciseController {
       }
 
       // Validate exercise type
-      if (!Exercise.validateExerciseType(exerciseType)) {
+      if (!Fitness.validateExerciseType(exerciseType)) {
         return res.status(400).json({
           error: 'Invalid exercise type. Must be cardio, strength, flexibility, or sports'
         });
       }
 
       // Validate intensity if provided
-      if (intensity && !Exercise.validateIntensity(intensity)) {
+      if (intensity && !Fitness.validateIntensity(intensity)) {
         return res.status(400).json({
           error: 'Invalid intensity level. Must be low, moderate, or high'
         });
@@ -56,7 +56,7 @@ class ExerciseController {
         notes
       };
 
-      const exercise = await Exercise.create(exerciseData);
+      const exercise = await Fitness.create(exerciseData);
 
       res.status(201).json({
         message: 'Exercise logged successfully',
@@ -75,7 +75,7 @@ class ExerciseController {
     try {
       const { limit = 20, offset = 0 } = req.query;
       
-      const exercises = await Exercise.findByUserId(
+      const exercises = await Fitness.findByUserId(
         req.userId, 
         parseInt(limit), 
         parseInt(offset)
@@ -108,7 +108,7 @@ class ExerciseController {
         });
       }
 
-      const exercises = await Exercise.findByUserAndDate(req.userId, date);
+      const exercises = await Fitness.findByUserAndDate(req.userId, date);
 
       res.json({
         date,
@@ -139,7 +139,7 @@ class ExerciseController {
         });
       }
 
-      const exercises = await Exercise.findByDateRange(req.userId, startDate, endDate);
+      const exercises = await Fitness.findByDateRange(req.userId, startDate, endDate);
 
       res.json({
         startDate,
@@ -160,13 +160,13 @@ class ExerciseController {
       const { type } = req.params;
       const { limit = 20 } = req.query;
 
-      if (!Exercise.validateExerciseType(type)) {
+      if (!Fitness.validateExerciseType(type)) {
         return res.status(400).json({
           error: 'Invalid exercise type. Must be cardio, strength, flexibility, or sports'
         });
       }
 
-      const exercises = await Exercise.findByType(req.userId, type, parseInt(limit));
+      const exercises = await Fitness.findByType(req.userId, type, parseInt(limit));
 
       res.json({
         exerciseType: type,
@@ -185,7 +185,7 @@ class ExerciseController {
     try {
       const { id } = req.params;
       
-      const exercise = await Exercise.findById(id);
+      const exercise = await Fitness.findById(id);
       
       if (!exercise) {
         return res.status(404).json({
@@ -201,14 +201,14 @@ class ExerciseController {
       }
 
       // Validate exercise type if provided
-      if (req.body.exerciseType && !Exercise.validateExerciseType(req.body.exerciseType)) {
+      if (req.body.exerciseType && !Fitness.validateExerciseType(req.body.exerciseType)) {
         return res.status(400).json({
           error: 'Invalid exercise type. Must be cardio, strength, flexibility, or sports'
         });
       }
 
       // Validate intensity if provided
-      if (req.body.intensity && !Exercise.validateIntensity(req.body.intensity)) {
+      if (req.body.intensity && !Fitness.validateIntensity(req.body.intensity)) {
         return res.status(400).json({
           error: 'Invalid intensity level. Must be low, moderate, or high'
         });
@@ -233,7 +233,7 @@ class ExerciseController {
     try {
       const { id } = req.params;
       
-      const exercise = await Exercise.findById(id);
+      const exercise = await Fitness.findById(id);
       
       if (!exercise) {
         return res.status(404).json({
@@ -272,7 +272,7 @@ class ExerciseController {
         });
       }
 
-      const summary = await Exercise.getDailyExerciseSummary(req.userId, date);
+      const summary = await Fitness.getDailyExerciseSummary(req.userId, date);
 
       res.json({
         date,
@@ -297,7 +297,7 @@ class ExerciseController {
         });
       }
 
-      const exercisesByType = await Exercise.getExercisesByTypeAndDate(req.userId, date);
+      const exercisesByType = await Fitness.getExercisesByTypeAndDate(req.userId, date);
 
       res.json({
         date,
@@ -328,7 +328,7 @@ class ExerciseController {
         });
       }
 
-      const weeklyStats = await Exercise.getWeeklyStats(req.userId, startDate, endDate);
+      const weeklyStats = await Fitness.getWeeklyStats(req.userId, startDate, endDate);
 
       res.json({
         startDate,
@@ -348,7 +348,7 @@ class ExerciseController {
     try {
       const { id } = req.params;
       
-      const exercise = await Exercise.findById(id);
+      const exercise = await Fitness.findById(id);
       
       if (!exercise) {
         return res.status(404).json({
@@ -385,7 +385,7 @@ class ExerciseController {
     try {
       const userId = req.userId;
 
-      const fitnessPrefs = await Exercise.getFitnessPreferences(userId);
+      const fitnessPrefs = await Fitness.getFitnessPreferences(userId);
       
       if (!fitnessPrefs) {
         return res.status(404).json({
@@ -491,7 +491,7 @@ class ExerciseController {
         coachingStyle
       };
 
-      const fitnessPrefs = await Exercise.createOrUpdateFitnessPreferences(userId, fitnessData);
+      const fitnessPrefs = await Fitness.createOrUpdateFitnessPreferences(userId, fitnessData);
 
       res.status(201).json({
         success: true,
@@ -514,7 +514,7 @@ class ExerciseController {
       const updateData = req.body;
 
       // Find existing fitness preferences
-      const existingPrefs = await Exercise.getFitnessPreferences(userId);
+      const existingPrefs = await Fitness.getFitnessPreferences(userId);
       if (!existingPrefs) {
         return res.status(404).json({
           error: 'Fitness preferences not found',
@@ -523,7 +523,7 @@ class ExerciseController {
       }
 
       // Update the preferences
-      const updatedPrefs = await Exercise.updateFitnessPreferences(userId, updateData);
+      const updatedPrefs = await Fitness.updateFitnessPreferences(userId, updateData);
 
       res.json({
         success: true,
@@ -544,14 +544,14 @@ class ExerciseController {
     try {
       const userId = req.userId;
 
-      const fitnessPrefs = await Exercise.getFitnessPreferences(userId);
+      const fitnessPrefs = await Fitness.getFitnessPreferences(userId);
       if (!fitnessPrefs) {
         return res.status(404).json({
           error: 'Fitness preferences not found'
         });
       }
 
-      await Exercise.deleteFitnessPreferences(userId);
+      await Fitness.deleteFitnessPreferences(userId);
 
       res.json({
         success: true,
@@ -571,7 +571,7 @@ class ExerciseController {
     try {
       const userId = req.userId;
 
-      const recommendations = await Exercise.getWorkoutRecommendations(userId);
+      const recommendations = await Fitness.getWorkoutRecommendations(userId);
       if (!recommendations) {
         return res.status(404).json({
           error: 'Fitness preferences not found',
@@ -656,4 +656,4 @@ class ExerciseController {
   }
 }
 
-module.exports = ExerciseController;
+module.exports = FitnessController;

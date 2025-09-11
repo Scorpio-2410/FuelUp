@@ -5,7 +5,7 @@ require('dotenv').config();
 const { testConnection, initializeDatabase } = require('./config/database');
 const userRoutes = require('./routes/userRoutes');
 const mealRoutes = require('./routes/mealRoutes');
-const exerciseRoutes = require('./routes/exerciseRoutes');
+const fitnessRoutes = require('./routes/fitnessRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -18,7 +18,7 @@ app.use(express.urlencoded({ extended: true }));
 // API Routes
 app.use('/api/users', userRoutes);
 app.use('/api/meals', mealRoutes);
-app.use('/api/exercises', exerciseRoutes);
+app.use('/api/fitness', fitnessRoutes);
 
 // Root route
 app.get("/", (req, res) => {
@@ -28,7 +28,7 @@ app.get("/", (req, res) => {
     endpoints: {
       users: "/api/users",
       meals: "/api/meals", 
-      exercises: "/api/exercises"
+      fitness: "/api/fitness"
     }
   });
 });

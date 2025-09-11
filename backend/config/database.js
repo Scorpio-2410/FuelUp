@@ -92,10 +92,30 @@ const initializeDatabase = async () => {
       )
     `);
 
+    // Create Fitness table - user fitness preferences and settings
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS fitness (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE UNIQUE,
+        goal VARCHAR(100), -- weight_loss, muscle_gain, endurance, general_health
+        activity_level VARCHAR(50), -- sedentary, light, moderate, active, very_active
+        experience_level VARCHAR(50), -- beginner, intermediate, advanced
+        days_per_week INTEGER DEFAULT 3,
+        session_length_min INTEGER DEFAULT 60,
+        training_location VARCHAR(100), -- home, gym, outdoor, mixed
+        equipment_available TEXT, -- JSON array of available equipment
+        preferred_activities TEXT, -- JSON array of preferred workout types
+        injuries_or_limitations TEXT, -- any physical limitations or injuries
+        coaching_style VARCHAR(50), -- motivational, instructional, flexible
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     // Create indexes for better performance
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_meals_user_date ON meals(user_id, meal_date);
       CREATE INDEX IF NOT EXISTS idx_exercises_user_date ON exercises(user_id, exercise_date);
+      CREATE INDEX IF NOT EXISTS idx_fitness_user_id ON fitness(user_id);
       CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
     `);
 

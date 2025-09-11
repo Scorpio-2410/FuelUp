@@ -1,6 +1,6 @@
 const { pool } = require('../config/database');
 
-class Exercise {
+class Fitness {
   constructor(exerciseData) {
     this.id = exerciseData.id;
     this.userId = exerciseData.user_id;
@@ -48,7 +48,7 @@ class Exercise {
       ];
 
       const result = await pool.query(query, values);
-      return new Exercise(result.rows[0]);
+      return new Fitness(result.rows[0]);
     } catch (error) {
       throw new Error(`Error creating exercise: ${error.message}`);
     }
@@ -64,7 +64,7 @@ class Exercise {
         return null;
       }
       
-      return new Exercise(result.rows[0]);
+      return new Fitness(result.rows[0]);
     } catch (error) {
       throw new Error(`Error finding exercise by ID: ${error.message}`);
     }
@@ -81,7 +81,7 @@ class Exercise {
       `;
       const result = await pool.query(query, [userId, limit, offset]);
       
-      return result.rows.map(row => new Exercise(row));
+      return result.rows.map(row => new Fitness(row));
     } catch (error) {
       throw new Error(`Error finding exercises for user: ${error.message}`);
     }
@@ -97,7 +97,7 @@ class Exercise {
       `;
       const result = await pool.query(query, [userId, date]);
       
-      return result.rows.map(row => new Exercise(row));
+      return result.rows.map(row => new Fitness(row));
     } catch (error) {
       throw new Error(`Error finding exercises for date: ${error.message}`);
     }
@@ -113,7 +113,7 @@ class Exercise {
       `;
       const result = await pool.query(query, [userId, startDate, endDate]);
       
-      return result.rows.map(row => new Exercise(row));
+      return result.rows.map(row => new Fitness(row));
     } catch (error) {
       throw new Error(`Error finding exercises in date range: ${error.message}`);
     }
@@ -130,7 +130,7 @@ class Exercise {
       `;
       const result = await pool.query(query, [userId, exerciseType, limit]);
       
-      return result.rows.map(row => new Exercise(row));
+      return result.rows.map(row => new Fitness(row));
     } catch (error) {
       throw new Error(`Error finding exercises by type: ${error.message}`);
     }
@@ -179,7 +179,7 @@ class Exercise {
       }
 
       // Update current instance
-      Object.assign(this, new Exercise(result.rows[0]));
+      Object.assign(this, new Fitness(result.rows[0]));
       return this;
     } catch (error) {
       throw new Error(`Error updating exercise: ${error.message}`);
@@ -488,15 +488,15 @@ class Exercise {
   // Get workout recommendations based on fitness preferences
   static async getWorkoutRecommendations(userId) {
     try {
-      const fitnessPrefs = await Exercise.getFitnessPreferences(userId);
+      const fitnessPrefs = await Fitness.getFitnessPreferences(userId);
       if (!fitnessPrefs) {
         return null;
       }
 
       // Generate basic recommendations based on preferences
       const recommendations = {
-        frequency: Exercise.getRecommendedFrequency(fitnessPrefs.experienceLevel),
-        intensity: Exercise.getIntensityRecommendations(fitnessPrefs.experienceLevel),
+        frequency: Fitness.getRecommendedFrequency(fitnessPrefs.experienceLevel),
+        intensity: Fitness.getIntensityRecommendations(fitnessPrefs.experienceLevel),
         workoutTypes: [],
         tips: []
       };
@@ -568,4 +568,4 @@ class Exercise {
   }
 }
 
-module.exports = Exercise;
+module.exports = Fitness;
