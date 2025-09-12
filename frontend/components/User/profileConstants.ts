@@ -35,6 +35,21 @@ export const FITNESS_GOAL_ITEMS = [
   { label: "General health & activity", value: "general_health" },
 ] as const;
 
+export const GENDER_ITEMS = [
+  { label: "Prefer not to say", value: "prefer_not_to_say" },
+  { label: "Female", value: "female" },
+  { label: "Male", value: "male" },
+  { label: "Non-binary", value: "non_binary" },
+] as const;
+
+export const ACTIVITY_LEVEL_ITEMS = [
+  { label: "Sedentary", value: "sedentary" },
+  { label: "Light", value: "light" },
+  { label: "Moderate", value: "moderate" },
+  { label: "Active", value: "active" },
+  { label: "Very Active", value: "very_active" },
+] as const;
+
 export const HEIGHT_UNITS = [
   { label: "cm", value: "cm" },
   { label: "ft", value: "ft" },

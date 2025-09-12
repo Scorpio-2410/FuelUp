@@ -1,42 +1,38 @@
-const { Pool } = require('pg');
-require('dotenv').config();
+const { Pool } = require("pg");
+require("dotenv").config();
 
-// Neon PostgreSQL connection pool
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false
-  }
+  ssl: { rejectUnauthorized: false },
 });
 
-// Test database connection
 const testConnection = async () => {
   try {
     const client = await pool.connect();
-    console.log('Neon PostgreSQL database');
+    console.log("✅ Neon PostgreSQL database connected");
     client.release();
   } catch (err) {
-    console.error('❌ Database connection error:', err.message);
+    console.error("❌ Database connection error:", err.message);
     process.exit(1);
   }
 };
 
-// Initialize database tables
 const initializeDatabase = async () => {
   try {
     const client = await pool.connect();
-    
-    // Drop existing tables to clean up
+
+    // helper: updated_at trigger
     await client.query(`
-      DROP TABLE IF EXISTS meals CASCADE;
-      DROP TABLE IF EXISTS exercises CASCADE;
-      DROP TABLE IF EXISTS schedule_events CASCADE;
-      DROP TABLE IF EXISTS schedule_prefs CASCADE;
-      DROP TABLE IF EXISTS fitness CASCADE;
-      DROP TABLE IF EXISTS playing_with_neon CASCADE;
+      CREATE OR REPLACE FUNCTION set_updated_at()
+      RETURNS TRIGGER AS $$
+      BEGIN
+        NEW.updated_at = NOW();
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
     `);
-    
-    // Create Users table - exactly matching diagram
+
+    // users
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -49,51 +45,50 @@ const initializeDatabase = async () => {
         weight_kg NUMERIC,
         gender VARCHAR(255),
         avatar_uri TEXT,
-        notifications_enabled BOOLEAN,
+        notifications_enabled BOOLEAN DEFAULT TRUE,
         last_login_at TIMESTAMP,
-        follow_up_frequency VARCHAR(255),
+        follow_up_frequency VARCHAR(255) DEFAULT 'daily',
+        ethnicity VARCHAR(255) DEFAULT 'not_specified',
+        fitness_goal VARCHAR(100) DEFAULT 'general_health',
+        activity_level VARCHAR(50) DEFAULT 'moderate',
+        daily_calorie_goal INTEGER DEFAULT 2000,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
+      );
     `);
 
-    // Create Fitness table - exactly matching diagram
     await client.query(`
-      CREATE TABLE IF NOT EXISTS fitness (
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email);
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username);
+
+      DROP TRIGGER IF EXISTS trg_users_updated_at ON users;
+      CREATE TRIGGER trg_users_updated_at
+      BEFORE UPDATE ON users
+      FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    `);
+
+    // password reset tokens
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS password_reset_tokens (
         id SERIAL PRIMARY KEY,
-        user_id INTEGER,
-        goal VARCHAR(100),
-        activity_level VARCHAR(50),
-        experience_level VARCHAR(50),
-        days_per_week INTEGER,
-        session_length_min INTEGER,
-        training_location VARCHAR(100),
-        equipment_available TEXT,
-        preferred_activities TEXT,
-        injuries_or_limitations TEXT,
-        coaching_style VARCHAR(50),
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users(id)
-      )
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        code VARCHAR(6) NOT NULL,
+        expires_at TIMESTAMP NOT NULL,
+        used BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
     `);
-
-    // Create indexes for better performance
     await client.query(`
-      CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-      CREATE INDEX IF NOT EXISTS idx_fitness_user_id ON fitness(user_id);
+      CREATE INDEX IF NOT EXISTS idx_prt_user ON password_reset_tokens(user_id);
+      CREATE INDEX IF NOT EXISTS idx_prt_expires ON password_reset_tokens(expires_at);
     `);
 
-    console.log('✅ Database tables initialized successfully');
-    console.log('📊 Tables created: users, fitness (matching diagram)');
+    console.log("✅ Tables ensured: users, password_reset_tokens");
     client.release();
   } catch (err) {
-    console.error('❌ Database initialization error:', err.message);
+    console.error("❌ Database initialization error:", err.message);
     throw err;
   }
 };
 
-module.exports = {
-  pool,
-  testConnection,
-  initializeDatabase
-};
+module.exports = { pool, testConnection, initializeDatabase };

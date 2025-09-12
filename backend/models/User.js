@@ -1,229 +1,155 @@
-const { pool } = require('../config/database');
-const bcrypt = require('bcryptjs');
+const { pool } = require("../config/database");
+const bcrypt = require("bcryptjs");
 
 class User {
-  constructor(userData) {
-    this.id = userData.id;
-    this.username = userData.username;
-    this.fullName = userData.full_name;
-    this.email = userData.email;
-    this.password = userData.password;
-    this.dob = userData.dob;
-    this.heightCm = userData.height_cm;
-    this.weightKg = userData.weight_kg;
-    this.notifications = userData.notifications;
-    this.avatarUri = userData.avatar_uri;
-    this.ethnicity = userData.ethnicity;
-    this.followUpFrequency = userData.follow_up_frequency;
-    this.fitnessGoal = userData.fitness_goal;
-    this.activityLevel = userData.activity_level;
-    this.dailyCalorieGoal = userData.daily_calorie_goal;
-    this.createdAt = userData.created_at;
-    this.updatedAt = userData.updated_at;
+  constructor(row) {
+    this.id = row.id;
+    this.email = row.email;
+    this.username = row.username;
+    this.passwordHash = row.password_hash;
+    this.fullName = row.full_name;
+    this.dob = row.dob;
+    this.heightCm = row.height_cm;
+    this.weightKg = row.weight_kg;
+    this.gender = row.gender;
+    this.avatarUri = row.avatar_uri;
+    this.notificationsEnabled = row.notifications_enabled;
+    this.lastLoginAt = row.last_login_at;
+    this.followUpFrequency = row.follow_up_frequency;
+    this.ethnicity = row.ethnicity;
+    this.fitnessGoal = row.fitness_goal;
+    this.activityLevel = row.activity_level;
+    this.dailyCalorieGoal = row.daily_calorie_goal;
+    this.createdAt = row.created_at;
+    this.updatedAt = row.updated_at;
   }
 
-  // Create a new user
-  static async create(userData) {
-    try {
-      // Hash password before storing
-      const saltRounds = 10;
-      const hashedPassword = await bcrypt.hash(userData.password, saltRounds);
-
-      const query = `
-        INSERT INTO users (username, full_name, email, password, dob, 
-                          height_cm, weight_kg, notifications, avatar_uri, ethnicity,
-                          follow_up_frequency, fitness_goal, activity_level, daily_calorie_goal)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-        RETURNING *
-      `;
-      
-      const values = [
-        userData.username,
-        userData.fullName,
-        userData.email,
-        hashedPassword,
-        userData.dob,
-        userData.heightCm,
-        userData.weightKg,
-        userData.notifications !== undefined ? userData.notifications : true,
-        userData.avatarUri,
-        userData.ethnicity || 'not_specified',
-        userData.followUpFrequency || 'daily',
-        userData.fitnessGoal || 'general_health',
-        userData.activityLevel || 'moderate',
-        userData.dailyCalorieGoal || 2000
-      ];
-
-      const result = await pool.query(query, values);
-      return new User(result.rows[0]);
-    } catch (error) {
-      throw new Error(`Error creating user: ${error.message}`);
-    }
+  static async create(data) {
+    const hashed = await bcrypt.hash(data.password, 10);
+    const q = `
+      INSERT INTO users (
+        email, username, password_hash, full_name, dob, height_cm, weight_kg,
+        gender, avatar_uri, notifications_enabled, follow_up_frequency,
+        ethnicity, fitness_goal, activity_level, daily_calorie_goal
+      )
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,COALESCE($10,TRUE),COALESCE($11,'daily'),
+              COALESCE($12,'not_specified'),COALESCE($13,'general_health'),
+              COALESCE($14,'moderate'),COALESCE($15,2000))
+      RETURNING *`;
+    const v = [
+      data.email,
+      data.username,
+      hashed,
+      data.fullName || null,
+      data.dob || null,
+      data.heightCm || null,
+      data.weightKg || null,
+      data.gender || null,
+      data.avatarUri || null,
+      data.notificationsEnabled,
+      data.followUpFrequency,
+      data.ethnicity,
+      data.fitnessGoal,
+      data.activityLevel,
+      data.dailyCalorieGoal,
+    ];
+    const r = await pool.query(q, v);
+    return new User(r.rows[0]);
   }
 
-  // Find user by email
   static async findByEmail(email) {
-    try {
-      const query = 'SELECT * FROM users WHERE email = $1';
-      const result = await pool.query(query, [email]);
-      
-      if (result.rows.length === 0) {
-        return null;
-      }
-      
-      return new User(result.rows[0]);
-    } catch (error) {
-      throw new Error(`Error finding user by email: ${error.message}`);
-    }
+    const r = await pool.query("SELECT * FROM users WHERE email=$1", [email]);
+    return r.rows[0] ? new User(r.rows[0]) : null;
   }
 
-  // Find user by username
   static async findByUsername(username) {
-    try {
-      const query = 'SELECT * FROM users WHERE username = $1';
-      const result = await pool.query(query, [username]);
-      
-      if (result.rows.length === 0) {
-        return null;
-      }
-      
-      return new User(result.rows[0]);
-    } catch (error) {
-      throw new Error(`Error finding user by username: ${error.message}`);
-    }
+    const r = await pool.query("SELECT * FROM users WHERE username=$1", [
+      username,
+    ]);
+    return r.rows[0] ? new User(r.rows[0]) : null;
   }
 
-  // Find user by ID
   static async findById(id) {
-    try {
-      const query = 'SELECT * FROM users WHERE id = $1';
-      const result = await pool.query(query, [id]);
-      
-      if (result.rows.length === 0) {
-        return null;
-      }
-      
-      return new User(result.rows[0]);
-    } catch (error) {
-      throw new Error(`Error finding user by ID: ${error.message}`);
-    }
+    const r = await pool.query("SELECT * FROM users WHERE id=$1", [id]);
+    return r.rows[0] ? new User(r.rows[0]) : null;
   }
 
-  // Verify password
-  async verifyPassword(plainPassword) {
-    try {
-      return await bcrypt.compare(plainPassword, this.password);
-    } catch (error) {
-      throw new Error(`Error verifying password: ${error.message}`);
-    }
+  async verifyPassword(plain) {
+    return bcrypt.compare(plain, this.passwordHash);
   }
 
-  // Update user profile
+  async setPassword(newPassword) {
+    const hashed = await bcrypt.hash(newPassword, 10);
+    const r = await pool.query(
+      "UPDATE users SET password_hash=$1, updated_at=CURRENT_TIMESTAMP WHERE id=$2 RETURNING *",
+      [hashed, this.id]
+    );
+    Object.assign(this, new User(r.rows[0]));
+    return this;
+  }
+
+  async touchLogin() {
+    await pool.query("UPDATE users SET last_login_at=NOW() WHERE id=$1", [
+      this.id,
+    ]);
+  }
+
   async update(updateData) {
-    try {
-      const allowedFields = [
-        'username', 'full_name', 'email', 'dob', 'height_cm', 'weight_kg',
-        'notifications', 'avatar_uri', 'ethnicity', 'follow_up_frequency',
-        'fitness_goal', 'activity_level', 'daily_calorie_goal'
-      ];
-
-      const setClause = [];
-      const values = [];
-      let paramIndex = 1;
-
-      // Build dynamic update query
-      for (const field of allowedFields) {
-        if (updateData[field] !== undefined) {
-          setClause.push(`${field} = $${paramIndex}`);
-          values.push(updateData[field]);
-          paramIndex++;
-        }
-      }
-
-      if (setClause.length === 0) {
-        throw new Error('No valid fields to update');
-      }
-
-      setClause.push(`updated_at = CURRENT_TIMESTAMP`);
-      values.push(this.id);
-
-      const query = `
-        UPDATE users 
-        SET ${setClause.join(', ')}
-        WHERE id = $${paramIndex}
-        RETURNING *
-      `;
-
-      const result = await pool.query(query, values);
-      
-      if (result.rows.length === 0) {
-        throw new Error('User not found');
-      }
-
-      // Update current instance
-      Object.assign(this, new User(result.rows[0]));
-      return this;
-    } catch (error) {
-      throw new Error(`Error updating user: ${error.message}`);
-    }
-  }
-
-  // Delete user
-  async delete() {
-    try {
-      const query = 'DELETE FROM users WHERE id = $1';
-      await pool.query(query, [this.id]);
-      return true;
-    } catch (error) {
-      throw new Error(`Error deleting user: ${error.message}`);
-    }
-  }
-
-  // Get user without password (for API responses)
-  toJSON() {
-    const { password, ...userWithoutPassword } = this;
-    return userWithoutPassword;
-  }
-
-  // Calculate BMI
-  getBMI() {
-    if (!this.heightCm || !this.weightKg) {
-      return null;
-    }
-    // Height is in cm and weight is in kg
-    const heightInMeters = this.heightCm / 100;
-    return (this.weightKg / (heightInMeters * heightInMeters)).toFixed(1);
-  }
-
-  // Calculate recommended daily calories based on profile
-  getRecommendedCalories() {
-    if (!this.weightKg || !this.heightCm || !this.dob) {
-      return this.dailyCalorieGoal || 2000;
-    }
-
-    // Calculate age
-    const today = new Date();
-    const birthDate = new Date(this.dob);
-    const age = today.getFullYear() - birthDate.getFullYear();
-
-    // Harris-Benedict Equation (assuming no gender field in frontend, using moderate estimate)
-    // Using average between male and female equations for general calculation
-    const avgBmr = (
-      (88.362 + (13.397 * this.weightKg) + (4.799 * this.heightCm) - (5.677 * age)) +
-      (447.593 + (9.247 * this.weightKg) + (3.098 * this.heightCm) - (4.330 * age))
-    ) / 2;
-
-    // Activity level multipliers
-    const activityMultipliers = {
-      'sedentary': 1.2,
-      'light': 1.375,
-      'moderate': 1.55,
-      'active': 1.725,
-      'very_active': 1.9
+    const allowed = [
+      "email",
+      "username",
+      "full_name",
+      "dob",
+      "height_cm",
+      "weight_kg",
+      "gender",
+      "avatar_uri",
+      "notifications_enabled",
+      "follow_up_frequency",
+      "ethnicity",
+      "fitness_goal",
+      "activity_level",
+      "daily_calorie_goal",
+    ];
+    const casts = {
+      dob: "::date",
+      height_cm: "::numeric",
+      weight_kg: "::numeric",
+      daily_calorie_goal: "::integer",
     };
 
-    const multiplier = activityMultipliers[this.activityLevel] || 1.55;
-    return Math.round(avgBmr * multiplier);
+    const sets = [];
+    const vals = [];
+    let i = 1;
+    for (const col of allowed) {
+      if (Object.prototype.hasOwnProperty.call(updateData, col)) {
+        const cast = casts[col] || "";
+        sets.push(`${col}=$${i}${cast}`);
+        vals.push(updateData[col]);
+        i++;
+      }
+    }
+    if (!sets.length) throw new Error("No valid fields to update");
+    vals.push(this.id);
+
+    const sql = `UPDATE users SET ${sets.join(
+      ", "
+    )}, updated_at=CURRENT_TIMESTAMP
+                 WHERE id=$${i} RETURNING *`;
+    const r = await pool.query(sql, vals);
+    if (!r.rows[0]) throw new Error("User not found after update");
+    Object.assign(this, new User(r.rows[0]));
+    return this;
+  }
+
+  async delete() {
+    await pool.query("DELETE FROM users WHERE id=$1", [this.id]);
+    return true;
+  }
+
+  toJSON() {
+    const { passwordHash, ...rest } = this;
+    return rest;
   }
 }
 
