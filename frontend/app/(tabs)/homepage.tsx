@@ -1,9 +1,9 @@
 // app/(tabs)/homepage.tsx
-import React, { useState, useCallback, useRef } from "react";
-import { View, Text, Dimensions, Image, Platform } from "react-native";
+import React, { useState, useCallback, useRef, useEffect } from "react";
+import { View, Text, Dimensions, Image } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import * as SecureStore from "expo-secure-store";
 import { useFocusEffect } from "expo-router";
+
 import RealTimeCalendar from "../../components/Homepage/RealTimeCalendar";
 import RefreshScroll from "../../components/RefreshScroll";
 import HomepageMotivationalQuotes from "../../components/Homepage/HomepageMotivationalQuotes";
@@ -12,36 +12,17 @@ import HomepageSteps from "../../components/Homepage/HomepageSteps";
 import HomepageCaloriesTracking from "../../components/Homepage/HomepageCaloriesTracking";
 import { useGlobalRefresh } from "../../components/useGlobalRefresh";
 
-const K_PROFILE = "fu_profile";
-
-// Platform-safe storage functions
-const getStorageItem = async (key: string): Promise<string | null> => {
-  if (Platform.OS === "web") {
-    // Use localStorage for web
-    return localStorage.getItem(key);
-  } else {
-    // Use SecureStore for native platforms
-    return await SecureStore.getItemAsync(key);
-  }
-};
-
-const setStorageItem = async (key: string, value: string): Promise<void> => {
-  if (Platform.OS === "web") {
-    // Use localStorage for web
-    localStorage.setItem(key, value);
-  } else {
-    // Use SecureStore for native platforms
-    await SecureStore.setItemAsync(key, value);
-  }
-};
+import {
+  apiGetMe,
+  readProfileCache,
+  writeProfileCache,
+} from "../../constants/api";
 
 type Profile = {
   username: string;
   avatarUri?: string;
 };
 
-// Homepage with fitness tracking, pull-to-refresh, and real-time calendar
-// Clean separation of concerns with reusable components
 export default function HomePageScreen() {
   const insets = useSafeAreaInsets();
   const { width } = Dimensions.get("window");
@@ -55,12 +36,38 @@ export default function HomePageScreen() {
   const caloriesRef = useRef<{ updateCalories: () => void }>(null);
   const goalsRef = useRef<{ updateMessage: () => void }>(null);
 
+  // Always show something instantly (cache), then fetch fresh from backend
+  const hydrateProfile = useCallback(async () => {
+    let cached = await readProfileCache();
+    if (cached) {
+      setProfile({
+        username: cached.username || "",
+        avatarUri: cached.avatarUri || undefined,
+      });
+    }
+
+    try {
+      const { user } = await apiGetMe();
+      if (user) {
+        const fresh = {
+          username: user.username || "",
+          avatarUri: user.avatarUri || undefined,
+        };
+        setProfile(fresh);
+        // keep cache warm for next time
+        await writeProfileCache(user);
+      }
+    } catch {
+      // network error → keep whatever is shown (cached or default)
+    }
+  }, []);
+
   // Global refresh hook with custom homepage refresh logic
   const { refreshing, handleRefresh } = useGlobalRefresh({
     tabName: "homepage",
     refreshDuration: 2000,
-    onInternalRefresh: () => {
-      // Trigger all component refreshes
+    onInternalRefresh: async () => {
+      await hydrateProfile(); // also re-fetch profile when user pulls to refresh
       stepsRef.current?.updateSteps();
       quotesRef.current?.updateQuote();
       caloriesRef.current?.updateCalories();
@@ -68,24 +75,23 @@ export default function HomePageScreen() {
     },
   });
 
-  // Load profile whenever Home is focused
+  // Hydrate once on initial mount (instant cache paint)
+  useEffect(() => {
+    hydrateProfile();
+  }, [hydrateProfile]);
+
+  // And re-hydrate every time the tab/screen gains focus
   useFocusEffect(
     useCallback(() => {
       let alive = true;
       (async () => {
-        const raw = await getStorageItem(K_PROFILE);
-        if (alive && raw) {
-          const parsed = JSON.parse(raw);
-          setProfile({
-            username: parsed?.username || "",
-            avatarUri: parsed?.avatarUri,
-          });
-        }
+        if (!alive) return;
+        await hydrateProfile();
       })();
       return () => {
         alive = false;
       };
-    }, [])
+    }, [hydrateProfile])
   );
 
   return (
@@ -101,8 +107,7 @@ export default function HomePageScreen() {
             </View>
             <View
               className="w-20 h-20 rounded-full overflow-hidden"
-              style={{ backgroundColor: "#2a2a2a" }}
-            >
+              style={{ backgroundColor: "#2a2a2a" }}>
               {profile.avatarUri ? (
                 <Image
                   source={{ uri: profile.avatarUri }}

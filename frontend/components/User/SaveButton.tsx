@@ -1,4 +1,5 @@
-import React from "react";
+// components/User/SaveButton.tsx
+import React, { useCallback } from "react";
 import { Pressable, Text, Alert, View } from "react-native";
 import { router } from "expo-router";
 import { apiUpdateMe, clearToken } from "@/constants/api";
@@ -32,18 +33,12 @@ type Props = {
   setSaving: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
-function isValidEmail(email: string) {
-  if (!email) return true; // optional
-  return /\S+@\S+\.\S+/.test(email);
-}
-
 async function pushToBackend(profile: Profile) {
-  // Map camelCase -> DB snake_case
+  // Map camelCase -> DB snake_case (do NOT send email since it's not editable)
   const payload = {
     username: profile.username || null,
-    email: profile.email || null,
     full_name: profile.fullName || null,
-    dob: profile.dob || null, // "YYYY-MM-DD" or null
+    dob: profile.dob || null,
     height_cm: profile.heightCm ?? null,
     weight_kg: profile.weightKg ?? null,
     gender: profile.gender || null,
@@ -56,18 +51,13 @@ async function pushToBackend(profile: Profile) {
     daily_calorie_goal: profile.dailyCalorieGoal ?? null,
   };
 
-  const res = await apiUpdateMe(payload);
-  return res;
+  return apiUpdateMe(payload);
 }
 
 export function SaveButton({ profile, saving, setSaving }: Props) {
-  const onSave = async () => {
+  const onSave = useCallback(async () => {
     if (!profile.username?.trim()) {
       Alert.alert("Username required", "Please enter a username.");
-      return;
-    }
-    if (!isValidEmail(profile.email)) {
-      Alert.alert("Invalid email", "Please enter a valid email address.");
       return;
     }
     try {
@@ -80,13 +70,15 @@ export function SaveButton({ profile, saving, setSaving }: Props) {
     } finally {
       setSaving(false);
     }
-  };
+  }, [profile, setSaving]);
 
   return (
     <Pressable
       onPress={onSave}
       disabled={saving}
-      className={`rounded-xl p-3 ${saving ? "bg-blue-400" : "bg-blue-600"}`}
+      className={`rounded-xl px-6 py-3 w-3/4 ${
+        saving ? "bg-green-400" : "bg-green-600"
+      }`}
       accessibilityRole="button"
       accessibilityLabel="Save profile">
       <Text className="text-white text-center font-semibold">
@@ -97,14 +89,15 @@ export function SaveButton({ profile, saving, setSaving }: Props) {
 }
 
 export function LogoutButton() {
-  const onLogout = async () => {
+  const onLogout = useCallback(async () => {
     await clearToken();
     router.replace("/authlogin");
-  };
+  }, []);
+
   return (
     <Pressable
       onPress={onLogout}
-      className="rounded-xl p-3 bg-neutral-700"
+      className="rounded-xl px-6 py-3 w-3/4 bg-neutral-700"
       accessibilityRole="button"
       accessibilityLabel="Log out">
       <Text className="text-white text-center font-semibold">Log out</Text>
@@ -112,12 +105,10 @@ export function LogoutButton() {
   );
 }
 
-/**
- * Convenience row: Save + Logout side by side
- */
+/** Centered green-themed actions */
 export default function SaveRow(props: Props) {
   return (
-    <View className="flex-row gap-3">
+    <View className="items-center gap-3">
       <SaveButton {...props} />
       <LogoutButton />
     </View>

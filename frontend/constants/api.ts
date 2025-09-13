@@ -1,5 +1,6 @@
 // constants/api.ts
 import * as SecureStore from "expo-secure-store";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export const BASE_URL = "http://localhost:4000";
 export const K_TOKEN = "fu_token";
@@ -14,7 +15,7 @@ const EP = {
   resetRequest: "/api/users/reset/request",
   resetConfirm: "/api/users/reset/confirm",
   checkUsername: "/api/users/check-username",
-  checkEmail: "/api/users/check-email",
+  checkEmail: "/api/users/check-email", // 👈 added
 };
 
 function asJson<T = any>(res: Response): Promise<T> {
@@ -37,22 +38,49 @@ async function authHeaders() {
   };
 }
 
-// --- auth token helpers ---
+// --- token stays in SecureStore (small) ---
 export async function storeToken(token: string) {
   await SecureStore.setItemAsync(K_TOKEN, token);
 }
 export async function clearToken() {
   await SecureStore.deleteItemAsync(K_TOKEN);
-  await SecureStore.deleteItemAsync(K_PROFILE);
+  // move profile cache handling to AsyncStorage (no 2KB limit)
+  await AsyncStorage.removeItem(K_PROFILE);
 }
 
-// --- profile cache helpers ---
+// --- profile cache (AsyncStorage to avoid 2KB warnings) ---
 export async function readProfileCache(): Promise<any | null> {
-  const raw = await SecureStore.getItemAsync(K_PROFILE);
-  return raw ? JSON.parse(raw) : null;
+  try {
+    const raw = await AsyncStorage.getItem(K_PROFILE);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
 }
+
 export async function writeProfileCache(userObj: any) {
-  await SecureStore.setItemAsync(K_PROFILE, JSON.stringify(userObj));
+  try {
+    const slim = {
+      id: userObj?.id,
+      username: userObj?.username,
+      email: userObj?.email,
+      avatarUri: userObj?.avatarUri,
+      dob: userObj?.dob,
+      heightCm: userObj?.heightCm,
+      weightKg: userObj?.weightKg,
+      notificationsEnabled: userObj?.notificationsEnabled,
+      followUpFrequency: userObj?.followUpFrequency,
+      ethnicity: userObj?.ethnicity,
+      fitnessGoal: userObj?.fitnessGoal,
+      activityLevel: userObj?.activityLevel,
+      dailyCalorieGoal: userObj?.dailyCalorieGoal,
+      createdAt: userObj?.createdAt,
+      updatedAt: userObj?.updatedAt,
+    };
+    await AsyncStorage.setItem(K_PROFILE, JSON.stringify(slim));
+  } catch {
+    // cache is optional
+  }
 }
 
 // --- Auth ---
@@ -81,7 +109,7 @@ export async function apiLogin(payload: {
   return asJson<{ token: string; user: any }>(res);
 }
 
-// Username availability
+// --- Availability checks ---
 export async function apiCheckUsername(username: string) {
   const res = await fetch(
     `${BASE_URL}${EP.checkUsername}?username=${encodeURIComponent(username)}`
@@ -89,7 +117,6 @@ export async function apiCheckUsername(username: string) {
   return asJson<{ available: boolean; reason?: string }>(res);
 }
 
-// Email availability
 export async function apiCheckEmail(email: string) {
   const res = await fetch(
     `${BASE_URL}${EP.checkEmail}?email=${encodeURIComponent(email)}`

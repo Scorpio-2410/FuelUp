@@ -41,26 +41,28 @@ type Profile = {
   dailyCalorieGoal?: number;
 };
 
-// ---------- Helpers ----------
-// tolerant DOB parser: accepts "YYYY-MM-DD" or full ISO timestamp
+// ---------- Helpers (date-only; no JS Date) ----------
 const pad2 = (n: number) => String(n).padStart(2, "0");
+const plain = (val?: string) => (val ? String(val).slice(0, 10) : undefined); // always "YYYY-MM-DD"
 
 const parseISO = (iso?: string) => {
-  if (!iso) return undefined;
-  // normalize to first 10 chars if a timestamp came through
-  const s = iso.length > 10 ? iso.slice(0, 10) : iso; // "YYYY-MM-DD"
+  const s = plain(iso);
+  if (!s) return undefined;
   const [y, m, d] = s.split("-").map((x) => Number(x));
-  if (!y || !m || !d) return undefined;
+  if (!isValidYMD(y, m, d)) return undefined;
   return { y, m, d };
 };
 
 const toISO = (y: number, m: number, d: number) => `${y}-${pad2(m)}-${pad2(d)}`;
+
+const isLeap = (y: number) => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+const daysInMonth = (y: number, m: number) =>
+  [31, isLeap(y) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][m - 1];
+
 const isValidYMD = (y?: number, m?: number, d?: number) => {
   if (!y || !m || !d) return false;
-  const dt = new Date(y, m - 1, d);
-  return (
-    dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d
-  );
+  if (m < 1 || m > 12) return false;
+  return d >= 1 && d <= daysInMonth(y, m);
 };
 
 // conversions (canonical = cm/kg)
@@ -83,28 +85,14 @@ const numericItems = (
     return { label, value: String(v) };
   });
 
-// ✅ DOB items — PADDED DAY values to keep selection
+// DOB items (numeric labels only)
 const dayItems = Array.from({ length: 31 }, (_, i) => {
   const d = pad2(i + 1);
-  return { label: d, value: d }; // "01".."31"
+  return { label: d, value: d };
 });
 const monthItems = Array.from({ length: 12 }, (_, i) => {
-  const mm = i + 1;
-  const names = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-  ];
-  return { label: `${pad2(mm)} (${names[i]})`, value: pad2(mm) };
+  const mm = pad2(i + 1);
+  return { label: mm, value: mm };
 });
 const yearItems = (() => {
   const now = new Date().getFullYear();
@@ -118,7 +106,7 @@ type Props = {
 };
 
 export default function ProfileForm({ profile, setProfile }: Props) {
-  // ----- DOB local draft (so values don’t blank) -----
+  // ----- DOB local draft (controlled selects) -----
   const initial = parseISO(profile.dob);
   const [dobDay, setDobDay] = useState<string>(initial ? pad2(initial.d) : "");
   const [dobMonth, setDobMonth] = useState<string>(
@@ -128,6 +116,7 @@ export default function ProfileForm({ profile, setProfile }: Props) {
     initial ? String(initial.y) : ""
   );
 
+  // Keep selects in sync if profile.dob changes from outside
   useEffect(() => {
     const p = parseISO(profile.dob);
     if (p) {
@@ -152,15 +141,19 @@ export default function ProfileForm({ profile, setProfile }: Props) {
     const y = Number(Y),
       m = Number(M),
       d = Number(D);
-    if (isValidYMD(y, m, d)) setProfile({ ...profile, dob: toISO(y, m, d) });
-    else setProfile({ ...profile, dob: undefined });
+    if (isValidYMD(y, m, d)) {
+      // set plain date; no timezone surprises
+      setProfile({ ...profile, dob: toISO(y, m, d) });
+    } else {
+      setProfile({ ...profile, dob: undefined });
+    }
   };
 
   // Height/Weight choices
   const heightItems = useMemo(() => {
     return (profile.heightUnit ?? "cm") === "cm"
       ? numericItems(120, 220, 1)
-      : numericItems(4.0, 7.5, 0.1, (v) => v.toFixed(1)); // decimal feet
+      : numericItems(4.0, 7.5, 0.1, (v) => v.toFixed(1));
   }, [profile.heightUnit]);
 
   const weightItems = useMemo(() => {
@@ -197,18 +190,12 @@ export default function ProfileForm({ profile, setProfile }: Props) {
     setProfile({ ...profile, weightKg: Math.round(kg) });
   };
 
-  const dobIsValid = isValidYMD(
-    Number(dobYear),
-    Number(dobMonth),
-    Number(dobDay)
-  );
-
   return (
     <>
       <ProfileAvatar profile={profile as any} setProfile={setProfile as any} />
 
       <ProfileField
-        label="Username (shown in app)"
+        label="Username"
         textInputProps={{
           placeholder: "username",
           autoCapitalize: "none",
@@ -226,16 +213,18 @@ export default function ProfileForm({ profile, setProfile }: Props) {
         }}
       />
 
-      <ProfileField
-        label="Email"
-        textInputProps={{
-          placeholder: "you@example.com",
-          autoCapitalize: "none",
-          keyboardType: "email-address",
-          value: profile.email,
-          onChangeText: (v) => setProfile({ ...profile, email: v }),
-        }}
-      />
+      {/* Email (view-only) */}
+      <View className="opacity-60">
+        <ProfileField
+          label="Email"
+          textInputProps={{
+            value: profile.email,
+            editable: false,
+            selectTextOnFocus: false,
+            placeholder: "you@example.com",
+          }}
+        />
+      </View>
 
       {/* DOB */}
       <ProfileField label="Date of birth (DD-MM-YYYY)">
@@ -265,15 +254,6 @@ export default function ProfileForm({ profile, setProfile }: Props) {
             />
           </View>
         </View>
-        {dobIsValid ? (
-          <Text className="text-neutral-400 mt-2">
-            Selected: {pad2(Number(dobDay))}-{pad2(Number(dobMonth))}-{dobYear}
-          </Text>
-        ) : (
-          <Text className="text-neutral-500 mt-2">
-            Select all three to set DOB
-          </Text>
-        )}
       </ProfileField>
 
       {/* Height */}

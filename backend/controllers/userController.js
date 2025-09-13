@@ -12,6 +12,36 @@ function signToken(user) {
   );
 }
 
+/**
+ * Keep DOB as a plain "YYYY-MM-DD" calendar date.
+ * NOTE: Do NOT use toISOString() here — it converts to UTC and can shift the day.
+ */
+function toPlainDate(input) {
+  if (!input) return null;
+
+  // Strings: accept "YYYY-MM-DD" or any ISO-like, trim to first 10 chars
+  if (typeof input === "string") {
+    const m = input.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return m ? `${m[1]}-${m[2]}-${m[3]}` : null;
+  }
+
+  // Date objects: format using LOCAL getters (calendar date), not UTC
+  if (input instanceof Date) {
+    const y = input.getFullYear();
+    const m = String(input.getMonth() + 1).padStart(2, "0");
+    const d = String(input.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+
+  return null;
+}
+
+function safeUserJSON(user) {
+  const out = user.toJSON();
+  if (out.dob) out.dob = toPlainDate(out.dob);
+  return out;
+}
+
 class UserController {
   // Public: check if a username is available
   static async checkUsername(req, res) {
@@ -50,7 +80,7 @@ class UserController {
     }
   }
 
-  // Register a new user (accepts optional profile data too)
+  // Register a new user
   static async register(req, res) {
     try {
       const {
@@ -71,24 +101,27 @@ class UserController {
         dailyCalorieGoal,
       } = req.body;
 
-      if (!username || !email || !password)
+      if (!username || !email || !password) {
         return res
           .status(400)
           .json({ error: "Username, email, and password are required" });
+      }
 
-      if (await User.findByEmail(email))
+      if (await User.findByEmail(email)) {
         return res
           .status(400)
           .json({ error: "User with this email already exists" });
-      if (await User.findByUsername(username))
+      }
+      if (await User.findByUsername(username)) {
         return res.status(400).json({ error: "Username already taken" });
+      }
 
       const user = await User.create({
         username,
         email,
         password,
         fullName,
-        dob,
+        dob: toPlainDate(dob), // normalize to plain date
         heightCm,
         weightKg,
         gender,
@@ -104,7 +137,7 @@ class UserController {
       const token = signToken(user);
       res.status(201).json({
         message: "User registered successfully",
-        user: user.toJSON(),
+        user: safeUserJSON(user),
         token,
       });
     } catch (e) {
@@ -118,19 +151,25 @@ class UserController {
   static async login(req, res) {
     try {
       const { identifier, password } = req.body;
-      if (!identifier || !password)
+      if (!identifier || !password) {
         return res
           .status(400)
           .json({ error: "Email/username and password are required" });
+      }
 
       let user = await User.findByEmail(identifier);
       if (!user) user = await User.findByUsername(identifier);
-      if (!user || !(await user.verifyPassword(password)))
+      if (!user || !(await user.verifyPassword(password))) {
         return res.status(401).json({ error: "Invalid credentials" });
+      }
 
       await user.touchLogin();
       const token = signToken(user);
-      res.json({ message: "Login successful", user: user.toJSON(), token });
+      res.json({
+        message: "Login successful",
+        user: safeUserJSON(user),
+        token,
+      });
     } catch (e) {
       console.error("Login error:", e);
       res.status(500).json({ error: "Internal server error during login" });
@@ -138,29 +177,48 @@ class UserController {
   }
 
   static async getProfile(req, res) {
-    const user = await User.findById(req.userId);
-    if (!user) return res.status(404).json({ error: "User not found" });
-    res.json({ user: user.toJSON() });
+    try {
+      const user = await User.findById(req.userId);
+      if (!user) return res.status(404).json({ error: "User not found" });
+      res.json({ user: safeUserJSON(user) });
+    } catch (e) {
+      console.error("getProfile error:", e);
+      res.status(500).json({ error: "Internal server error" });
+    }
   }
 
   static async updateProfile(req, res) {
-    const user = await User.findById(req.userId);
-    if (!user) return res.status(404).json({ error: "User not found" });
-    const updated = await user.update(req.body);
-    res.json({
-      message: "Profile updated successfully",
-      user: updated.toJSON(),
-    });
+    try {
+      const user = await User.findById(req.userId);
+      if (!user) return res.status(404).json({ error: "User not found" });
+
+      const patch = { ...req.body };
+      if (patch.dob != null) patch.dob = toPlainDate(patch.dob); // normalize
+
+      const updated = await user.update(patch);
+      res.json({
+        message: "Profile updated successfully",
+        user: safeUserJSON(updated),
+      });
+    } catch (e) {
+      console.error("updateProfile error:", e);
+      res.status(500).json({ error: "Internal server error" });
+    }
   }
 
   static async deleteAccount(req, res) {
-    const user = await User.findById(req.userId);
-    if (!user) return res.status(404).json({ error: "User not found" });
-    await user.delete();
-    res.json({ message: "Account deleted successfully" });
+    try {
+      const user = await User.findById(req.userId);
+      if (!user) return res.status(404).json({ error: "User not found" });
+      await user.delete();
+      res.json({ message: "Account deleted successfully" });
+    } catch (e) {
+      console.error("deleteAccount error:", e);
+      res.status(500).json({ error: "Internal server error" });
+    }
   }
 
-  // Password reset: request a code (emails only if user exists; always returns ok)
+  // Password reset: request a code (always return ok; send only if user exists)
   static async resetRequest(req, res) {
     try {
       const { email } = req.body;
@@ -184,8 +242,6 @@ class UserController {
       );
 
       await sendPasswordResetCode(email, code);
-      console.log(`Password reset code created for ${email}`);
-
       return res.json({ ok: true });
     } catch (e) {
       console.error("resetRequest error:", e);
@@ -197,10 +253,11 @@ class UserController {
   static async resetConfirm(req, res) {
     try {
       const { email, code, newPassword } = req.body;
-      if (!email || !code || !newPassword)
+      if (!email || !code || !newPassword) {
         return res
           .status(400)
           .json({ error: "Email, code, and newPassword required" });
+      }
 
       const user = await User.findByEmail(email);
       if (!user) return res.status(400).json({ error: "Invalid code" });
@@ -211,9 +268,9 @@ class UserController {
          ORDER BY id DESC LIMIT 1`,
         [user.id, code]
       );
-
-      if (r.rows.length === 0)
+      if (r.rows.length === 0) {
         return res.status(400).json({ error: "Invalid or expired code" });
+      }
 
       await user.setPassword(newPassword);
       await pool.query(

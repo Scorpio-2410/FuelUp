@@ -1,9 +1,9 @@
 // app/onboarding.tsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { ScrollView, Text, Pressable, Alert } from "react-native";
 import { router } from "expo-router";
 import ProfileForm from "../components/User/ProfileForm";
-import { apiGetMe, apiUpdateMe } from "../constants/api";
+import { apiGetMe, apiUpdateMe, writeProfileCache } from "../constants/api";
 
 type Profile = {
   username: string;
@@ -30,11 +30,12 @@ type Profile = {
   dailyCalorieGoal?: number;
 };
 
+// Map server → form, coercing DOB to a plain date (YYYY-MM-DD)
 const toProfile = (u: any): Profile => ({
   username: u?.username ?? "",
   fullName: u?.fullName ?? "",
   email: u?.email ?? "",
-  dob: u?.dob ?? undefined,
+  dob: u?.dob ? String(u.dob).slice(0, 10) : undefined,
   heightCm: u?.heightCm ?? undefined,
   weightKg: u?.weightKg ?? undefined,
   notifications: !!(u?.notificationsEnabled ?? true),
@@ -48,6 +49,13 @@ const toProfile = (u: any): Profile => ({
   activityLevel: u?.activityLevel ?? "moderate",
   dailyCalorieGoal: u?.dailyCalorieGoal ?? 2000,
 });
+
+// Ensure DOB sent to backend is plain date (no timezone surprises)
+function normalizeDob(d?: string | null): string | null {
+  if (!d) return null;
+  const s = String(d);
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : s.slice(0, 10);
+}
 
 export default function Onboarding() {
   const [profile, setProfile] = useState<Profile>({
@@ -65,23 +73,25 @@ export default function Onboarding() {
   });
   const [finishing, setFinishing] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const { user } = await apiGetMe();
-        if (user) setProfile(toProfile(user));
-      } catch {
-        // brand new user
-      }
-    })();
+  const fetchMe = useCallback(async () => {
+    try {
+      const { user } = await apiGetMe();
+      if (user) setProfile(toProfile(user));
+    } catch {
+      // new user, keep defaults
+    }
   }, []);
+
+  useEffect(() => {
+    fetchMe();
+  }, [fetchMe]);
 
   const onFinish = async () => {
     try {
       setFinishing(true);
       await apiUpdateMe({
         full_name: profile.fullName || null,
-        dob: profile.dob || null,
+        dob: normalizeDob(profile.dob), // plain YYYY-MM-DD
         height_cm: profile.heightCm ?? null,
         weight_kg: profile.weightKg ?? null,
         gender: profile.gender || null,
@@ -93,8 +103,12 @@ export default function Onboarding() {
         activity_level: profile.activityLevel || null,
         daily_calorie_goal: profile.dailyCalorieGoal ?? null,
       });
-      Alert.alert("All set!", "Your profile is ready.");
-      router.replace("./(tabs)");
+
+      // Refresh & cache so homepage header/avatar are instant
+      const { user } = await apiGetMe();
+      if (user) await writeProfileCache(user);
+
+      router.replace("/(tabs)/homepage");
     } catch (e: any) {
       Alert.alert("Save failed", e?.message ?? "Please try again.");
     } finally {

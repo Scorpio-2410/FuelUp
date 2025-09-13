@@ -1,3 +1,4 @@
+// components/User/ProfileAvatar.tsx
 import React from "react";
 import {
   View,
@@ -9,6 +10,7 @@ import {
   Linking,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import * as FileSystem from "expo-file-system";
 
 type Profile = {
   username: string;
@@ -37,9 +39,8 @@ type Props = {
 
 export default function ProfileAvatar({ profile, setProfile }: Props) {
   async function pickAvatar() {
-    const { granted, canAskAgain } =
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!granted) {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
       Alert.alert(
         "Permission needed",
         "Enable Photos access to choose an avatar.",
@@ -51,19 +52,42 @@ export default function ProfileAvatar({ profile, setProfile }: Props) {
           },
         ]
       );
-      if (!canAskAgain) return;
+      return;
     }
 
+    // ✅ Version-safe mediaTypes (new .MediaType if present, else fallback)
+    const imageMediaType =
+      (ImagePicker as any).MediaType?.Images ??
+      (ImagePicker as any).MediaTypeOptions?.Images;
+
     const res = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: imageMediaType as any,
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.7,
+      quality: 0.85,
     });
 
-    if (!res.canceled && res.assets && res.assets[0]) {
-      const uri = res.assets[0].uri;
-      setProfile((p) => ({ ...p, avatarUri: uri }));
+    if (res.canceled || !res.assets || !res.assets[0]) return;
+
+    // Persist avatar so it survives restarts (native only)
+    const src = res.assets[0].uri;
+
+    // On web, just store the chosen URI
+    if (!FileSystem.documentDirectory) {
+      setProfile((p) => ({ ...p, avatarUri: src }));
+      return;
+    }
+
+    try {
+      const dir = FileSystem.documentDirectory + "avatar";
+      try {
+        await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
+      } catch {}
+      const dest = `${dir}/avatar.jpg`;
+      await FileSystem.copyAsync({ from: src, to: dest });
+      setProfile((p) => ({ ...p, avatarUri: dest }));
+    } catch {
+      Alert.alert("Avatar", "Could not save avatar image. Please try again.");
     }
   }
 
@@ -79,9 +103,6 @@ export default function ProfileAvatar({ profile, setProfile }: Props) {
           <Text className="text-neutral-400">Pick Avatar</Text>
         )}
       </View>
-      <Text className="text-neutral-400 mt-2">
-        {profile.username ? profile.username : "username"}
-      </Text>
     </Pressable>
   );
 }
