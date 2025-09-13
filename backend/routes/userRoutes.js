@@ -6,11 +6,10 @@ const { authenticateToken } = require("../middleware/auth");
 const router = express.Router();
 
 // Public
+router.get("/check-username", UserController.checkUsername);
+router.get("/check-email", UserController.checkEmail);
 router.post("/register", UserController.register);
 router.post("/login", UserController.login);
-
-// Username availability (public)
-router.get("/check-username", UserController.checkUsername);
 
 // Password reset (public)
 router.post("/reset/request", UserController.resetRequest);

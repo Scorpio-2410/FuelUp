@@ -13,7 +13,8 @@ const EP = {
   stats: "/api/users/stats",
   resetRequest: "/api/users/reset/request",
   resetConfirm: "/api/users/reset/confirm",
-  checkUsername: "/api/users/check-username", // NEW
+  checkUsername: "/api/users/check-username",
+  checkEmail: "/api/users/check-email",
 };
 
 function asJson<T = any>(res: Response): Promise<T> {
@@ -42,11 +43,10 @@ export async function storeToken(token: string) {
 }
 export async function clearToken() {
   await SecureStore.deleteItemAsync(K_TOKEN);
-  // also clear cached profile so the tab doesn’t hydrate with stale/empty data
   await SecureStore.deleteItemAsync(K_PROFILE);
 }
 
-// --- profile cache helpers (optional but handy) ---
+// --- profile cache helpers ---
 export async function readProfileCache(): Promise<any | null> {
   const raw = await SecureStore.getItemAsync(K_PROFILE);
   return raw ? JSON.parse(raw) : null;
@@ -81,14 +81,19 @@ export async function apiLogin(payload: {
   return asJson<{ token: string; user: any }>(res);
 }
 
-// --- Username availability (public) ---
-export async function apiCheckUsername(
-  username: string
-): Promise<{ available: boolean; reason?: string }> {
-  const url = `${BASE_URL}${EP.checkUsername}?username=${encodeURIComponent(
-    username
-  )}`;
-  const res = await fetch(url, { method: "GET" });
+// Username availability
+export async function apiCheckUsername(username: string) {
+  const res = await fetch(
+    `${BASE_URL}${EP.checkUsername}?username=${encodeURIComponent(username)}`
+  );
+  return asJson<{ available: boolean; reason?: string }>(res);
+}
+
+// Email availability
+export async function apiCheckEmail(email: string) {
+  const res = await fetch(
+    `${BASE_URL}${EP.checkEmail}?email=${encodeURIComponent(email)}`
+  );
   return asJson<{ available: boolean; reason?: string }>(res);
 }
 

@@ -17,21 +17,35 @@ class UserController {
   static async checkUsername(req, res) {
     try {
       const username = (req.query.username || "").trim();
-
-      if (!username) {
+      if (!username)
         return res.status(400).json({ error: "username required" });
-      }
 
-      // 3–20 chars, letters/numbers/underscore
       const valid = /^[A-Za-z0-9_]{3,20}$/.test(username);
-      if (!valid) {
+      if (!valid)
         return res.json({ available: false, reason: "invalid_format" });
-      }
 
       const existing = await User.findByUsername(username);
       return res.json({ available: !existing });
     } catch (e) {
       console.error("checkUsername error:", e);
+      return res.status(500).json({ error: "Internal server error" });
+    }
+  }
+
+  // Public: check if an email is available
+  static async checkEmail(req, res) {
+    try {
+      const email = (req.query.email || "").trim();
+      if (!email) return res.status(400).json({ error: "email required" });
+
+      const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+      if (!emailOk)
+        return res.json({ available: false, reason: "invalid_format" });
+
+      const existing = await User.findByEmail(email);
+      return res.json({ available: !existing });
+    } catch (e) {
+      console.error("checkEmail error:", e);
       return res.status(500).json({ error: "Internal server error" });
     }
   }
@@ -153,18 +167,15 @@ class UserController {
       if (!email) return res.status(400).json({ error: "Email required" });
 
       const user = await User.findByEmail(email);
-
-      // Always return ok (no enumeration); only send email if user exists
       if (!user) return res.json({ ok: true });
 
-      // Optional cleanup of prior tokens
       await pool.query(
         "DELETE FROM password_reset_tokens WHERE user_id=$1 AND (used=true OR expires_at<NOW())",
         [user.id]
       );
 
       const code = Math.floor(100000 + Math.random() * 900000).toString();
-      const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+      const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
       await pool.query(
         `INSERT INTO password_reset_tokens (user_id, code, expires_at, used)

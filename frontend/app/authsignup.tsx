@@ -9,7 +9,12 @@ import {
 import { ArrowLeft } from "lucide-react-native";
 import { Ionicons } from "@expo/vector-icons";
 import ProfileField from "../components/User/ProfileField";
-import { apiSignup, storeToken, apiCheckUsername } from "../constants/api";
+import {
+  apiSignup,
+  storeToken,
+  apiCheckUsername,
+  apiCheckEmail,
+} from "../constants/api";
 
 export default function AuthSignup() {
   const [username, setUsername] = useState("");
@@ -19,6 +24,9 @@ export default function AuthSignup() {
   const [usernameChecking, setUsernameChecking] = useState(false);
 
   const [email, setEmail] = useState("");
+  const [emailAvailable, setEmailAvailable] = useState<boolean | null>(null);
+  const [emailChecking, setEmailChecking] = useState(false);
+
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [passwordVisible, setPasswordVisible] = useState(false);
@@ -31,6 +39,12 @@ export default function AuthSignup() {
     [username]
   );
 
+  const emailFormatOk = useMemo(
+    () => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()),
+    [email]
+  );
+
+  // Debounced username check
   useEffect(() => {
     let t: any;
     const u = username.trim();
@@ -57,6 +71,34 @@ export default function AuthSignup() {
     }, 350);
     return () => clearTimeout(t);
   }, [username, usernameFormatOk]);
+
+  // Debounced email check
+  useEffect(() => {
+    let t: any;
+    const e = email.trim();
+    if (!e) {
+      setEmailAvailable(null);
+      setEmailChecking(false);
+      return;
+    }
+    if (!emailFormatOk) {
+      setEmailAvailable(false);
+      setEmailChecking(false);
+      return;
+    }
+    setEmailChecking(true);
+    t = setTimeout(async () => {
+      try {
+        const { available } = await apiCheckEmail(e);
+        setEmailAvailable(available);
+      } catch {
+        setEmailAvailable(false);
+      } finally {
+        setEmailChecking(false);
+      }
+    }, 350);
+    return () => clearTimeout(t);
+  }, [email, emailFormatOk]);
 
   const checks = useMemo(() => {
     const len = password.length >= 8;
@@ -98,6 +140,14 @@ export default function AuthSignup() {
       Alert.alert("Username", "This username is already taken.");
       return;
     }
+    if (!emailFormatOk) {
+      Alert.alert("Email", "Enter a valid email address.");
+      return;
+    }
+    if (emailAvailable === false) {
+      Alert.alert("Email", "An account with this email already exists.");
+      return;
+    }
     if (password !== confirm) {
       Alert.alert("Passwords do not match", "Please re-enter.");
       return;
@@ -126,7 +176,10 @@ export default function AuthSignup() {
     !matches ||
     !usernameFormatOk ||
     usernameAvailable === false ||
-    usernameChecking;
+    usernameChecking ||
+    !emailFormatOk ||
+    emailAvailable === false ||
+    emailChecking;
 
   return (
     <SafeAreaView
@@ -177,6 +230,7 @@ export default function AuthSignup() {
             : "Username not available"}
         </Text>
 
+        {/* Email + availability */}
         <ProfileField
           label="Email"
           textInputProps={{
@@ -190,6 +244,26 @@ export default function AuthSignup() {
             autoComplete: "email",
           }}
         />
+        <Text
+          className={`text-xs mb-3 ${
+            !email.trim()
+              ? "text-gray-500"
+              : emailChecking
+              ? "text-gray-400"
+              : emailFormatOk && emailAvailable
+              ? "text-green-400"
+              : "text-gray-500"
+          }`}>
+          {!email.trim()
+            ? "Enter a valid email address."
+            : emailChecking
+            ? "Checking email…"
+            : !emailFormatOk
+            ? "Email format looks invalid."
+            : emailAvailable
+            ? "Email is available"
+            : "Email is already in use"}
+        </Text>
 
         {/* Password with visibility toggle */}
         <View className="mb-2">
