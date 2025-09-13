@@ -1,37 +1,61 @@
-// controllers/NutritionController.js
-const Nutrition = require("../models/Nutrition");
+const NutritionProfile = require("../models/nutritionProfile");
 
 class NutritionController {
-  static async getTargets(req, res) {
+  // Get or create the nutrition profile
+  static async getProfile(req, res) {
     try {
-      const nt = await Nutrition.findByUserId(req.userId);
+      let profile = await NutritionProfile.findByUserId(req.userId);
+      if (!profile) profile = await NutritionProfile.upsert(req.userId, {});
       res.json({
         success: true,
-        targets: nt ? nt.toJSON() : null,
+        profile: profile.toJSON ? profile.toJSON() : profile,
       });
     } catch (e) {
-      console.error("Nutrition getTargets error:", e);
-      res.status(500).json({ error: "Internal server error" });
+      console.error("nutrition.getProfile error:", e);
+      res.status(500).json({ error: "Failed to retrieve nutrition profile" });
     }
   }
 
-  static async setTargets(req, res) {
+  // Upsert (create or overwrite sparse fields)
+  static async upsertProfile(req, res) {
     try {
-      const { dailyCalorieTarget, macros } = req.body;
-
-      const nt = await Nutrition.upsert(req.userId, {
+      const {
         dailyCalorieTarget,
-        macros: macros || null,
+        macros,
+        prefCuisines,
+        dietRestrictions,
+        dislikedFoods,
+        allergies,
+      } = req.body;
+
+      const profile = await NutritionProfile.upsert(req.userId, {
+        dailyCalorieTarget,
+        macros,
+        prefCuisines,
+        dietRestrictions,
+        dislikedFoods,
+        allergies,
       });
 
-      res.json({
-        success: true,
-        message: "Nutrition targets saved",
-        targets: nt.toJSON(),
-      });
+      res.status(201).json({ success: true, profile: profile.toJSON() });
     } catch (e) {
-      console.error("Nutrition setTargets error:", e);
-      res.status(500).json({ error: "Internal server error" });
+      console.error("nutrition.upsertProfile error:", e);
+      res.status(500).json({ error: "Failed to save nutrition profile" });
+    }
+  }
+
+  // Patch update
+  static async updateProfile(req, res) {
+    try {
+      const profile = await NutritionProfile.findByUserId(req.userId);
+      if (!profile)
+        return res.status(404).json({ error: "Nutrition profile not found" });
+
+      const updated = await profile.update(req.body);
+      res.json({ success: true, profile: updated.toJSON() });
+    } catch (e) {
+      console.error("nutrition.updateProfile error:", e);
+      res.status(500).json({ error: "Failed to update nutrition profile" });
     }
   }
 }

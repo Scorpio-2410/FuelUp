@@ -1,25 +1,36 @@
-// routes/mealRoutes.js
 const express = require("express");
 const MealController = require("../controllers/mealController");
 const { authenticateToken } = require("../middleware/auth");
 
 const router = express.Router();
 
-// Protect everything under /api/meals
-router.use(authenticateToken);
-
 // Create
-router.post("/", MealController.createMeal);
+router.post("/", authenticateToken, MealController.createMeal);
 
 // Collections
-router.get("/", MealController.getUserMeals);
-router.get("/date/:date", MealController.getMealsByDate);
-router.get("/date/:date/summary", MealController.getDailyNutrition);
-router.get("/date/:date/by-type", MealController.getMealsByTypeAndDate);
+router.get("/", authenticateToken, MealController.getUserMeals);
 
-// Single
-router.get("/:id", MealController.getMeal);
-router.put("/:id", MealController.updateMeal);
-router.delete("/:id", MealController.deleteMeal);
+// Date-based queries
+router.get("/date/:date", authenticateToken, MealController.getMealsByDate);
+router.get("/range", authenticateToken, MealController.getMealsByDateRange);
+
+// Daily nutrition summary
+router.get(
+  "/date/:date/summary",
+  authenticateToken,
+  MealController.getDailyNutrition
+);
+
+// Grouped by type for a date (if you expose mealType client-side)
+router.get(
+  "/date/:date/by-type",
+  authenticateToken,
+  MealController.getMealsByTypeAndDate
+);
+
+// Single meal CRUD
+router.get("/:id", authenticateToken, MealController.getMeal);
+router.put("/:id", authenticateToken, MealController.updateMeal);
+router.delete("/:id", authenticateToken, MealController.deleteMeal);
 
 module.exports = router;

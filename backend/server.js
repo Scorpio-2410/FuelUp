@@ -8,23 +8,31 @@ const { verifySmtp } = require("./utils/mailer");
 
 // Route groups
 const userRoutes = require("./routes/userRoutes");
-const fitnessRoutes = require("./routes/fitnessRoutes");
+const fitnessProfileRoutes = require("./routes/fitnessProfileRoutes");
+const fitnessPlanRoutes = require("./routes/fitnessPlanRoutes");
+const exerciseRoutes = require("./routes/exerciseRoutes");
 const nutritionRoutes = require("./routes/nutritionRoutes");
+const mealPlanRoutes = require("./routes/mealPlanRoutes");
 const mealRoutes = require("./routes/mealRoutes");
+const scheduleRoutes = require("./routes/scheduleRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 4000;
 
 // Middleware
-app.use(cors()); // customize origins if needed
+app.use(cors()); // configure origins if needed
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
 // API routes
 app.use("/api/users", userRoutes);
-app.use("/api/fitness", fitnessRoutes);
-app.use("/api/nutrition", nutritionRoutes);
+app.use("/api/fitness-profiles", fitnessProfileRoutes);
+app.use("/api/fitness-plans", fitnessPlanRoutes);
+app.use("/api/exercises", exerciseRoutes);
+app.use("/api/nutrition", nutritionRoutes); // nutrition_profiles
+app.use("/api/meal-plans", mealPlanRoutes);
 app.use("/api/meals", mealRoutes);
+app.use("/api/schedules", scheduleRoutes);
 
 // Root + health
 app.get("/", (req, res) => {
@@ -33,9 +41,13 @@ app.get("/", (req, res) => {
     version: "1.0.0",
     endpoints: {
       users: "/api/users",
-      fitness: "/api/fitness",
+      fitnessProfiles: "/api/fitness-profiles",
+      fitnessPlans: "/api/fitness-plans",
+      exercises: "/api/exercises",
       nutrition: "/api/nutrition",
+      mealPlans: "/api/meal-plans",
       meals: "/api/meals",
+      schedules: "/api/schedules",
     },
   });
 });
@@ -69,11 +81,8 @@ app.use((error, req, res, next) => {
 const startServer = async () => {
   try {
     await testConnection();
-    await initializeDatabase(); // ensures users, password_reset_tokens, fitness, nutrition_targets, meals, triggers, indexes
-
-    // Verify SMTP on boot (logs success/failure, does not crash server)
-    await verifySmtp();
-
+    await initializeDatabase(); // creates/ensures unified schema + triggers
+    await verifySmtp(); // log SMTP status; non-fatal
     app.listen(PORT, () =>
       console.log(`Server running at http://localhost:${PORT}`)
     );

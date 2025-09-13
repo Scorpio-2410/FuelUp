@@ -1,6 +1,6 @@
 // controllers/userController.js
-const User = require("../models/User");
 const jwt = require("jsonwebtoken");
+const User = require("../models/user");
 const { pool } = require("../config/database");
 const { sendPasswordResetCode } = require("../utils/mailer");
 
@@ -13,12 +13,10 @@ function signToken(user) {
 }
 
 /**
- * Keep DOB as plain "YYYY-MM-DD" (no timezone shifts).
- * Do NOT use toISOString(); use local getters or slice strings.
+ * Keep DOB as plain "YYYY-MM-DD" (no timezone conversions).
  */
 function toPlainDate(input) {
   if (!input) return null;
-
   if (typeof input === "string") {
     const m = input.match(/^(\d{4})-(\d{2})-(\d{2})/);
     return m ? `${m[1]}-${m[2]}-${m[3]}` : null;
@@ -35,20 +33,19 @@ function toPlainDate(input) {
 function safeUserJSON(user) {
   const out = user.toJSON();
   if (out.dob) out.dob = toPlainDate(out.dob);
-  // Intentionally do NOT include any fitness/nutrition fields here
   return out;
 }
 
 class UserController {
-  // Public: check if a username is available
+  // -------- public checks --------
   static async checkUsername(req, res) {
     try {
       const username = (req.query.username || "").trim();
       if (!username)
         return res.status(400).json({ error: "username required" });
 
-      const valid = /^[A-Za-z0-9_]{3,20}$/.test(username);
-      if (!valid)
+      const formatOk = /^[A-Za-z0-9_]{3,20}$/.test(username);
+      if (!formatOk)
         return res.json({ available: false, reason: "invalid_format" });
 
       const existing = await User.findByUsername(username);
@@ -59,14 +56,13 @@ class UserController {
     }
   }
 
-  // Public: check if an email is available
   static async checkEmail(req, res) {
     try {
       const email = (req.query.email || "").trim();
       if (!email) return res.status(400).json({ error: "email required" });
 
-      const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-      if (!emailOk)
+      const formatOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+      if (!formatOk)
         return res.json({ available: false, reason: "invalid_format" });
 
       const existing = await User.findByEmail(email);
@@ -77,7 +73,7 @@ class UserController {
     }
   }
 
-  // Register a new user (identity + basic profile only)
+  // -------- auth --------
   static async register(req, res) {
     try {
       const {
@@ -86,11 +82,11 @@ class UserController {
         password,
         fullName,
         dob,
-        heightCm, // keep if you store in users; otherwise drop
-        weightKg, // keep if you store in users; otherwise drop
         gender,
         avatarUri,
         notificationsEnabled,
+        followUpFrequency,
+        ethnicity,
       } = req.body;
 
       if (!username || !email || !password) {
@@ -99,6 +95,21 @@ class UserController {
           .json({ error: "Username, email, and password are required" });
       }
 
+      // basic format validations
+      if (!/^[A-Za-z0-9_]{3,20}$/.test(String(username))) {
+        return res.status(400).json({ error: "Invalid username format" });
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email))) {
+        return res.status(400).json({ error: "Invalid email format" });
+      }
+      if (
+        followUpFrequency &&
+        !["daily", "weekly", "monthly"].includes(followUpFrequency)
+      ) {
+        return res.status(400).json({ error: "Invalid follow_up_frequency" });
+      }
+
+      // unique checks (fast fail before DB throws 23505)
       if (await User.findByEmail(email)) {
         return res
           .status(400)
@@ -108,18 +119,44 @@ class UserController {
         return res.status(400).json({ error: "Username already taken" });
       }
 
+      // create the user
       const user = await User.create({
         username,
         email,
         password,
         fullName,
         dob: toPlainDate(dob),
-        heightCm, // remove if moved to a separate table
-        weightKg, // remove if moved to a separate table
         gender,
         avatarUri,
         notificationsEnabled,
+        followUpFrequency, // defaults handled in model/DB
+        ethnicity,
       });
+
+      // create 1:1 shells so the app has rows to upsert into
+      // fitness_profiles
+      await pool.query(
+        `INSERT INTO fitness_profiles (user_id)
+         VALUES ($1)
+         ON CONFLICT (user_id) DO NOTHING`,
+        [user.id]
+      );
+
+      // nutrition_profiles (merged prefs+targets)
+      await pool.query(
+        `INSERT INTO nutrition_profiles (user_id, daily_calorie_target)
+         VALUES ($1, 2000)
+         ON CONFLICT (user_id) DO NOTHING`,
+        [user.id]
+      );
+
+      // schedules (1:1)
+      await pool.query(
+        `INSERT INTO schedules (user_id)
+         VALUES ($1)
+         ON CONFLICT (user_id) DO NOTHING`,
+        [user.id]
+      );
 
       const token = signToken(user);
       res.status(201).json({
@@ -128,6 +165,12 @@ class UserController {
         token,
       });
     } catch (e) {
+      // handle unique violations nicely
+      if (e.code === "23505") {
+        return res
+          .status(400)
+          .json({ error: "Email or username already in use" });
+      }
       console.error("Registration error:", e);
       res
         .status(500)
@@ -163,6 +206,7 @@ class UserController {
     }
   }
 
+  // -------- profile --------
   static async getProfile(req, res) {
     try {
       const user = await User.findById(req.userId);
@@ -179,18 +223,23 @@ class UserController {
       const user = await User.findById(req.userId);
       if (!user) return res.status(404).json({ error: "User not found" });
 
-      // Only allow core profile fields; fitness/nutrition belong elsewhere
       const patch = {};
       if ("email" in req.body) patch.email = req.body.email;
       if ("username" in req.body) patch.username = req.body.username;
       if ("full_name" in req.body) patch.full_name = req.body.full_name;
       if ("dob" in req.body) patch.dob = toPlainDate(req.body.dob);
-      if ("height_cm" in req.body) patch.height_cm = req.body.height_cm; // optional
-      if ("weight_kg" in req.body) patch.weight_kg = req.body.weight_kg; // optional
       if ("gender" in req.body) patch.gender = req.body.gender;
       if ("avatar_uri" in req.body) patch.avatar_uri = req.body.avatar_uri;
       if ("notifications_enabled" in req.body)
         patch.notifications_enabled = !!req.body.notifications_enabled;
+      if ("follow_up_frequency" in req.body) {
+        const v = req.body.follow_up_frequency;
+        if (!["daily", "weekly", "monthly"].includes(v)) {
+          return res.status(400).json({ error: "Invalid follow_up_frequency" });
+        }
+        patch.follow_up_frequency = v;
+      }
+      if ("ethnicity" in req.body) patch.ethnicity = req.body.ethnicity;
 
       const updated = await user.update(patch);
       res.json({
@@ -198,6 +247,11 @@ class UserController {
         user: safeUserJSON(updated),
       });
     } catch (e) {
+      if (e.code === "23505") {
+        return res
+          .status(400)
+          .json({ error: "Email or username already in use" });
+      }
       console.error("updateProfile error:", e);
       res.status(500).json({ error: "Internal server error" });
     }
@@ -215,7 +269,52 @@ class UserController {
     }
   }
 
-  // Password reset: request a code (always ok; send only if user exists)
+  // -------- stats (uses fitness_profiles & nutrition_profiles) --------
+  static async getStats(req, res) {
+    try {
+      const { rows } = await pool.query(
+        `SELECT
+           fp.height_cm,
+           fp.weight_kg,
+           fp.goal AS fitness_goal,
+           np.daily_calorie_target
+         FROM users u
+         LEFT JOIN fitness_profiles   fp ON fp.user_id = u.id
+         LEFT JOIN nutrition_profiles np ON np.user_id = u.id
+         WHERE u.id = $1
+         LIMIT 1`,
+        [req.userId]
+      );
+
+      if (!rows.length) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const r = rows[0] || {};
+      let bmi = null;
+      if (r.height_cm && r.weight_kg) {
+        const h = Number(r.height_cm) / 100;
+        const w = Number(r.weight_kg);
+        if (h > 0 && w > 0) bmi = Number((w / (h * h)).toFixed(1));
+      }
+
+      res.json({
+        stats: {
+          bmi,
+          recommendedCalories:
+            r.daily_calorie_target != null
+              ? Number(r.daily_calorie_target)
+              : 2000,
+          fitnessGoal: r.fitness_goal || "general_health",
+        },
+      });
+    } catch (e) {
+      console.error("getStats error:", e);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }
+
+  // -------- password reset --------
   static async resetRequest(req, res) {
     try {
       const { email } = req.body;
@@ -224,6 +323,7 @@ class UserController {
       const user = await User.findByEmail(email);
       if (!user) return res.json({ ok: true });
 
+      // clear any expired/used codes
       await pool.query(
         "DELETE FROM password_reset_tokens WHERE user_id=$1 AND (used=true OR expires_at<NOW())",
         [user.id]
@@ -246,7 +346,6 @@ class UserController {
     }
   }
 
-  // Password reset: confirm code and set new password
   static async resetConfirm(req, res) {
     try {
       const { email, code, newPassword } = req.body;

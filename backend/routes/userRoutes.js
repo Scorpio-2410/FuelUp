@@ -1,4 +1,3 @@
-// routes/userRoutes.js
 const express = require("express");
 const UserController = require("../controllers/userController");
 const { authenticateToken } = require("../middleware/auth");
@@ -19,5 +18,8 @@ router.post("/reset/confirm", UserController.resetConfirm);
 router.get("/profile", authenticateToken, UserController.getProfile);
 router.put("/profile", authenticateToken, UserController.updateProfile);
 router.delete("/account", authenticateToken, UserController.deleteAccount);
+
+// Stats (pulls from fitness_profiles & nutrition_profiles)
+router.get("/stats", authenticateToken, UserController.getStats);
 
 module.exports = router;
