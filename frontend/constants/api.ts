@@ -9,7 +9,7 @@ const EP = {
   register: "/api/users/register",
   login: "/api/users/login",
   meGet: "/api/users/profile",
-  mePut: "/api/users/profile", // PUT
+  mePut: "/api/users/profile",
   stats: "/api/users/stats",
   resetRequest: "/api/users/reset/request",
   resetConfirm: "/api/users/reset/confirm",

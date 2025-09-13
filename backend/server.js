@@ -1,9 +1,11 @@
+// server.js
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
 
 const { testConnection, initializeDatabase } = require("./config/database");
 const userRoutes = require("./routes/userRoutes");
+const { verifySmtp } = require("./utils/mailer"); // NEW
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -36,21 +38,23 @@ app.use("*", (req, res) =>
 
 app.use((error, req, res, next) => {
   console.error("Global error handler:", error);
-  res
-    .status(500)
-    .json({
-      error: "Internal server error",
-      message:
-        process.env.NODE_ENV === "development"
-          ? error.message
-          : "Something went wrong",
-    });
+  res.status(500).json({
+    error: "Internal server error",
+    message:
+      process.env.NODE_ENV === "development"
+        ? error.message
+        : "Something went wrong",
+  });
 });
 
 const startServer = async () => {
   try {
     await testConnection();
     await initializeDatabase();
+
+    // Verify SMTP on boot (logs success/failure, does not crash server)
+    await verifySmtp(); // NEW
+
     app.listen(PORT, () =>
       console.log(`🚀 Server running at http://localhost:${PORT}`)
     );

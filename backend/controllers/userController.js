@@ -1,6 +1,8 @@
+// controllers/userController.js
 const User = require("../models/User");
 const jwt = require("jsonwebtoken");
 const { pool } = require("../config/database");
+const { sendPasswordResetCode } = require("../utils/mailer");
 
 function signToken(user) {
   return jwt.sign(
@@ -63,13 +65,11 @@ class UserController {
       });
 
       const token = signToken(user);
-      res
-        .status(201)
-        .json({
-          message: "User registered successfully",
-          user: user.toJSON(),
-          token,
-        });
+      res.status(201).json({
+        message: "User registered successfully",
+        user: user.toJSON(),
+        token,
+      });
     } catch (e) {
       console.error("Registration error:", e);
       res
@@ -123,51 +123,83 @@ class UserController {
     res.json({ message: "Account deleted successfully" });
   }
 
-  // Password reset code flow
+  /**
+   * Password reset: request a code.
+   * Production logic: only send email if the user exists.
+   * Always return { ok: true } to avoid email enumeration.
+   */
   static async resetRequest(req, res) {
-    const { email } = req.body;
-    if (!email) return res.status(400).json({ error: "Email required" });
-    const user = await User.findByEmail(email);
-    if (!user) return res.json({ ok: true }); // don’t leak
+    try {
+      const { email } = req.body;
+      if (!email) return res.status(400).json({ error: "Email required" });
 
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 1000 * 60 * 15);
+      const user = await User.findByEmail(email);
 
-    await pool.query(
-      `INSERT INTO password_reset_tokens (user_id, code, expires_at, used)
-       VALUES ($1,$2,$3,false)`,
-      [user.id, code, expiresAt]
-    );
+      // If no user, return ok without sending or writing a token
+      if (!user) {
+        return res.json({ ok: true });
+      }
 
-    console.log(`🔐 Password reset code for ${email}: ${code}`);
-    res.json({ ok: true });
+      // Clean up old/expired tokens
+      await pool.query(
+        "DELETE FROM password_reset_tokens WHERE user_id=$1 AND (used=true OR expires_at<NOW())",
+        [user.id]
+      );
+
+      // Issue a new 6-digit code
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+      await pool.query(
+        `INSERT INTO password_reset_tokens (user_id, code, expires_at, used)
+         VALUES ($1,$2,$3,false)`,
+        [user.id, code, expiresAt]
+      );
+
+      // Send the email
+      await sendPasswordResetCode(email, code);
+      console.log(`Password reset code issued for ${email}`);
+
+      return res.json({ ok: true });
+    } catch (e) {
+      console.error("resetRequest error:", e);
+      return res.status(500).json({ error: "Internal server error" });
+    }
   }
 
+  // Password reset: confirm code and set new password
   static async resetConfirm(req, res) {
-    const { email, code, newPassword } = req.body;
-    if (!email || !code || !newPassword)
-      return res
-        .status(400)
-        .json({ error: "Email, code, and newPassword required" });
+    try {
+      const { email, code, newPassword } = req.body;
+      if (!email || !code || !newPassword)
+        return res
+          .status(400)
+          .json({ error: "Email, code, and newPassword required" });
 
-    const user = await User.findByEmail(email);
-    if (!user) return res.status(400).json({ error: "Invalid code" });
+      const user = await User.findByEmail(email);
+      if (!user) return res.status(400).json({ error: "Invalid code" });
 
-    const r = await pool.query(
-      `SELECT * FROM password_reset_tokens
-       WHERE user_id=$1 AND code=$2 AND used=false AND expires_at>NOW()
-       ORDER BY id DESC LIMIT 1`,
-      [user.id, code]
-    );
-    if (r.rows.length === 0)
-      return res.status(400).json({ error: "Invalid or expired code" });
+      const r = await pool.query(
+        `SELECT * FROM password_reset_tokens
+         WHERE user_id=$1 AND code=$2 AND used=false AND expires_at>NOW()
+         ORDER BY id DESC LIMIT 1`,
+        [user.id, code]
+      );
 
-    await user.setPassword(newPassword);
-    await pool.query("UPDATE password_reset_tokens SET used=true WHERE id=$1", [
-      r.rows[0].id,
-    ]);
+      if (r.rows.length === 0)
+        return res.status(400).json({ error: "Invalid or expired code" });
 
-    res.json({ ok: true });
+      await user.setPassword(newPassword);
+      await pool.query(
+        "UPDATE password_reset_tokens SET used=true WHERE id=$1",
+        [r.rows[0].id]
+      );
+
+      return res.json({ ok: true });
+    } catch (e) {
+      console.error("resetConfirm error:", e);
+      return res.status(500).json({ error: "Internal server error" });
+    }
   }
 }
 

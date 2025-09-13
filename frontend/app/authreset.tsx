@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { View, Text, Alert, Pressable } from "react-native";
+import { router, Link } from "expo-router";
 import ProfileField from "../components/User/ProfileField";
 import { apiResetRequest, apiResetConfirm } from "../constants/api";
 
@@ -21,7 +22,9 @@ export default function AuthReset() {
       setStage("confirm");
       Alert.alert("Code sent", "Check your email for the verification code.");
     } catch (e: any) {
-      Alert.alert("Error", e?.message ?? "Could not send reset code.");
+      const msg =
+        e?.response?.data?.error ?? e?.message ?? "Could not send reset code.";
+      Alert.alert("Error", msg);
     } finally {
       setLoading(false);
     }
@@ -39,9 +42,24 @@ export default function AuthReset() {
         code: code.trim(),
         newPassword,
       });
-      Alert.alert("Password updated", "You can log in with your new password.");
+
+      // Show alert and navigate immediately after user taps "OK"
+      Alert.alert(
+        "Password updated",
+        "You can now log in with your new password.",
+        [
+          {
+            text: "OK",
+            onPress: () => {
+              router.replace("/authlogin");
+            },
+          },
+        ]
+      );
     } catch (e: any) {
-      Alert.alert("Error", e?.message ?? "Could not reset password.");
+      const msg =
+        e?.response?.data?.error ?? e?.message ?? "Could not reset password.";
+      Alert.alert("Error", msg);
     } finally {
       setLoading(false);
     }
@@ -59,6 +77,9 @@ export default function AuthReset() {
           autoCapitalize: "none",
           keyboardType: "email-address",
           placeholder: "you@example.com",
+          autoCorrect: false,
+          textContentType: "emailAddress",
+          autoComplete: "email",
         }}
       />
 
@@ -80,8 +101,10 @@ export default function AuthReset() {
             textInputProps={{
               value: code,
               onChangeText: setCode,
-              autoCapitalize: "characters",
+              autoCapitalize: "none",
+              keyboardType: "number-pad",
               placeholder: "123456",
+              maxLength: 6,
             }}
           />
           <ProfileField
@@ -91,6 +114,12 @@ export default function AuthReset() {
               onChangeText: setNewPassword,
               secureTextEntry: true,
               placeholder: "••••••••",
+              autoCapitalize: "none",
+              autoCorrect: false,
+              autoComplete: "off",
+              textContentType: "oneTimeCode",
+              passwordRules: "",
+              importantForAutofill: "no",
             }}
           />
           <Pressable
@@ -103,6 +132,12 @@ export default function AuthReset() {
               {loading ? "Updating…" : "Update password"}
             </Text>
           </Pressable>
+
+          <View className="mt-4">
+            <Link href="/authlogin">
+              <Text className="text-blue-400">Back to login</Text>
+            </Link>
+          </View>
         </>
       )}
     </View>
