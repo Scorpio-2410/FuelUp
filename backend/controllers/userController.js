@@ -13,6 +13,29 @@ function signToken(user) {
 }
 
 class UserController {
+  // Public: check if a username is available
+  static async checkUsername(req, res) {
+    try {
+      const username = (req.query.username || "").trim();
+
+      if (!username) {
+        return res.status(400).json({ error: "username required" });
+      }
+
+      // 3–20 chars, letters/numbers/underscore
+      const valid = /^[A-Za-z0-9_]{3,20}$/.test(username);
+      if (!valid) {
+        return res.json({ available: false, reason: "invalid_format" });
+      }
+
+      const existing = await User.findByUsername(username);
+      return res.json({ available: !existing });
+    } catch (e) {
+      console.error("checkUsername error:", e);
+      return res.status(500).json({ error: "Internal server error" });
+    }
+  }
+
   // Register a new user (accepts optional profile data too)
   static async register(req, res) {
     try {
@@ -123,11 +146,7 @@ class UserController {
     res.json({ message: "Account deleted successfully" });
   }
 
-  /**
-   * Password reset: request a code.
-   * Production logic: only send email if the user exists.
-   * Always return { ok: true } to avoid email enumeration.
-   */
+  // Password reset: request a code (emails only if user exists; always returns ok)
   static async resetRequest(req, res) {
     try {
       const { email } = req.body;
@@ -135,18 +154,15 @@ class UserController {
 
       const user = await User.findByEmail(email);
 
-      // If no user, return ok without sending or writing a token
-      if (!user) {
-        return res.json({ ok: true });
-      }
+      // Always return ok (no enumeration); only send email if user exists
+      if (!user) return res.json({ ok: true });
 
-      // Clean up old/expired tokens
+      // Optional cleanup of prior tokens
       await pool.query(
         "DELETE FROM password_reset_tokens WHERE user_id=$1 AND (used=true OR expires_at<NOW())",
         [user.id]
       );
 
-      // Issue a new 6-digit code
       const code = Math.floor(100000 + Math.random() * 900000).toString();
       const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
@@ -156,9 +172,8 @@ class UserController {
         [user.id, code, expiresAt]
       );
 
-      // Send the email
       await sendPasswordResetCode(email, code);
-      console.log(`Password reset code issued for ${email}`);
+      console.log(`Password reset code created for ${email}`);
 
       return res.json({ ok: true });
     } catch (e) {

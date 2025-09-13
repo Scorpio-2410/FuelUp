@@ -1,3 +1,4 @@
+// routes/userRoutes.js
 const express = require("express");
 const UserController = require("../controllers/userController");
 const { authenticateToken } = require("../middleware/auth");
@@ -7,6 +8,9 @@ const router = express.Router();
 // Public
 router.post("/register", UserController.register);
 router.post("/login", UserController.login);
+
+// Username availability (public)
+router.get("/check-username", UserController.checkUsername);
 
 // Password reset (public)
 router.post("/reset/request", UserController.resetRequest);
@@ -23,7 +27,6 @@ router.get("/stats", authenticateToken, async (req, res) => {
     if (!user) return res.status(404).json({ error: "User not found" });
     res.json({
       stats: {
-        // simple derived metrics (optional)
         bmi:
           user.heightCm && user.weightKg
             ? +(user.weightKg / Math.pow(user.heightCm / 100, 2)).toFixed(1)

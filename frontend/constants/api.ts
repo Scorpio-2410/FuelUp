@@ -13,6 +13,7 @@ const EP = {
   stats: "/api/users/stats",
   resetRequest: "/api/users/reset/request",
   resetConfirm: "/api/users/reset/confirm",
+  checkUsername: "/api/users/check-username", // NEW
 };
 
 function asJson<T = any>(res: Response): Promise<T> {
@@ -78,6 +79,17 @@ export async function apiLogin(payload: {
     body: JSON.stringify(payload),
   });
   return asJson<{ token: string; user: any }>(res);
+}
+
+// --- Username availability (public) ---
+export async function apiCheckUsername(
+  username: string
+): Promise<{ available: boolean; reason?: string }> {
+  const url = `${BASE_URL}${EP.checkUsername}?username=${encodeURIComponent(
+    username
+  )}`;
+  const res = await fetch(url, { method: "GET" });
+  return asJson<{ available: boolean; reason?: string }>(res);
 }
 
 // --- Profile ---
