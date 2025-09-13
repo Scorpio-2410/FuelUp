@@ -26,40 +26,44 @@ class User {
   static async create(userData) {
     try {
       // Hash password before storing
-      const saltRounds = 10;
-      const hashedPassword = await bcrypt.hash(userData.password, saltRounds);
+          const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(userData.password, saltRounds);
 
-      const query = `
-        INSERT INTO users (username, full_name, email, password, dob, 
-                          height_cm, weight_kg, notifications, avatar_uri, ethnicity,
-                          follow_up_frequency, fitness_goal, activity_level, daily_calorie_goal)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-        RETURNING *
-      `;
-      
-      const values = [
-        userData.username,
-        userData.fullName,
-        userData.email,
-        hashedPassword,
-        userData.dob,
-        userData.heightCm,
-        userData.weightKg,
-        userData.notifications !== undefined ? userData.notifications : true,
-        userData.avatarUri,
-        userData.ethnicity || 'not_specified',
-        userData.followUpFrequency || 'daily',
-        userData.fitnessGoal || 'general_health',
-        userData.activityLevel || 'moderate',
-        userData.dailyCalorieGoal || 2000
-      ];
+    const query = `
+      INSERT INTO users (username, full_name, email, password, dob, 
+                        height_cm, weight_kg, notifications, avatar_uri, ethnicity,
+                        follow_up_frequency, fitness_goal, activity_level, daily_calorie_goal)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      RETURNING *
+    `;
 
-      const result = await pool.query(query, values);
-      return new User(result.rows[0]);
-    } catch (error) {
-      throw new Error(`Error creating user: ${error.message}`);
+    const values = [
+      userData.username,
+      userData.fullName,
+      userData.email,
+      hashedPassword,   // ✅ store the hash in password
+      userData.dob,
+      userData.heightCm,
+      userData.weightKg,
+      userData.notifications !== undefined ? userData.notifications : true,
+      userData.avatarUri,
+      userData.ethnicity || 'not_specified',
+      userData.followUpFrequency || 'daily',
+      userData.fitnessGoal || 'general_health',
+      userData.activityLevel || 'moderate',
+      userData.dailyCalorieGoal || 2000
+    ];
+
+    console.log('DEBUG: Inserting user with values:', values);
+
+    const result = await pool.query(query, values);
+    return new User(result.rows[0]);
+  } catch (error) {
+    console.error('ERROR in User.create:', error);
+    throw new Error(`Error creating user: ${error.message}`);
     }
   }
+  
 
   // Find user by email
   static async findByEmail(email) {

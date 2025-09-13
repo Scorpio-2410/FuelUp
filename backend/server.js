@@ -6,6 +6,8 @@ const { testConnection, initializeDatabase } = require('./config/database');
 const userRoutes = require('./routes/userRoutes');
 const mealRoutes = require('./routes/mealRoutes');
 const fitnessRoutes = require('./routes/fitnessRoutes');
+const exerciseRoutes = require('./routes/exerciseRoutes');
+
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -14,6 +16,8 @@ const PORT = process.env.PORT || 4000;
 app.use(cors());
 app.use(express.json({ limit: '10mb' })); // Increased limit for avatar uploads
 app.use(express.urlencoded({ extended: true }));
+app.use('/api/exercises', exerciseRoutes);
+
 
 // API Routes
 app.use('/api/users', userRoutes);
