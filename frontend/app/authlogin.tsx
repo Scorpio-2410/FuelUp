@@ -54,9 +54,7 @@ export default function AuthLogin() {
             resizeMode="contain"
             className="w-40 h-40 mb-6 rounded-2xl"
           />
-          <Text className="text-white text-3xl font-extrabold mb-2">
-            FuelUp
-          </Text>
+          {/* Removed "FuelUp" title text under logo */}
           <Text className="text-gray-300 text-base mb-10 text-center">
             Build healthy habits. Track progress. Fuel your goals.
           </Text>
