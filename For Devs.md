@@ -85,7 +85,7 @@ tsc --noEmit
 cd backend
 npm install
 
-# Save the .env file from email as backend/.env
+# Save the .env file from teams pinned msg as backend/.env
 # Then you're ready to go!
 ```
 
@@ -97,11 +97,14 @@ npm install
 npm run dev    # Auto-reload on changes
 ```
 
-### Commands
+### Database Commands
+
+Quick database viewing on terminal without neon console, for quick info check purpose 
 
 ```bash
-npm run dev    # Development with auto-reload (nodemon)
-npm start      # Production mode
+npm run view-users     # View all users in clean table format
+npm run view-data      # View all tables (users, fitness, etc.)
+npm run view-schema    # View database structure (columns, types, relationships)
 ```
 
 ### Troubleshooting
