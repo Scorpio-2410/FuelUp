@@ -1,3 +1,4 @@
+// config/database.js
 const { Pool } = require("pg");
 require("dotenv").config();
 
@@ -21,7 +22,7 @@ const initializeDatabase = async () => {
   try {
     const client = await pool.connect();
 
-    // helper: updated_at trigger
+    // ---------- helper: updated_at trigger ----------
     await client.query(`
       CREATE OR REPLACE FUNCTION set_updated_at()
       RETURNS TRIGGER AS $$
@@ -32,7 +33,7 @@ const initializeDatabase = async () => {
       $$ LANGUAGE plpgsql;
     `);
 
-    // users
+    // ---------- users ----------
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -49,9 +50,6 @@ const initializeDatabase = async () => {
         last_login_at TIMESTAMP,
         follow_up_frequency VARCHAR(255) DEFAULT 'daily',
         ethnicity VARCHAR(255) DEFAULT 'not_specified',
-        fitness_goal VARCHAR(100) DEFAULT 'general_health',
-        activity_level VARCHAR(50) DEFAULT 'moderate',
-        daily_calorie_goal INTEGER DEFAULT 2000,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
@@ -67,7 +65,7 @@ const initializeDatabase = async () => {
       FOR EACH ROW EXECUTE FUNCTION set_updated_at();
     `);
 
-    // password reset tokens
+    // ---------- password_reset_tokens ----------
     await client.query(`
       CREATE TABLE IF NOT EXISTS password_reset_tokens (
         id SERIAL PRIMARY KEY,
@@ -78,12 +76,63 @@ const initializeDatabase = async () => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
+
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_prt_user ON password_reset_tokens(user_id);
       CREATE INDEX IF NOT EXISTS idx_prt_expires ON password_reset_tokens(expires_at);
     `);
 
-    console.log("✅ Tables ensured: users, password_reset_tokens");
+    // ---------- fitness (one row per user) ----------
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS fitness (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        goal VARCHAR(100) DEFAULT 'general_health',
+        activity_level VARCHAR(50) DEFAULT 'moderate',
+        experience_level VARCHAR(50),
+        days_per_week INTEGER,
+        session_length_min INTEGER,
+        training_location VARCHAR(100),
+        equipment_available TEXT,      -- JSON string of string[]
+        preferred_activities TEXT,     -- JSON string of string[]
+        injuries_or_limitations TEXT,
+        coaching_style VARCHAR(50),
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    await client.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_fitness_user_unique ON fitness(user_id);
+
+      DROP TRIGGER IF EXISTS trg_fitness_updated_at ON fitness;
+      CREATE TRIGGER trg_fitness_updated_at
+      BEFORE UPDATE ON fitness
+      FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    `);
+
+    // ---------- nutrition_targets (one row per user) ----------
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS nutrition_targets (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        daily_calorie_target INTEGER,
+        macros JSONB,                         -- optional: {"protein":..., "carbs":..., "fat":...}
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    await client.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_nutrition_user_unique ON nutrition_targets(user_id);
+
+      DROP TRIGGER IF EXISTS trg_nutrition_updated_at ON nutrition_targets;
+      CREATE TRIGGER trg_nutrition_updated_at
+      BEFORE UPDATE ON nutrition_targets
+      FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    `);
+
+    console.log(
+      "✅ Tables ensured: users, password_reset_tokens, fitness, nutrition_targets"
+    );
     client.release();
   } catch (err) {
     console.error("❌ Database initialization error:", err.message);

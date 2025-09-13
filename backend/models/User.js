@@ -9,17 +9,12 @@ class User {
     this.passwordHash = row.password_hash;
     this.fullName = row.full_name;
     this.dob = row.dob;
-    this.heightCm = row.height_cm;
-    this.weightKg = row.weight_kg;
     this.gender = row.gender;
     this.avatarUri = row.avatar_uri;
     this.notificationsEnabled = row.notifications_enabled;
     this.lastLoginAt = row.last_login_at;
     this.followUpFrequency = row.follow_up_frequency;
     this.ethnicity = row.ethnicity;
-    this.fitnessGoal = row.fitness_goal;
-    this.activityLevel = row.activity_level;
-    this.dailyCalorieGoal = row.daily_calorie_goal;
     this.createdAt = row.created_at;
     this.updatedAt = row.updated_at;
   }
@@ -28,30 +23,22 @@ class User {
     const hashed = await bcrypt.hash(data.password, 10);
     const q = `
       INSERT INTO users (
-        email, username, password_hash, full_name, dob, height_cm, weight_kg,
-        gender, avatar_uri, notifications_enabled, follow_up_frequency,
-        ethnicity, fitness_goal, activity_level, daily_calorie_goal
+        email, username, password_hash, full_name, dob,
+        gender, avatar_uri, notifications_enabled, follow_up_frequency, ethnicity
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,COALESCE($10,TRUE),COALESCE($11,'daily'),
-              COALESCE($12,'not_specified'),COALESCE($13,'general_health'),
-              COALESCE($14,'moderate'),COALESCE($15,2000))
+      VALUES ($1,$2,$3,$4,$5,$6,$7,COALESCE($8,TRUE),COALESCE($9,'daily'),COALESCE($10,'not_specified'))
       RETURNING *`;
     const v = [
       data.email,
       data.username,
       hashed,
       data.fullName || null,
-      data.dob || null,
-      data.heightCm || null,
-      data.weightKg || null,
+      data.dob || null, // DATE
       data.gender || null,
       data.avatarUri || null,
       data.notificationsEnabled,
       data.followUpFrequency,
       data.ethnicity,
-      data.fitnessGoal,
-      data.activityLevel,
-      data.dailyCalorieGoal,
     ];
     const r = await pool.query(q, v);
     return new User(r.rows[0]);
@@ -100,23 +87,13 @@ class User {
       "username",
       "full_name",
       "dob",
-      "height_cm",
-      "weight_kg",
       "gender",
       "avatar_uri",
       "notifications_enabled",
       "follow_up_frequency",
       "ethnicity",
-      "fitness_goal",
-      "activity_level",
-      "daily_calorie_goal",
     ];
-    const casts = {
-      dob: "::date",
-      height_cm: "::numeric",
-      weight_kg: "::numeric",
-      daily_calorie_goal: "::integer",
-    };
+    const casts = { dob: "::date" };
 
     const sets = [];
     const vals = [];

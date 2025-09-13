@@ -13,32 +13,29 @@ function signToken(user) {
 }
 
 /**
- * Keep DOB as a plain "YYYY-MM-DD" calendar date.
- * NOTE: Do NOT use toISOString() here — it converts to UTC and can shift the day.
+ * Keep DOB as plain "YYYY-MM-DD" (no timezone shifts).
+ * Do NOT use toISOString(); use local getters or slice strings.
  */
 function toPlainDate(input) {
   if (!input) return null;
 
-  // Strings: accept "YYYY-MM-DD" or any ISO-like, trim to first 10 chars
   if (typeof input === "string") {
     const m = input.match(/^(\d{4})-(\d{2})-(\d{2})/);
     return m ? `${m[1]}-${m[2]}-${m[3]}` : null;
   }
-
-  // Date objects: format using LOCAL getters (calendar date), not UTC
   if (input instanceof Date) {
     const y = input.getFullYear();
     const m = String(input.getMonth() + 1).padStart(2, "0");
     const d = String(input.getDate()).padStart(2, "0");
     return `${y}-${m}-${d}`;
   }
-
   return null;
 }
 
 function safeUserJSON(user) {
   const out = user.toJSON();
   if (out.dob) out.dob = toPlainDate(out.dob);
+  // Intentionally do NOT include any fitness/nutrition fields here
   return out;
 }
 
@@ -80,7 +77,7 @@ class UserController {
     }
   }
 
-  // Register a new user
+  // Register a new user (identity + basic profile only)
   static async register(req, res) {
     try {
       const {
@@ -89,16 +86,11 @@ class UserController {
         password,
         fullName,
         dob,
-        heightCm,
-        weightKg,
+        heightCm, // keep if you store in users; otherwise drop
+        weightKg, // keep if you store in users; otherwise drop
         gender,
         avatarUri,
         notificationsEnabled,
-        followUpFrequency,
-        ethnicity,
-        fitnessGoal,
-        activityLevel,
-        dailyCalorieGoal,
       } = req.body;
 
       if (!username || !email || !password) {
@@ -121,17 +113,12 @@ class UserController {
         email,
         password,
         fullName,
-        dob: toPlainDate(dob), // normalize to plain date
-        heightCm,
-        weightKg,
+        dob: toPlainDate(dob),
+        heightCm, // remove if moved to a separate table
+        weightKg, // remove if moved to a separate table
         gender,
         avatarUri,
         notificationsEnabled,
-        followUpFrequency,
-        ethnicity,
-        fitnessGoal,
-        activityLevel,
-        dailyCalorieGoal,
       });
 
       const token = signToken(user);
@@ -192,8 +179,18 @@ class UserController {
       const user = await User.findById(req.userId);
       if (!user) return res.status(404).json({ error: "User not found" });
 
-      const patch = { ...req.body };
-      if (patch.dob != null) patch.dob = toPlainDate(patch.dob); // normalize
+      // Only allow core profile fields; fitness/nutrition belong elsewhere
+      const patch = {};
+      if ("email" in req.body) patch.email = req.body.email;
+      if ("username" in req.body) patch.username = req.body.username;
+      if ("full_name" in req.body) patch.full_name = req.body.full_name;
+      if ("dob" in req.body) patch.dob = toPlainDate(req.body.dob);
+      if ("height_cm" in req.body) patch.height_cm = req.body.height_cm; // optional
+      if ("weight_kg" in req.body) patch.weight_kg = req.body.weight_kg; // optional
+      if ("gender" in req.body) patch.gender = req.body.gender;
+      if ("avatar_uri" in req.body) patch.avatar_uri = req.body.avatar_uri;
+      if ("notifications_enabled" in req.body)
+        patch.notifications_enabled = !!req.body.notifications_enabled;
 
       const updated = await user.update(patch);
       res.json({
@@ -218,7 +215,7 @@ class UserController {
     }
   }
 
-  // Password reset: request a code (always return ok; send only if user exists)
+  // Password reset: request a code (always ok; send only if user exists)
   static async resetRequest(req, res) {
     try {
       const { email } = req.body;

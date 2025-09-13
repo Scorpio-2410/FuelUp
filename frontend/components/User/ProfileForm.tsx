@@ -43,7 +43,14 @@ type Profile = {
 
 // ---------- Helpers (date-only; no JS Date) ----------
 const pad2 = (n: number) => String(n).padStart(2, "0");
-const plain = (val?: string) => (val ? String(val).slice(0, 10) : undefined); // always "YYYY-MM-DD"
+const plain = (val?: string) => (val ? String(val).slice(0, 10) : undefined);
+
+const isLeap = (y: number) => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+const daysInMonth = (y: number, m: number) =>
+  [31, isLeap(y) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][m - 1];
+
+const isValidYMD = (y?: number, m?: number, d?: number) =>
+  !!y && !!m && !!d && m >= 1 && m <= 12 && d >= 1 && d <= daysInMonth(y, m);
 
 const parseISO = (iso?: string) => {
   const s = plain(iso);
@@ -54,16 +61,6 @@ const parseISO = (iso?: string) => {
 };
 
 const toISO = (y: number, m: number, d: number) => `${y}-${pad2(m)}-${pad2(d)}`;
-
-const isLeap = (y: number) => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
-const daysInMonth = (y: number, m: number) =>
-  [31, isLeap(y) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][m - 1];
-
-const isValidYMD = (y?: number, m?: number, d?: number) => {
-  if (!y || !m || !d) return false;
-  if (m < 1 || m > 12) return false;
-  return d >= 1 && d <= daysInMonth(y, m);
-};
 
 // conversions (canonical = cm/kg)
 const cmPerFt = 30.48;
@@ -85,7 +82,7 @@ const numericItems = (
     return { label, value: String(v) };
   });
 
-// DOB items (numeric labels only)
+// DOB items
 const dayItems = Array.from({ length: 31 }, (_, i) => {
   const d = pad2(i + 1);
   return { label: d, value: d };
@@ -106,7 +103,7 @@ type Props = {
 };
 
 export default function ProfileForm({ profile, setProfile }: Props) {
-  // ----- DOB local draft (controlled selects) -----
+  // ----- DOB local draft -----
   const initial = parseISO(profile.dob);
   const [dobDay, setDobDay] = useState<string>(initial ? pad2(initial.d) : "");
   const [dobMonth, setDobMonth] = useState<string>(
@@ -116,7 +113,6 @@ export default function ProfileForm({ profile, setProfile }: Props) {
     initial ? String(initial.y) : ""
   );
 
-  // Keep selects in sync if profile.dob changes from outside
   useEffect(() => {
     const p = parseISO(profile.dob);
     if (p) {
@@ -141,12 +137,8 @@ export default function ProfileForm({ profile, setProfile }: Props) {
     const y = Number(Y),
       m = Number(M),
       d = Number(D);
-    if (isValidYMD(y, m, d)) {
-      // set plain date; no timezone surprises
-      setProfile({ ...profile, dob: toISO(y, m, d) });
-    } else {
-      setProfile({ ...profile, dob: undefined });
-    }
+    if (isValidYMD(y, m, d)) setProfile({ ...profile, dob: toISO(y, m, d) });
+    else setProfile({ ...profile, dob: undefined });
   };
 
   // Height/Weight choices

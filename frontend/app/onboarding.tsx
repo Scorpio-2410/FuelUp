@@ -3,7 +3,13 @@ import React, { useEffect, useState, useCallback } from "react";
 import { ScrollView, Text, Pressable, Alert } from "react-native";
 import { router } from "expo-router";
 import ProfileForm from "../components/User/ProfileForm";
-import { apiGetMe, apiUpdateMe, writeProfileCache } from "../constants/api";
+import {
+  apiGetMe,
+  apiUpdateMe,
+  writeProfileCache,
+  apiUpsertFitness,
+  apiSetNutritionTargets,
+} from "../constants/api";
 
 type Profile = {
   username: string;
@@ -30,7 +36,7 @@ type Profile = {
   dailyCalorieGoal?: number;
 };
 
-// Map server → form, coercing DOB to a plain date (YYYY-MM-DD)
+// Map server → form (force DOB to plain date)
 const toProfile = (u: any): Profile => ({
   username: u?.username ?? "",
   fullName: u?.fullName ?? "",
@@ -50,7 +56,7 @@ const toProfile = (u: any): Profile => ({
   dailyCalorieGoal: u?.dailyCalorieGoal ?? 2000,
 });
 
-// Ensure DOB sent to backend is plain date (no timezone surprises)
+// Ensure DOB is plain "YYYY-MM-DD"
 function normalizeDob(d?: string | null): string | null {
   if (!d) return null;
   const s = String(d);
@@ -78,7 +84,7 @@ export default function Onboarding() {
       const { user } = await apiGetMe();
       if (user) setProfile(toProfile(user));
     } catch {
-      // new user, keep defaults
+      // brand new user
     }
   }, []);
 
@@ -86,35 +92,49 @@ export default function Onboarding() {
     fetchMe();
   }, [fetchMe]);
 
-  const onFinish = async () => {
+  const onFinish = useCallback(async () => {
     try {
       setFinishing(true);
+
+      // 1) core user profile
       await apiUpdateMe({
         full_name: profile.fullName || null,
-        dob: normalizeDob(profile.dob), // plain YYYY-MM-DD
-        height_cm: profile.heightCm ?? null,
-        weight_kg: profile.weightKg ?? null,
+        dob: normalizeDob(profile.dob),
         gender: profile.gender || null,
         avatar_uri: profile.avatarUri || null,
         notifications_enabled: !!profile.notifications,
         follow_up_frequency: profile.followUpFrequency || null,
         ethnicity: profile.ethnicity || null,
-        fitness_goal: profile.fitnessGoal || null,
-        activity_level: profile.activityLevel || null,
-        daily_calorie_goal: profile.dailyCalorieGoal ?? null,
+        // include if you still store these on users:
+        height_cm: profile.heightCm ?? null,
+        weight_kg: profile.weightKg ?? null,
       });
 
-      // Refresh & cache so homepage header/avatar are instant
+      // 2) fitness preferences (upsert)
+      await apiUpsertFitness({
+        goal: profile.fitnessGoal || "general_health",
+        activityLevel: profile.activityLevel || "moderate",
+      });
+
+      // 3) nutrition targets (optional)
+      if (profile.dailyCalorieGoal != null) {
+        await apiSetNutritionTargets({
+          dailyCalorieTarget: profile.dailyCalorieGoal,
+        });
+      }
+
+      // refresh cache and go home
       const { user } = await apiGetMe();
       if (user) await writeProfileCache(user);
 
+      Alert.alert("All set!", "Your profile is ready.");
       router.replace("/(tabs)/homepage");
     } catch (e: any) {
       Alert.alert("Save failed", e?.message ?? "Please try again.");
     } finally {
       setFinishing(false);
     }
-  };
+  }, [profile]);
 
   return (
     <ScrollView className="flex-1 bg-black px-5 pt-12">

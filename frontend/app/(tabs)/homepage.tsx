@@ -1,6 +1,5 @@
-// app/(tabs)/homepage.tsx
-import React, { useState, useCallback, useRef, useEffect } from "react";
-import { View, Text, Dimensions, Image } from "react-native";
+import React, { useState, useCallback, useRef } from "react";
+import { View, Text, Dimensions, Image, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
 
@@ -27,71 +26,61 @@ export default function HomePageScreen() {
   const insets = useSafeAreaInsets();
   const { width } = Dimensions.get("window");
 
-  // Profile state
   const [profile, setProfile] = useState<Profile>({ username: "" });
 
-  // Refs for triggering component refreshes
+  // Refs to drive pull-to-refresh updates
   const stepsRef = useRef<{ updateSteps: () => void }>(null);
   const quotesRef = useRef<{ updateQuote: () => void }>(null);
   const caloriesRef = useRef<{ updateCalories: () => void }>(null);
   const goalsRef = useRef<{ updateMessage: () => void }>(null);
 
-  // Always show something instantly (cache), then fetch fresh from backend
-  const hydrateProfile = useCallback(async () => {
-    let cached = await readProfileCache();
-    if (cached) {
-      setProfile({
-        username: cached.username || "",
-        avatarUri: cached.avatarUri || undefined,
-      });
-    }
-
+  const fetchHeaderProfile = useCallback(async () => {
     try {
       const { user } = await apiGetMe();
       if (user) {
-        const fresh = {
-          username: user.username || "",
-          avatarUri: user.avatarUri || undefined,
+        const u = {
+          username: user.username ?? "",
+          avatarUri: user.avatarUri ?? undefined,
         };
-        setProfile(fresh);
-        // keep cache warm for next time
+        setProfile(u);
         await writeProfileCache(user);
+        return;
       }
     } catch {
-      // network error → keep whatever is shown (cached or default)
+      // fall back to cache if offline/unauth
+      const cached = await readProfileCache();
+      if (cached) {
+        setProfile({
+          username: cached.username ?? "",
+          avatarUri: cached.avatarUri ?? undefined,
+        });
+      }
     }
   }, []);
 
-  // Global refresh hook with custom homepage refresh logic
   const { refreshing, handleRefresh } = useGlobalRefresh({
     tabName: "homepage",
-    refreshDuration: 2000,
-    onInternalRefresh: async () => {
-      await hydrateProfile(); // also re-fetch profile when user pulls to refresh
+    refreshDuration: 1200,
+    onInternalRefresh: () => {
       stepsRef.current?.updateSteps();
       quotesRef.current?.updateQuote();
       caloriesRef.current?.updateCalories();
       goalsRef.current?.updateMessage();
+      fetchHeaderProfile();
     },
   });
 
-  // Hydrate once on initial mount (instant cache paint)
-  useEffect(() => {
-    hydrateProfile();
-  }, [hydrateProfile]);
-
-  // And re-hydrate every time the tab/screen gains focus
   useFocusEffect(
     useCallback(() => {
       let alive = true;
       (async () => {
         if (!alive) return;
-        await hydrateProfile();
+        await fetchHeaderProfile();
       })();
       return () => {
         alive = false;
       };
-    }, [hydrateProfile])
+    }, [fetchHeaderProfile])
   );
 
   return (
@@ -102,7 +91,7 @@ export default function HomePageScreen() {
           <View className="flex-row items-center justify-between mb-8 mt-4">
             <View className="flex-1 pr-4">
               <Text className="text-white text-2xl font-bold" numberOfLines={1}>
-                {profile.username ? `${profile.username}` : "Welcome back!"}
+                {profile.username ? profile.username : "Welcome back!"}
               </Text>
             </View>
             <View
@@ -117,19 +106,19 @@ export default function HomePageScreen() {
             </View>
           </View>
 
-          {/* Real-time Calendar Component */}
+          {/* Calendar */}
           <RealTimeCalendar className="mb-6" />
 
-          {/* Motivational Quote Component */}
+          {/* Quote */}
           <HomepageMotivationalQuotes ref={quotesRef} className="mb-6" />
 
-          {/* Stats Cards Row */}
+          {/* Stats row */}
           <View className="flex-row gap-4 mb-6">
             <HomepageSteps ref={stepsRef} />
             <HomepageGoalsMessage ref={goalsRef} />
           </View>
 
-          {/* Calorie Progress Component */}
+          {/* Calories */}
           <HomepageCaloriesTracking ref={caloriesRef} className="mb-4" />
         </View>
       </RefreshScroll>

@@ -1,8 +1,9 @@
-// constants/api.ts
 import * as SecureStore from "expo-secure-store";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export const BASE_URL = "http://localhost:4000";
+
+// small things in SecureStore (token); larger profile cache in AsyncStorage
 export const K_TOKEN = "fu_token";
 export const K_PROFILE = "fu_profile";
 
@@ -15,7 +16,16 @@ const EP = {
   resetRequest: "/api/users/reset/request",
   resetConfirm: "/api/users/reset/confirm",
   checkUsername: "/api/users/check-username",
-  checkEmail: "/api/users/check-email", // 👈 added
+  checkEmail: "/api/users/check-email",
+
+  // fitness
+  fitnessGet: "/api/fitness",
+  fitnessUpsert: "/api/fitness",
+
+  // nutrition targets
+  nutritionGet: "/api/nutrition/targets",
+  nutritionSet: "/api/nutrition/targets",
+  nutritionDaily: "/api/nutrition/daily", // ?date=YYYY-MM-DD
 };
 
 function asJson<T = any>(res: Response): Promise<T> {
@@ -38,17 +48,17 @@ async function authHeaders() {
   };
 }
 
-// --- token stays in SecureStore (small) ---
+/* ---------------- token ---------------- */
 export async function storeToken(token: string) {
   await SecureStore.setItemAsync(K_TOKEN, token);
 }
+
 export async function clearToken() {
   await SecureStore.deleteItemAsync(K_TOKEN);
-  // move profile cache handling to AsyncStorage (no 2KB limit)
   await AsyncStorage.removeItem(K_PROFILE);
 }
 
-// --- profile cache (AsyncStorage to avoid 2KB warnings) ---
+/* -------------- profile cache (AsyncStorage) -------------- */
 export async function readProfileCache(): Promise<any | null> {
   try {
     const raw = await AsyncStorage.getItem(K_PROFILE);
@@ -66,24 +76,20 @@ export async function writeProfileCache(userObj: any) {
       email: userObj?.email,
       avatarUri: userObj?.avatarUri,
       dob: userObj?.dob,
-      heightCm: userObj?.heightCm,
-      weightKg: userObj?.weightKg,
+      gender: userObj?.gender,
       notificationsEnabled: userObj?.notificationsEnabled,
       followUpFrequency: userObj?.followUpFrequency,
       ethnicity: userObj?.ethnicity,
-      fitnessGoal: userObj?.fitnessGoal,
-      activityLevel: userObj?.activityLevel,
-      dailyCalorieGoal: userObj?.dailyCalorieGoal,
       createdAt: userObj?.createdAt,
       updatedAt: userObj?.updatedAt,
     };
     await AsyncStorage.setItem(K_PROFILE, JSON.stringify(slim));
   } catch {
-    // cache is optional
+    // cache is best-effort
   }
 }
 
-// --- Auth ---
+/* ---------------- auth ---------------- */
 export async function apiSignup(payload: {
   username: string;
   email: string;
@@ -109,7 +115,6 @@ export async function apiLogin(payload: {
   return asJson<{ token: string; user: any }>(res);
 }
 
-// --- Availability checks ---
 export async function apiCheckUsername(username: string) {
   const res = await fetch(
     `${BASE_URL}${EP.checkUsername}?username=${encodeURIComponent(username)}`
@@ -124,7 +129,7 @@ export async function apiCheckEmail(email: string) {
   return asJson<{ available: boolean; reason?: string }>(res);
 }
 
-// --- Profile ---
+/* ---------------- user profile ---------------- */
 export async function apiGetMe() {
   const res = await fetch(`${BASE_URL}${EP.meGet}`, {
     headers: await authHeaders(),
@@ -141,7 +146,6 @@ export async function apiUpdateMe(partial: Record<string, any>) {
   return asJson<{ user: any; message: string }>(res);
 }
 
-// --- Stats ---
 export async function apiGetStats() {
   const res = await fetch(`${BASE_URL}${EP.stats}`, {
     headers: await authHeaders(),
@@ -149,7 +153,67 @@ export async function apiGetStats() {
   return asJson<{ stats: any }>(res);
 }
 
-// --- Password reset ---
+/* ---------------- fitness ---------------- */
+export async function apiGetFitness() {
+  const res = await fetch(`${BASE_URL}${EP.fitnessGet}`, {
+    headers: await authHeaders(),
+  });
+  return asJson<{ fitness: any }>(res);
+}
+
+export async function apiUpsertFitness(payload: {
+  goal: string;
+  activityLevel: string;
+  experienceLevel?: string;
+  daysPerWeek?: number;
+  sessionLengthMin?: number;
+  trainingLocation?: string;
+  equipmentAvailable?: string[];
+  preferredActivities?: string[];
+  injuriesOrLimitations?: string;
+  coachingStyle?: string;
+}) {
+  const res = await fetch(`${BASE_URL}${EP.fitnessUpsert}`, {
+    method: "PUT",
+    headers: await authHeaders(),
+    body: JSON.stringify(payload),
+  });
+  return asJson<{ fitness: any }>(res);
+}
+
+/* ---------------- nutrition targets ---------------- */
+export async function apiGetNutritionTargets() {
+  const res = await fetch(`${BASE_URL}${EP.nutritionGet}`, {
+    headers: await authHeaders(),
+  });
+  return asJson<{ targets: any }>(res);
+}
+
+export async function apiSetNutritionTargets(payload: {
+  dailyCalorieTarget?: number | null;
+  proteinTarget?: number | null;
+  carbsTarget?: number | null;
+  fatTarget?: number | null;
+  fiberTarget?: number | null;
+  sodiumTarget?: number | null;
+}) {
+  const res = await fetch(`${BASE_URL}${EP.nutritionSet}`, {
+    method: "PUT",
+    headers: await authHeaders(),
+    body: JSON.stringify(payload),
+  });
+  return asJson<{ targets: any }>(res);
+}
+
+export async function apiGetDailyNutrition(date: string) {
+  const url = `${BASE_URL}${EP.nutritionDaily}?date=${encodeURIComponent(
+    date
+  )}`;
+  const res = await fetch(url, { headers: await authHeaders() });
+  return asJson<{ date: string; totals: any }>(res);
+}
+
+/* ---------------- password reset ---------------- */
 export async function apiResetRequest(email: string) {
   const res = await fetch(`${BASE_URL}${EP.resetRequest}`, {
     method: "POST",

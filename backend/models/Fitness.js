@@ -1,234 +1,163 @@
-const { pool } = require('../config/database');
+// models/Fitness.js
+const { pool } = require("../config/database");
 
 class Fitness {
-  constructor(fitnessData) {
-    this.id = fitnessData.id;
-    this.userId = fitnessData.user_id;
-    this.goal = fitnessData.goal;
-    this.activityLevel = fitnessData.activity_level;
-    this.experienceLevel = fitnessData.experience_level;
-    this.daysPerWeek = fitnessData.days_per_week;
-    this.sessionLengthMin = fitnessData.session_length_min;
-    this.trainingLocation = fitnessData.training_location;
-    this.equipmentAvailable = fitnessData.equipment_available ? 
-      JSON.parse(fitnessData.equipment_available) : [];
-    this.preferredActivities = fitnessData.preferred_activities ? 
-      JSON.parse(fitnessData.preferred_activities) : [];
-    this.injuriesOrLimitations = fitnessData.injuries_or_limitations;
-    this.coachingStyle = fitnessData.coaching_style;
-    this.updatedAt = fitnessData.updated_at;
+  constructor(row) {
+    this.id = row.id;
+    this.userId = row.user_id;
+    this.goal = row.goal;
+    this.activityLevel = row.activity_level;
+    this.experienceLevel = row.experience_level;
+    this.daysPerWeek = row.days_per_week;
+    this.sessionLengthMin = row.session_length_min;
+    this.trainingLocation = row.training_location;
+    this.equipmentAvailable = row.equipment_available
+      ? JSON.parse(row.equipment_available)
+      : [];
+    this.preferredActivities = row.preferred_activities
+      ? JSON.parse(row.preferred_activities)
+      : [];
+    this.injuriesOrLimitations = row.injuries_or_limitations;
+    this.coachingStyle = row.coaching_style;
+    this.updatedAt = row.updated_at;
   }
 
-  // Create or update fitness preferences for a user
-  static async createOrUpdate(userId, fitnessData) {
-    try {
-      const query = `
-        INSERT INTO fitness (user_id, goal, activity_level, experience_level, 
-                           days_per_week, session_length_min, training_location,
-                           equipment_available, preferred_activities, injuries_or_limitations,
-                           coaching_style)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-        ON CONFLICT (user_id) 
-        DO UPDATE SET
-          goal = EXCLUDED.goal,
-          activity_level = EXCLUDED.activity_level,
-          experience_level = EXCLUDED.experience_level,
-          days_per_week = EXCLUDED.days_per_week,
-          session_length_min = EXCLUDED.session_length_min,
-          training_location = EXCLUDED.training_location,
-          equipment_available = EXCLUDED.equipment_available,
-          preferred_activities = EXCLUDED.preferred_activities,
-          injuries_or_limitations = EXCLUDED.injuries_or_limitations,
-          coaching_style = EXCLUDED.coaching_style,
-          updated_at = CURRENT_TIMESTAMP
-        RETURNING *
-      `;
-      
-      const values = [
-        userId,
-        fitnessData.goal,
-        fitnessData.activityLevel,
-        fitnessData.experienceLevel,
-        fitnessData.daysPerWeek || 3,
-        fitnessData.sessionLengthMin || 60,
-        fitnessData.trainingLocation,
-        JSON.stringify(fitnessData.equipmentAvailable || []),
-        JSON.stringify(fitnessData.preferredActivities || []),
-        fitnessData.injuriesOrLimitations,
-        fitnessData.coachingStyle
-      ];
-
-      const result = await pool.query(query, values);
-      return new Fitness(result.rows[0]);
-    } catch (error) {
-      throw new Error(`Error creating/updating fitness preferences: ${error.message}`);
-    }
-  }
-
-  // Find fitness preferences by user ID
   static async findByUserId(userId) {
-    try {
-      const query = 'SELECT * FROM fitness WHERE user_id = $1';
-      const result = await pool.query(query, [userId]);
-      
-      if (result.rows.length === 0) {
-        return null;
-      }
-      
-      return new Fitness(result.rows[0]);
-    } catch (error) {
-      throw new Error(`Error finding fitness preferences: ${error.message}`);
-    }
+    const r = await pool.query("SELECT * FROM fitness WHERE user_id=$1", [
+      userId,
+    ]);
+    return r.rows[0] ? new Fitness(r.rows[0]) : null;
   }
 
-  // Update fitness preferences
+  static async upsert(userId, data) {
+    const q = `
+      INSERT INTO fitness (
+        user_id, goal, activity_level, experience_level, days_per_week,
+        session_length_min, training_location, equipment_available,
+        preferred_activities, injuries_or_limitations, coaching_style
+      )
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+      ON CONFLICT (user_id) DO UPDATE SET
+        goal = EXCLUDED.goal,
+        activity_level = EXCLUDED.activity_level,
+        experience_level = EXCLUDED.experience_level,
+        days_per_week = EXCLUDED.days_per_week,
+        session_length_min = EXCLUDED.session_length_min,
+        training_location = EXCLUDED.training_location,
+        equipment_available = EXCLUDED.equipment_available,
+        preferred_activities = EXCLUDED.preferred_activities,
+        injuries_or_limitations = EXCLUDED.injuries_or_limitations,
+        coaching_style = EXCLUDED.coaching_style,
+        updated_at = CURRENT_TIMESTAMP
+      RETURNING *;
+    `;
+    const v = [
+      userId,
+      data.goal || "general_health",
+      data.activityLevel || "moderate",
+      data.experienceLevel || null,
+      data.daysPerWeek || null,
+      data.sessionLengthMin || null,
+      data.trainingLocation || null,
+      JSON.stringify(data.equipmentAvailable || []),
+      JSON.stringify(data.preferredActivities || []),
+      data.injuriesOrLimitations || null,
+      data.coachingStyle || null,
+    ];
+    const r = await pool.query(q, v);
+    return new Fitness(r.rows[0]);
+  }
+
   async update(updateData) {
-    try {
-      const allowedFields = [
-        'goal', 'activity_level', 'experience_level', 'days_per_week',
-        'session_length_min', 'training_location', 'equipment_available',
-        'preferred_activities', 'injuries_or_limitations', 'coaching_style'
-      ];
+    const allowed = [
+      "goal",
+      "activity_level",
+      "experience_level",
+      "days_per_week",
+      "session_length_min",
+      "training_location",
+      "equipment_available",
+      "preferred_activities",
+      "injuries_or_limitations",
+      "coaching_style",
+    ];
+    const sets = [];
+    const vals = [];
+    let i = 1;
 
-      const setClause = [];
-      const values = [];
-      let paramIndex = 1;
-
-      // Build dynamic update query
-      for (const field of allowedFields) {
-        if (updateData[field] !== undefined) {
-          // Handle JSON fields
-          if (field === 'equipment_available' || field === 'preferred_activities') {
-            setClause.push(`${field} = $${paramIndex}`);
-            values.push(JSON.stringify(updateData[field]));
-          } else {
-            setClause.push(`${field} = $${paramIndex}`);
-            values.push(updateData[field]);
-          }
-          paramIndex++;
+    for (const col of allowed) {
+      if (Object.prototype.hasOwnProperty.call(updateData, col)) {
+        let val = updateData[col];
+        if (col === "equipment_available" || col === "preferred_activities") {
+          val = JSON.stringify(val || []);
         }
+        sets.push(`${col}=$${i}`);
+        vals.push(val);
+        i++;
       }
-
-      if (setClause.length === 0) {
-        throw new Error('No valid fields to update');
-      }
-
-      setClause.push(`updated_at = CURRENT_TIMESTAMP`);
-      values.push(this.userId);
-
-      const query = `
-        UPDATE fitness 
-        SET ${setClause.join(', ')}
-        WHERE user_id = $${paramIndex}
-        RETURNING *
-      `;
-
-      const result = await pool.query(query, values);
-      
-      if (result.rows.length === 0) {
-        throw new Error('Fitness preferences not found');
-      }
-
-      // Update current instance
-      Object.assign(this, new Fitness(result.rows[0]));
-      return this;
-    } catch (error) {
-      throw new Error(`Error updating fitness preferences: ${error.message}`);
     }
+    if (!sets.length) throw new Error("No valid fields to update");
+
+    vals.push(this.userId);
+    const sql = `
+      UPDATE fitness SET ${sets.join(", ")}, updated_at=CURRENT_TIMESTAMP
+      WHERE user_id=$${i} RETURNING *`;
+    const r = await pool.query(sql, vals);
+    Object.assign(this, new Fitness(r.rows[0]));
+    return this;
   }
 
-  // Delete fitness preferences
   async delete() {
-    try {
-      const query = 'DELETE FROM fitness WHERE user_id = $1';
-      await pool.query(query, [this.userId]);
-      return true;
-    } catch (error) {
-      throw new Error(`Error deleting fitness preferences: ${error.message}`);
-    }
+    await pool.query("DELETE FROM fitness WHERE user_id=$1", [this.userId]);
+    return true;
   }
 
-  // Get recommended workout frequency based on experience level
-  getRecommendedFrequency() {
-    const recommendations = {
-      'beginner': { min: 2, max: 3, sessionLength: 45 },
-      'intermediate': { min: 3, max: 4, sessionLength: 60 },
-      'advanced': { min: 4, max: 6, sessionLength: 75 }
-    };
-
-    return recommendations[this.experienceLevel] || recommendations['intermediate'];
-  }
-
-  // Get workout intensity recommendations
-  getIntensityRecommendations() {
-    const intensityLevels = {
-      'beginner': ['low', 'moderate'],
-      'intermediate': ['moderate', 'high'],
-      'advanced': ['moderate', 'high', 'very_high']
-    };
-
-    return intensityLevels[this.experienceLevel] || intensityLevels['intermediate'];
-  }
-
-  // Check if user has specific equipment
-  hasEquipment(equipment) {
-    return this.equipmentAvailable.includes(equipment);
-  }
-
-  // Check if user prefers specific activity
-  prefersActivity(activity) {
-    return this.preferredActivities.includes(activity);
-  }
-
-  // Get workout recommendations based on fitness preferences
+  // convenience suggestions
   getWorkoutRecommendations() {
-    // Generate basic recommendations based on preferences
-    const recommendations = {
-      frequency: this.getRecommendedFrequency(),
-      intensity: this.getIntensityRecommendations(),
-      workoutTypes: [],
-      tips: []
+    const rec = {
+      beginner: { min: 2, max: 3, sessionLength: 45 },
+      intermediate: { min: 3, max: 4, sessionLength: 60 },
+      advanced: { min: 4, max: 6, sessionLength: 75 },
     };
-
-    // Add workout type recommendations based on goal
+    const intensity = {
+      beginner: ["low", "moderate"],
+      intermediate: ["moderate", "high"],
+      advanced: ["moderate", "high", "very_high"],
+    };
+    const e = this.experienceLevel || "intermediate";
+    const out = {
+      frequency: rec[e] || rec.intermediate,
+      intensity: intensity[e] || intensity.intermediate,
+      workoutTypes: [],
+      tips: [],
+    };
     switch (this.goal) {
-      case 'weight_loss':
-        recommendations.workoutTypes = ['cardio', 'hiit', 'circuit_training'];
-        recommendations.tips = [
-          'Focus on high-intensity interval training for maximum calorie burn',
-          'Combine cardio with strength training for best results',
-          'Stay consistent with your workout schedule'
+      case "weight_loss":
+        out.workoutTypes = ["cardio", "hiit", "circuit_training"];
+        out.tips = [
+          "Use intervals for higher calorie burn",
+          "Combine cardio and strength",
+          "Stay consistent",
         ];
         break;
-      case 'muscle_gain':
-        recommendations.workoutTypes = ['strength_training', 'resistance', 'compound_movements'];
-        recommendations.tips = [
-          'Focus on compound exercises like squats, deadlifts, and bench press',
-          'Progressive overload is key to muscle growth',
-          'Allow adequate rest between strength training sessions'
-        ];
+      case "muscle_gain":
+        out.workoutTypes = ["strength_training", "compound_movements"];
+        out.tips = ["Progressive overload", "Compound lifts", "Rest well"];
         break;
-      case 'endurance':
-        recommendations.workoutTypes = ['cardio', 'running', 'cycling', 'swimming'];
-        recommendations.tips = [
-          'Gradually increase workout duration and intensity',
-          'Include both steady-state and interval training',
-          'Focus on proper breathing techniques'
-        ];
+      case "endurance":
+        out.workoutTypes = ["running", "cycling", "swimming"];
+        out.tips = ["Increase duration gradually", "Mix steady + intervals"];
         break;
       default:
-        recommendations.workoutTypes = ['full_body', 'cardio', 'flexibility'];
-        recommendations.tips = [
-          'Maintain a balanced routine with cardio, strength, and flexibility',
-          'Listen to your body and adjust intensity as needed',
-          'Consistency is more important than intensity'
+        out.workoutTypes = ["full_body", "cardio", "flexibility"];
+        out.tips = [
+          "Balance cardio/strength/flexibility",
+          "Consistency > intensity",
         ];
     }
-
-    return recommendations;
+    return out;
   }
 
-  // Get formatted JSON response
   toJSON() {
     return {
       id: this.id,
@@ -244,7 +173,6 @@ class Fitness {
       injuriesOrLimitations: this.injuriesOrLimitations,
       coachingStyle: this.coachingStyle,
       updatedAt: this.updatedAt,
-      recommendations: this.getWorkoutRecommendations()
     };
   }
 }
