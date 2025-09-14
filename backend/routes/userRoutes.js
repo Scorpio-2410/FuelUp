@@ -1,17 +1,25 @@
-const express = require('express');
-const UserController = require('../controllers/userController');
-const { authenticateToken } = require('../middleware/auth');
+const express = require("express");
+const UserController = require("../controllers/userController");
+const { authenticateToken } = require("../middleware/auth");
 
 const router = express.Router();
 
-// Public routes (no authentication required)
-router.post('/register', UserController.register);
-router.post('/login', UserController.login);
+// Public
+router.get("/check-username", UserController.checkUsername);
+router.get("/check-email", UserController.checkEmail);
+router.post("/register", UserController.register);
+router.post("/login", UserController.login);
 
-// Protected routes (authentication required)
-router.get('/profile', authenticateToken, UserController.getProfile);
-router.put('/profile', authenticateToken, UserController.updateProfile);
-router.delete('/account', authenticateToken, UserController.deleteAccount);
-router.get('/stats', authenticateToken, UserController.getStats);
+// Password reset (public)
+router.post("/reset/request", UserController.resetRequest);
+router.post("/reset/confirm", UserController.resetConfirm);
+
+// Protected
+router.get("/profile", authenticateToken, UserController.getProfile);
+router.put("/profile", authenticateToken, UserController.updateProfile);
+router.delete("/account", authenticateToken, UserController.deleteAccount);
+
+// Stats (pulls from fitness_profiles & nutrition_profiles)
+router.get("/stats", authenticateToken, UserController.getStats);
 
 module.exports = router;
