@@ -1,120 +1,89 @@
-// controllers/exerciseController.js
+// backend/controllers/exerciseController.js
 const Exercise = require("../models/exercise");
-const FitnessProfile = require("../models/fitnessProfile");
 
-class ExerciseController {
-  // POST /api/fitness/exercises
-  static async create(req, res) {
+const ExerciseController = {
+  async listExercises(req, res) {
     try {
-      const userId = req.userId;
-      const {
-        fitnessProfileId,
-        name,
-        muscleGroup,
-        equipment,
-        difficulty,
-        durationMin,
-        sets,
-        reps,
-        restSeconds,
-        notes,
-      } = req.body;
-
-      if (!fitnessProfileId || !name) {
-        return res
-          .status(400)
-          .json({ error: "fitnessProfileId and name are required" });
-      }
-
-      const profile = await FitnessProfile.findById(fitnessProfileId);
-      if (!profile || profile.userId !== userId) {
-        return res.status(403).json({ error: "Invalid fitness profile" });
-      }
-
-      const ex = await Exercise.create({
-        userId,
-        fitnessProfileId,
-        name,
-        muscleGroup: muscleGroup || null,
-        equipment: equipment || null,
-        difficulty: difficulty || null,
-        durationMin: durationMin || null,
-        sets: sets || null,
-        reps: reps || null,
-        restSeconds: restSeconds || null,
-        notes: notes || null,
+      const limit = Number(req.query.limit ?? 50);
+      const offset = Number(req.query.offset ?? 0);
+      const exercises = await Exercise.listForUser(req.userId, {
+        limit,
+        offset,
       });
-
-      res.status(201).json({ success: true, exercise: ex.toJSON() });
+      res.json({ success: true, exercises, pagination: { limit, offset } });
     } catch (e) {
-      console.error("Exercise create error:", e);
+      console.error("listExercises error:", e);
+      res.status(500).json({ error: "Failed to list exercises" });
+    }
+  },
+
+  async getExerciseById(req, res) {
+    try {
+      const id = Number(req.params.id);
+      const exercise = await Exercise.getById(id, req.userId);
+      if (!exercise)
+        return res.status(404).json({ error: "Exercise not found" });
+      res.json({ success: true, exercise });
+    } catch (e) {
+      console.error("getExerciseById error:", e);
+      res.status(500).json({ error: "Failed to fetch exercise" });
+    }
+  },
+
+  async createExercise(req, res) {
+    try {
+      const created = await Exercise.create(req.userId, {
+        name: req.body.name,
+        muscle_group: req.body.muscleGroup ?? null,
+        equipment: req.body.equipment ?? null,
+        difficulty: req.body.difficulty ?? null,
+        duration_min: req.body.durationMin ?? null,
+        sets: req.body.sets ?? null,
+        reps: req.body.reps ?? null,
+        rest_seconds: req.body.restSeconds ?? null,
+        notes: req.body.notes ?? null,
+      });
+      res.status(201).json({ success: true, exercise: created });
+    } catch (e) {
+      console.error("createExercise error:", e);
       res.status(500).json({ error: "Failed to create exercise" });
     }
-  }
+  },
 
-  // GET /api/fitness/exercises?profileId=&limit=&offset=
-  static async list(req, res) {
+  async updateExercise(req, res) {
     try {
-      const { profileId, limit = 100, offset = 0 } = req.query;
-      if (profileId) {
-        const profile = await FitnessProfile.findById(profileId);
-        if (!profile || profile.userId !== req.userId) {
-          return res.status(403).json({ error: "Invalid fitness profile" });
-        }
-        const items = await Exercise.listByProfile(profileId, {
-          limit: +limit,
-          offset: +offset,
-        });
-        return res.json({
-          success: true,
-          exercises: items.map((x) => x.toJSON()),
-          pagination: { limit: +limit, offset: +offset },
-        });
-      }
-      const items = await Exercise.listByUser(req.userId, {
-        limit: +limit,
-        offset: +offset,
+      const id = Number(req.params.id);
+      const updated = await Exercise.update(id, req.userId, {
+        name: req.body.name,
+        muscle_group: req.body.muscleGroup,
+        equipment: req.body.equipment,
+        difficulty: req.body.difficulty,
+        duration_min: req.body.durationMin,
+        sets: req.body.sets,
+        reps: req.body.reps,
+        rest_seconds: req.body.restSeconds,
+        notes: req.body.notes,
       });
-      res.json({
-        success: true,
-        exercises: items.map((x) => x.toJSON()),
-        pagination: { limit: +limit, offset: +offset },
-      });
-    } catch (e) {
-      console.error("Exercise list error:", e);
-      res.status(500).json({ error: "Failed to fetch exercises" });
-    }
-  }
-
-  // PUT /api/fitness/exercises/:id
-  static async update(req, res) {
-    try {
-      const ex = await Exercise.findById(req.params.id);
-      if (!ex || ex.userId !== req.userId) {
+      if (!updated)
         return res.status(404).json({ error: "Exercise not found" });
-      }
-      const updated = await ex.update(req.body);
-      res.json({ success: true, exercise: updated.toJSON() });
+      res.json({ success: true, exercise: updated });
     } catch (e) {
-      console.error("Exercise update error:", e);
+      console.error("updateExercise error:", e);
       res.status(500).json({ error: "Failed to update exercise" });
     }
-  }
+  },
 
-  // DELETE /api/fitness/exercises/:id
-  static async remove(req, res) {
+  async deleteExercise(req, res) {
     try {
-      const ex = await Exercise.findById(req.params.id);
-      if (!ex || ex.userId !== req.userId) {
-        return res.status(404).json({ error: "Exercise not found" });
-      }
-      await ex.delete();
+      const id = Number(req.params.id);
+      const ok = await Exercise.remove(id, req.userId);
+      if (!ok) return res.status(404).json({ error: "Exercise not found" });
       res.json({ success: true });
     } catch (e) {
-      console.error("Exercise delete error:", e);
+      console.error("deleteExercise error:", e);
       res.status(500).json({ error: "Failed to delete exercise" });
     }
-  }
-}
+  },
+};
 
 module.exports = ExerciseController;

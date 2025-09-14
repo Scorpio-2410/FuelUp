@@ -1,36 +1,32 @@
+// backend/routes/mealRoutes.js
 const express = require("express");
-const MealController = require("../controllers/mealController");
 const { authenticateToken } = require("../middleware/auth");
+const MealController = require("../controllers/mealController");
 
 const router = express.Router();
 
-// Create
-router.post("/", authenticateToken, MealController.createMeal);
+// Everything here requires auth
+router.use(authenticateToken);
 
-// Collections
-router.get("/", authenticateToken, MealController.getUserMeals);
+/**
+ * IMPORTANT: Order matters. Put the specific paths BEFORE "/:id"
+ * to avoid "/plans" or "/daily" being captured by the id param.
+ */
 
-// Date-based queries
-router.get("/date/:date", authenticateToken, MealController.getMealsByDate);
-router.get("/range", authenticateToken, MealController.getMealsByDateRange);
+// ---- collections & aggregates ----
+router.get("/daily", MealController.getDailyTotals);
 
-// Daily nutrition summary
-router.get(
-  "/date/:date/summary",
-  authenticateToken,
-  MealController.getDailyNutrition
-);
+// ---- meal plans ----
+router.get("/plans/current", MealController.getCurrentMealPlan);
+router.post("/plans/recommend", MealController.recommendMealPlan);
+router.post("/plans", MealController.createMealPlan);
 
-// Grouped by type for a date (if you expose mealType client-side)
-router.get(
-  "/date/:date/by-type",
-  authenticateToken,
-  MealController.getMealsByTypeAndDate
-);
+// ---- meals (CRUD) ----
+router.get("/", MealController.listMeals);
+router.post("/", MealController.createMeal);
 
-// Single meal CRUD
-router.get("/:id", authenticateToken, MealController.getMeal);
-router.put("/:id", authenticateToken, MealController.updateMeal);
-router.delete("/:id", authenticateToken, MealController.deleteMeal);
+router.get("/:id", MealController.getMealById);
+router.put("/:id", MealController.updateMeal);
+router.delete("/:id", MealController.deleteMeal);
 
 module.exports = router;

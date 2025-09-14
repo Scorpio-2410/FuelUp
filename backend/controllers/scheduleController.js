@@ -1,150 +1,148 @@
+// backend/controllers/scheduleController.js
 const Schedule = require("../models/schedule");
 const Event = require("../models/event");
 
-class ScheduleController {
-  // Get (or create) the user's schedule
-  static async getSchedule(req, res) {
+const ensureSchedule = async (userId) => {
+  // Get or create the user's single schedule
+  let schedule = await Schedule.getForUser?.(userId);
+  if (!schedule && Schedule.createForUser) {
+    schedule = await Schedule.createForUser(userId, {
+      title: null,
+      timezone: null,
+    });
+  }
+  return schedule;
+};
+
+const ScheduleController = {
+  // GET /api/schedule
+  async getSchedule(req, res) {
     try {
-      const schedule = await Schedule.getOrCreate(req.userId);
-      res.json({ success: true, schedule });
+      const schedule = await Schedule.getForUser?.(req.userId);
+      res.json({ success: true, schedule: schedule || null });
     } catch (e) {
       console.error("getSchedule error:", e);
-      res.status(500).json({ error: "Failed to retrieve schedule" });
+      res.status(500).json({ error: "Failed to fetch schedule" });
     }
-  }
+  },
 
-  // Update schedule timezone/preferences
-  static async updateSchedule(req, res) {
+  // POST /api/schedule
+  async createSchedule(req, res) {
     try {
-      const schedule = await Schedule.getOrCreate(req.userId);
-      const patch = {};
+      const existing = await Schedule.getForUser?.(req.userId);
+      if (existing) return res.json({ success: true, schedule: existing });
 
-      if ("timezone" in req.body) patch.timezone = req.body.timezone || null;
-      if ("preferences" in req.body)
-        patch.preferences = req.body.preferences || null;
+      const { title = null, timezone = null } = req.body || {};
+      const created = await Schedule.createForUser?.(req.userId, {
+        title,
+        timezone,
+      });
+      res.status(201).json({ success: true, schedule: created });
+    } catch (e) {
+      console.error("createSchedule error:", e);
+      res.status(500).json({ error: "Failed to create schedule" });
+    }
+  },
 
-      const updated = await schedule.update(patch);
+  // PUT /api/schedule
+  async updateSchedule(req, res) {
+    try {
+      const { title = null, timezone = null } = req.body || {};
+      const updated = await Schedule.updateForUser?.(req.userId, {
+        title,
+        timezone,
+      });
+      if (!updated)
+        return res.status(404).json({ error: "Schedule not found" });
       res.json({ success: true, schedule: updated });
     } catch (e) {
       console.error("updateSchedule error:", e);
       res.status(500).json({ error: "Failed to update schedule" });
     }
-  }
+  },
 
-  // List events for the user's schedule (optional from/to, pagination)
-  static async listEvents(req, res) {
+  // GET /api/schedule/events
+  async listEvents(req, res) {
     try {
-      const schedule = await Schedule.getOrCreate(req.userId);
-      const { from, to, limit = 100, offset = 0 } = req.query;
-      const events = await Event.listForSchedule(schedule.id, {
-        from,
-        to,
-        limit,
-        offset,
-      });
-      res.json({
-        success: true,
-        events,
-        pagination: { limit: +limit, offset: +offset },
-      });
+      const evts = await Event.listForUser?.(req.userId);
+      res.json({ success: true, events: evts || [] });
     } catch (e) {
       console.error("listEvents error:", e);
       res.status(500).json({ error: "Failed to list events" });
     }
-  }
+  },
 
-  // Create a new event for the user's schedule
-  static async createEvent(req, res) {
+  // POST /api/schedule/events
+  async createEvent(req, res) {
     try {
-      const schedule = await Schedule.getOrCreate(req.userId);
-      const { category, title, startAt, endAt, location, notes } = req.body;
+      const schedule = await ensureSchedule(req.userId);
+      if (!schedule)
+        return res.status(500).json({ error: "Could not resolve schedule" });
 
-      if (!category || !title || !startAt) {
-        return res
-          .status(400)
-          .json({ error: "category, title and startAt are required" });
-      }
-      if (!Event.validateCategory(category)) {
-        return res
-          .status(400)
-          .json({ error: "Invalid category (meal|workout|other)" });
-      }
+      const payload = {
+        schedule_id: schedule.id,
+        user_id: req.userId,
+        category: req.body.category, // "meal" | "workout" | "other"
+        title: req.body.title,
+        start_at: req.body.start_at, // ISO string
+        end_at: req.body.end_at ?? null, // ISO or null
+        location: req.body.location ?? null,
+        notes: req.body.notes ?? null,
+      };
 
-      const event = await Event.create({
-        scheduleId: schedule.id,
-        category,
-        title,
-        startAt,
-        endAt: endAt || null,
-        location: location || null,
-        notes: notes || null,
-      });
-
-      res.status(201).json({ success: true, event });
+      const created = await Event.create?.(payload);
+      res.status(201).json({ success: true, event: created });
     } catch (e) {
       console.error("createEvent error:", e);
       res.status(500).json({ error: "Failed to create event" });
     }
-  }
+  },
 
-  // Update an event (ensure it belongs to the user's schedule)
-  static async updateEvent(req, res) {
+  // GET /api/schedule/events/:id
+  async getEventById(req, res) {
     try {
-      const { id } = req.params;
-      const event = await Event.findById(id);
-      if (!event) return res.status(404).json({ error: "Event not found" });
+      const id = Number(req.params.id);
+      const evt = await Event.getById?.(id, req.userId);
+      if (!evt) return res.status(404).json({ error: "Event not found" });
+      res.json({ success: true, event: evt });
+    } catch (e) {
+      console.error("getEventById error:", e);
+      res.status(500).json({ error: "Failed to fetch event" });
+    }
+  },
 
-      // ownership check via schedule
-      const schedule = await Schedule.findByUserId(req.userId);
-      if (!schedule || schedule.id !== event.scheduleId) {
-        return res.status(403).json({ error: "Access denied" });
-      }
-
-      const patch = {};
-      const allowed = [
-        "category",
-        "title",
-        "start_at",
-        "end_at",
-        "location",
-        "notes",
-      ];
-      for (const k of allowed) {
-        if (k in req.body) patch[k] = req.body[k];
-      }
-      if (patch.category && !Event.validateCategory(patch.category)) {
-        return res
-          .status(400)
-          .json({ error: "Invalid category (meal|workout|other)" });
-      }
-
-      const updated = await event.update(patch);
+  // PUT /api/schedule/events/:id
+  async updateEvent(req, res) {
+    try {
+      const id = Number(req.params.id);
+      const updated = await Event.update?.(id, req.userId, {
+        category: req.body.category,
+        title: req.body.title,
+        start_at: req.body.start_at,
+        end_at: req.body.end_at,
+        location: req.body.location,
+        notes: req.body.notes,
+      });
+      if (!updated) return res.status(404).json({ error: "Event not found" });
       res.json({ success: true, event: updated });
     } catch (e) {
       console.error("updateEvent error:", e);
       res.status(500).json({ error: "Failed to update event" });
     }
-  }
+  },
 
-  // Delete an event (ensure it belongs to the user's schedule)
-  static async deleteEvent(req, res) {
+  // DELETE /api/schedule/events/:id
+  async deleteEvent(req, res) {
     try {
-      const { id } = req.params;
-      const event = await Event.findById(id);
-      if (!event) return res.status(404).json({ error: "Event not found" });
-
-      const schedule = await Schedule.findByUserId(req.userId);
-      if (!schedule || schedule.id !== event.scheduleId) {
-        return res.status(403).json({ error: "Access denied" });
-      }
-
-      await event.delete();
-      res.json({ success: true, message: "Event deleted" });
+      const id = Number(req.params.id);
+      const ok = await Event.remove?.(id, req.userId);
+      if (!ok) return res.status(404).json({ error: "Event not found" });
+      res.json({ success: true });
     } catch (e) {
       console.error("deleteEvent error:", e);
       res.status(500).json({ error: "Failed to delete event" });
     }
-  }
-}
+  },
+};
 
 module.exports = ScheduleController;

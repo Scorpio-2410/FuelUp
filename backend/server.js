@@ -6,7 +6,7 @@ require("dotenv").config();
 const { testConnection, initializeDatabase } = require("./config/database");
 const { verifySmtp } = require("./utils/mailer");
 
-// Route groups
+// Route groups (files you already have)
 const userRoutes = require("./routes/userRoutes");
 const fitnessProfileRoutes = require("./routes/fitnessProfileRoutes");
 const fitnessPlanRoutes = require("./routes/fitnessPlanRoutes");
@@ -24,30 +24,54 @@ app.use(cors()); // configure origins if needed
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-// API routes
-app.use("/api/users", userRoutes);
-app.use("/api/fitness-profiles", fitnessProfileRoutes);
-app.use("/api/fitness-plans", fitnessPlanRoutes);
-app.use("/api/exercises", exerciseRoutes);
-app.use("/api/nutrition", nutritionRoutes); // nutrition_profiles
-app.use("/api/meal-plans", mealPlanRoutes);
-app.use("/api/meals", mealRoutes);
-app.use("/api/schedules", scheduleRoutes);
+// ---------------- API routes ----------------
 
-// Root + health
+// Users
+app.use("/api/users", userRoutes);
+
+// Fitness namespace (matches frontend: /api/fitness/**)
+app.use("/api/fitness", fitnessProfileRoutes); // expects internal routes like /profile
+app.use("/api/fitness", fitnessPlanRoutes); // expects internal routes like /plans, /plans/current, /plans/recommend
+app.use("/api/fitness", exerciseRoutes); // expects internal routes like /exercises, /exercises/:id
+
+// Nutrition (matches frontend: /api/nutrition/profile)
+app.use("/api/nutrition", nutritionRoutes); // expects internal routes like /profile
+
+// Meals namespace (matches frontend: /api/meals, /api/meals/plans, /api/meals/daily)
+app.use("/api/meals", mealRoutes); // expects internal routes like / (CRUD), /daily
+app.use("/api/meals", mealPlanRoutes); // expects internal routes like /plans, /plans/current, /plans/recommend
+
+// Schedule namespace (matches frontend: /api/schedule and /api/schedule/events)
+app.use("/api/schedule", scheduleRoutes); // expects internal routes like / (GET/POST/PUT), /events, /events/:id
+
+// ---------------- Root + health ----------------
 app.get("/", (req, res) => {
   res.json({
     message: "FuelUp Backend API",
     version: "1.0.0",
     endpoints: {
       users: "/api/users",
-      fitnessProfiles: "/api/fitness-profiles",
-      fitnessPlans: "/api/fitness-plans",
-      exercises: "/api/exercises",
-      nutrition: "/api/nutrition",
-      mealPlans: "/api/meal-plans",
-      meals: "/api/meals",
-      schedules: "/api/schedules",
+      fitness: {
+        profile: "/api/fitness/profile",
+        plans: "/api/fitness/plans",
+        plansCurrent: "/api/fitness/plans/current",
+        plansRecommend: "/api/fitness/plans/recommend",
+        exercises: "/api/fitness/exercises",
+      },
+      nutrition: {
+        profile: "/api/nutrition/profile",
+      },
+      meals: {
+        base: "/api/meals",
+        daily: "/api/meals/daily",
+        plans: "/api/meals/plans",
+        plansCurrent: "/api/meals/plans/current",
+        plansRecommend: "/api/meals/plans/recommend",
+      },
+      schedule: {
+        base: "/api/schedule",
+        events: "/api/schedule/events",
+      },
     },
   });
 });
@@ -82,7 +106,7 @@ const startServer = async () => {
   try {
     await testConnection();
     await initializeDatabase(); // creates/ensures unified schema + triggers
-    await verifySmtp(); // log SMTP status; non-fatal
+    await verifySmtp(); // logs SMTP status; non-fatal
     app.listen(PORT, () =>
       console.log(`Server running at http://localhost:${PORT}`)
     );

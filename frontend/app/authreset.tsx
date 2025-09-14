@@ -60,9 +60,7 @@ export default function AuthReset() {
       setStage("confirm");
       Alert.alert("Code sent", "Check your email for the verification code.");
     } catch (e: any) {
-      const msg =
-        e?.response?.data?.error ?? e?.message ?? "Could not send reset code.";
-      Alert.alert("Error", msg);
+      Alert.alert("Error", e?.message ?? "Could not send reset code.");
     } finally {
       setLoading(false);
     }
@@ -87,16 +85,11 @@ export default function AuthReset() {
         code: code.trim(),
         newPassword,
       });
-
-      Alert.alert(
-        "Password updated",
-        "You can now log in with your new password.",
-        [{ text: "OK", onPress: () => router.replace("/authlogin") }]
-      );
+      Alert.alert("Password updated", "You can now log in.", [
+        { text: "OK", onPress: () => router.replace("/authlogin") },
+      ]);
     } catch (e: any) {
-      const msg =
-        e?.response?.data?.error ?? e?.message ?? "Could not reset password.";
-      Alert.alert("Error", msg);
+      Alert.alert("Error", e?.message ?? "Could not reset password.");
     } finally {
       setLoading(false);
     }
@@ -228,7 +221,7 @@ export default function AuthReset() {
               </View>
             </View>
 
-            {/* Confirm password (no visibility toggle) */}
+            {/* Confirm password */}
             <View className="mb-2">
               <Text className="text-gray-300 mb-2">Confirm password</Text>
               <View>

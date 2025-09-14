@@ -1,35 +1,19 @@
-// components/User/SaveButton.tsx
+// frontend/components/User/SaveButton.tsx
 import React from "react";
 import { Pressable, Text, Alert, View } from "react-native";
 import { router } from "expo-router";
-import {
-  apiUpdateMe,
-  clearToken,
-  apiUpsertFitness,
-  apiSetNutritionTargets,
-} from "@/constants/api";
+import { apiUpdateMe, clearToken, writeProfileCache } from "@/constants/api";
 
 type Profile = {
   username: string;
   fullName: string;
   email: string;
-  dob?: string;
-  heightCm?: number; // keep if you decided to store in users; else ignore
-  weightKg?: number; // keep if you decided to store in users; else ignore
+  dob?: string; // already "YYYY-MM-DD" from ProfileForm
   gender?: string;
-  notifications: boolean;
-  avatarUri?: string;
   ethnicity?: string;
   followUpFrequency?: "daily" | "weekly" | "monthly";
-  fitnessGoal?:
-    | "lose_weight"
-    | "build_muscle"
-    | "improve_strength"
-    | "increase_endurance"
-    | "recomposition"
-    | "general_health";
-  activityLevel?: string;
-  dailyCalorieGoal?: number;
+  notifications: boolean;
+  avatarUri?: string;
 };
 
 type Props = {
@@ -39,7 +23,7 @@ type Props = {
 };
 
 function isValidEmail(email: string) {
-  if (!email) return true; // email is view-only; skip strict validation
+  if (!email) return true; // read-only in UI; don't block
   return /\S+@\S+\.\S+/.test(email);
 }
 
@@ -54,48 +38,26 @@ export function SaveButton({ profile, saving, setSaving }: Props) {
       return;
     }
 
-    // Build domain payloads
+    // Map to backend’s expected snake_case
     const userPatch: Record<string, any> = {
       username: profile.username || null,
       full_name: profile.fullName || null,
-      dob: profile.dob || null, // already YYYY-MM-DD from form
+      dob: profile.dob || null,
       gender: profile.gender || null,
       avatar_uri: profile.avatarUri || null,
       notifications_enabled: !!profile.notifications,
       follow_up_frequency: profile.followUpFrequency || null,
       ethnicity: profile.ethnicity || null,
+      // email is view-only in the form, but sending it unchanged is fine:
+      email: profile.email || null,
     };
-    // Optional: only if you kept height/weight on users table
-    if (profile.heightCm != null) userPatch.height_cm = profile.heightCm;
-    if (profile.weightKg != null) userPatch.weight_kg = profile.weightKg;
-
-    const fitnessPatch = {
-      goal: profile.fitnessGoal || "general_health",
-      activityLevel: profile.activityLevel || "moderate",
-      // You can add experienceLevel/daysPerWeek later from UI
-    };
-
-    const nutritionTargets: Record<string, any> = {};
-    if (profile.dailyCalorieGoal != null) {
-      nutritionTargets.dailyCalorieTarget = profile.dailyCalorieGoal;
-    }
 
     try {
       setSaving(true);
-
-      // Save in parallel to the correct services
-      const ops: Promise<any>[] = [
-        apiUpdateMe(userPatch),
-        apiUpsertFitness(fitnessPatch),
-      ];
-      if (Object.keys(nutritionTargets).length) {
-        ops.push(apiSetNutritionTargets(nutritionTargets));
-      }
-      await Promise.all(ops);
-
+      const { user } = await apiUpdateMe(userPatch);
+      if (user) await writeProfileCache(user);
       Alert.alert("Saved", "Your profile has been updated.");
     } catch (e: any) {
-      console.warn("Profile save error:", e);
       Alert.alert("Save failed", e?.message ?? "Please try again.");
     } finally {
       setSaving(false);
@@ -107,6 +69,7 @@ export function SaveButton({ profile, saving, setSaving }: Props) {
       onPress={onSave}
       disabled={saving}
       className={`rounded-xl p-3 ${saving ? "bg-green-400" : "bg-green-600"}`}
+      style={{ flexBasis: "48%", flexGrow: 1 }}
       accessibilityRole="button"
       accessibilityLabel="Save profile">
       <Text className="text-white text-center font-semibold">
@@ -125,6 +88,7 @@ export function LogoutButton() {
     <Pressable
       onPress={onLogout}
       className="rounded-xl p-3 bg-neutral-700"
+      style={{ flexBasis: "48%", flexGrow: 1 }}
       accessibilityRole="button"
       accessibilityLabel="Log out">
       <Text className="text-white text-center font-semibold">Log out</Text>
@@ -133,8 +97,9 @@ export function LogoutButton() {
 }
 
 export default function SaveRow(props: Props) {
+  // Row that wraps to stack on narrow screens
   return (
-    <View className="flex-row gap-3">
+    <View className="gap-3" style={{ flexDirection: "row", flexWrap: "wrap" }}>
       <SaveButton {...props} />
       <LogoutButton />
     </View>

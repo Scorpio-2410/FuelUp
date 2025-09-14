@@ -1,4 +1,3 @@
-// app/authsignup.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, Alert, Pressable, TextInput } from "react-native";
 import { router } from "expo-router";
@@ -9,12 +8,7 @@ import {
 import { ArrowLeft } from "lucide-react-native";
 import { Ionicons } from "@expo/vector-icons";
 import ProfileField from "../components/User/ProfileField";
-import {
-  apiSignup,
-  storeToken,
-  apiCheckUsername,
-  apiCheckEmail,
-} from "../constants/api";
+import { apiCheckEmail, apiCheckUsername } from "../constants/api";
 
 export default function AuthSignup() {
   const [username, setUsername] = useState("");
@@ -38,7 +32,6 @@ export default function AuthSignup() {
     () => /^[A-Za-z0-9_]{3,20}$/.test(username.trim()),
     [username]
   );
-
   const emailFormatOk = useMemo(
     () => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()),
     [email]
@@ -119,7 +112,7 @@ export default function AuthSignup() {
         ? "text-gray-300"
         : "text-gray-500";
 
-    return { len, upper, lower, number, symbol, score, strength, color };
+    return { len, upper, lower, number, symbol, strength, color };
   }, [password]);
 
   const matches = useMemo(
@@ -127,6 +120,7 @@ export default function AuthSignup() {
     [confirm, password]
   );
 
+  // Defer account creation — pass creds to onboarding (which now signs up)
   const onSignup = async () => {
     if (!username.trim() || !email.trim() || !password) {
       Alert.alert("Missing info", "Enter username, email, and password.");
@@ -152,17 +146,13 @@ export default function AuthSignup() {
       Alert.alert("Passwords do not match", "Please re-enter.");
       return;
     }
+
+    setLoading(true);
     try {
-      setLoading(true);
-      const { token } = await apiSignup({
-        username: username.trim(),
-        email: email.trim(),
-        password,
+      router.replace({
+        pathname: "/onboarding",
+        params: { u: username.trim(), e: email.trim(), p: password },
       });
-      await storeToken(token);
-      router.replace("/onboarding");
-    } catch (e: any) {
-      Alert.alert("Signup failed", e?.message ?? "Please try again.");
     } finally {
       setLoading(false);
     }
@@ -198,7 +188,6 @@ export default function AuthSignup() {
           Create account
         </Text>
 
-        {/* Username + availability */}
         <ProfileField
           label="Username"
           textInputProps={{
@@ -230,7 +219,6 @@ export default function AuthSignup() {
             : "Username not available"}
         </Text>
 
-        {/* Email + availability */}
         <ProfileField
           label="Email"
           textInputProps={{
@@ -265,7 +253,6 @@ export default function AuthSignup() {
             : "Email is already in use"}
         </Text>
 
-        {/* Password with visibility toggle */}
         <View className="mb-2">
           <Text className="text-gray-300 mb-2">Password</Text>
           <View className="relative">
@@ -293,7 +280,6 @@ export default function AuthSignup() {
           </View>
         </View>
 
-        {/* Password strength checklist */}
         <View className="mb-4">
           <Text className={`text-xs font-semibold ${checks.color} mb-1`}>
             Password strength: {checks.strength}
@@ -332,7 +318,6 @@ export default function AuthSignup() {
           </View>
         </View>
 
-        {/* Confirm password + match status */}
         <ProfileField
           label="Confirm password"
           textInputProps={{

@@ -1,194 +1,133 @@
-const Meal = require("../models/Meal");
+// backend/controllers/mealController.js
+const Meal = require("../models/meal");
 const MealPlan = require("../models/mealPlan");
 
-class MealController {
-  // Create a meal log (optionally link to a meal plan)
-  static async createMeal(req, res) {
+const MealController = {
+  // GET /api/meals?limit=&offset=
+  async listMeals(req, res) {
     try {
-      const {
-        mealPlanId,
-        loggedAt,
-        name,
-        mealType,
-        calories,
-        proteinG,
-        carbsG,
-        fatG,
-        notes,
-      } = req.body;
-
-      if (mealPlanId) {
-        const plan = await MealPlan.findById(mealPlanId);
-        if (!plan) return res.status(400).json({ error: "Invalid mealPlanId" });
-        if (plan.userId !== req.userId)
-          return res.status(403).json({ error: "Access denied" });
-      }
-
-      if (mealType && !Meal.validateType(mealType)) {
-        return res.status(400).json({ error: "Invalid meal type" });
-      }
-
-      const meal = await Meal.create({
-        userId: req.userId,
-        mealPlanId: mealPlanId || null,
-        loggedAt: loggedAt || null,
-        name,
-        mealType,
-        calories,
-        proteinG,
-        carbsG,
-        fatG,
-        notes,
-      });
-
-      res.status(201).json({ success: true, meal });
-    } catch (e) {
-      console.error("createMeal error:", e);
-      res.status(500).json({ error: "Failed to create meal" });
-    }
-  }
-
-  // List meals for user (pagination)
-  static async listMeals(req, res) {
-    try {
-      const { limit = 20, offset = 0 } = req.query;
-      const meals = await Meal.findByUserId(req.userId, +limit, +offset);
-      res.json({
-        success: true,
-        meals,
-        pagination: { limit: +limit, offset: +offset },
-      });
+      const limit = Number(req.query.limit ?? 50);
+      const offset = Number(req.query.offset ?? 0);
+      const meals = await Meal.listForUser(req.userId, { limit, offset });
+      res.json({ success: true, meals, pagination: { limit, offset } });
     } catch (e) {
       console.error("listMeals error:", e);
       res.status(500).json({ error: "Failed to list meals" });
     }
-  }
+  },
 
-  // Meals for a single date (YYYY-MM-DD)
-  static async mealsByDate(req, res) {
+  // GET /api/meals/:id
+  async getMealById(req, res) {
     try {
-      const { date } = req.params;
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-        return res
-          .status(400)
-          .json({ error: "Invalid date format (YYYY-MM-DD)" });
-      }
-      const meals = await Meal.findByUserAndDate(req.userId, date);
-      res.json({ success: true, date, meals });
-    } catch (e) {
-      console.error("mealsByDate error:", e);
-      res.status(500).json({ error: "Failed to fetch meals" });
-    }
-  }
-
-  // Meals within date range (YYYY-MM-DD)
-  static async mealsByRange(req, res) {
-    try {
-      const { startDate, endDate } = req.query;
-      if (
-        !startDate ||
-        !endDate ||
-        !/^\d{4}-\d{2}-\d{2}$/.test(startDate) ||
-        !/^\d{4}-\d{2}-\d{2}$/.test(endDate)
-      ) {
-        return res.status(400).json({ error: "Invalid date range" });
-      }
-      const meals = await Meal.findByDateRange(req.userId, startDate, endDate);
-      res.json({ success: true, startDate, endDate, meals });
-    } catch (e) {
-      console.error("mealsByRange error:", e);
-      res.status(500).json({ error: "Failed to fetch meals" });
-    }
-  }
-
-  // Meals grouped by type for a date
-  static async mealsByTypeForDate(req, res) {
-    try {
-      const { date } = req.params;
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-        return res
-          .status(400)
-          .json({ error: "Invalid date format (YYYY-MM-DD)" });
-      }
-      const byType = await Meal.getMealsByTypeAndDate(req.userId, date);
-      res.json({ success: true, date, mealsByType: byType });
-    } catch (e) {
-      console.error("mealsByTypeForDate error:", e);
-      res.status(500).json({ error: "Failed to fetch meals by type" });
-    }
-  }
-
-  // Daily nutrition totals
-  static async dailyNutrition(req, res) {
-    try {
-      const { date } = req.params;
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-        return res
-          .status(400)
-          .json({ error: "Invalid date format (YYYY-MM-DD)" });
-      }
-      const totals = await Meal.getDailyNutritionSummary(req.userId, date);
-      res.json({ success: true, date, totals });
-    } catch (e) {
-      console.error("dailyNutrition error:", e);
-      res.status(500).json({ error: "Failed to fetch daily totals" });
-    }
-  }
-
-  // Get one
-  static async getMeal(req, res) {
-    try {
-      const { id } = req.params;
-      const meal = await Meal.findById(id);
+      const id = Number(req.params.id);
+      const meal = await Meal.getById(id, req.userId);
       if (!meal) return res.status(404).json({ error: "Meal not found" });
-      if (meal.userId !== req.userId)
-        return res.status(403).json({ error: "Access denied" });
-
-      const macroPercentages = meal.getMacroPercentages();
-      res.json({ success: true, meal, macroPercentages });
+      res.json({ success: true, meal });
     } catch (e) {
-      console.error("getMeal error:", e);
+      console.error("getMealById error:", e);
       res.status(500).json({ error: "Failed to fetch meal" });
     }
-  }
+  },
 
-  // Update
-  static async updateMeal(req, res) {
+  // POST /api/meals
+  async createMeal(req, res) {
     try {
-      const { id } = req.params;
-      const meal = await Meal.findById(id);
-      if (!meal) return res.status(404).json({ error: "Meal not found" });
-      if (meal.userId !== req.userId)
-        return res.status(403).json({ error: "Access denied" });
+      const created = await Meal.create(req.userId, {
+        name: req.body.name ?? null,
+        calories: req.body.calories ?? null,
+        protein_g: req.body.protein_g ?? null,
+        carbs_g: req.body.carbs_g ?? null,
+        fat_g: req.body.fat_g ?? null,
+        notes: req.body.notes ?? null,
+        logged_at: req.body.logged_at ?? null, // ISO string or null -> let model default NOW()
+      });
+      res.status(201).json({ success: true, meal: created });
+    } catch (e) {
+      console.error("createMeal error:", e);
+      res.status(500).json({ error: "Failed to create meal" });
+    }
+  },
 
-      if (req.body.meal_type && !Meal.validateType(req.body.meal_type)) {
-        return res.status(400).json({ error: "Invalid meal type" });
-      }
-
-      const updated = await meal.update(req.body);
+  // PUT /api/meals/:id
+  async updateMeal(req, res) {
+    try {
+      const id = Number(req.params.id);
+      const updated = await Meal.update(id, req.userId, {
+        name: req.body.name,
+        calories: req.body.calories,
+        protein_g: req.body.protein_g,
+        carbs_g: req.body.carbs_g,
+        fat_g: req.body.fat_g,
+        notes: req.body.notes,
+        logged_at: req.body.logged_at,
+      });
+      if (!updated) return res.status(404).json({ error: "Meal not found" });
       res.json({ success: true, meal: updated });
     } catch (e) {
       console.error("updateMeal error:", e);
       res.status(500).json({ error: "Failed to update meal" });
     }
-  }
+  },
 
-  // Delete
-  static async deleteMeal(req, res) {
+  // DELETE /api/meals/:id
+  async deleteMeal(req, res) {
     try {
-      const { id } = req.params;
-      const meal = await Meal.findById(id);
-      if (!meal) return res.status(404).json({ error: "Meal not found" });
-      if (meal.userId !== req.userId)
-        return res.status(403).json({ error: "Access denied" });
-
-      await meal.delete();
-      res.json({ success: true, message: "Meal deleted" });
+      const id = Number(req.params.id);
+      const ok = await Meal.remove(id, req.userId);
+      if (!ok) return res.status(404).json({ error: "Meal not found" });
+      res.json({ success: true });
     } catch (e) {
       console.error("deleteMeal error:", e);
       res.status(500).json({ error: "Failed to delete meal" });
     }
-  }
-}
+  },
+
+  // GET /api/meals/daily?date=YYYY-MM-DD
+  async getDailyTotals(req, res) {
+    try {
+      const date = (req.query.date || "").toString().slice(0, 10); // YYYY-MM-DD
+      const totals = await Meal.getDailyTotals(req.userId, date);
+      res.json({ success: true, date, totals });
+    } catch (e) {
+      console.error("getDailyTotals error:", e);
+      res.status(500).json({ error: "Failed to compute daily totals" });
+    }
+  },
+
+  // GET /api/meals/plans/current
+  async getCurrentMealPlan(req, res) {
+    try {
+      const plan = await MealPlan.getCurrentForUser(req.userId);
+      res.json({ success: true, plan: plan || null });
+    } catch (e) {
+      console.error("getCurrentMealPlan error:", e);
+      res.status(500).json({ error: "Failed to fetch current meal plan" });
+    }
+  },
+
+  // POST /api/meals/plans
+  async createMealPlan(req, res) {
+    try {
+      const { name, notes = null } = req.body || {};
+      if (!name) return res.status(400).json({ error: "Name is required" });
+      const plan = await MealPlan.createForUser(req.userId, { name, notes });
+      res.status(201).json({ success: true, plan });
+    } catch (e) {
+      console.error("createMealPlan error:", e);
+      res.status(500).json({ error: "Failed to create meal plan" });
+    }
+  },
+
+  // POST /api/meals/plans/recommend
+  async recommendMealPlan(req, res) {
+    try {
+      const plan = await MealPlan.recommendForUser(req.userId);
+      res.status(201).json({ success: true, plan });
+    } catch (e) {
+      console.error("recommendMealPlan error:", e);
+      res.status(500).json({ error: "Failed to recommend meal plan" });
+    }
+  },
+};
 
 module.exports = MealController;

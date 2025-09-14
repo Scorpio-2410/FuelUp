@@ -1,18 +1,26 @@
+// backend/routes/exerciseRoutes.js
 const express = require("express");
-const ExerciseController = require("../controllers/exerciseController");
 const { authenticateToken } = require("../middleware/auth");
+const ExerciseController = require("../controllers/exerciseController");
 
 const router = express.Router();
 
-// Create an exercise (optionally provide fitnessPlanId)
-router.post("/", authenticateToken, ExerciseController.create);
+// all exercise routes require auth
+router.use(authenticateToken);
 
-// List my exercises (optional filter: ?planId= & limit=&offset=)
-router.get("/", authenticateToken, ExerciseController.list);
+// GET /api/fitness/exercises?limit=&offset=
+router.get("/", ExerciseController.listExercises);
 
-// Single exercise CRUD
-router.get("/:id", authenticateToken, ExerciseController.get);
-router.put("/:id", authenticateToken, ExerciseController.update);
-router.delete("/:id", authenticateToken, ExerciseController.remove);
+// GET /api/fitness/exercises/:id
+router.get("/:id", ExerciseController.getExerciseById);
+
+// POST /api/fitness/exercises
+router.post("/", ExerciseController.createExercise);
+
+// PUT /api/fitness/exercises/:id
+router.put("/:id", ExerciseController.updateExercise);
+
+// DELETE /api/fitness/exercises/:id
+router.delete("/:id", ExerciseController.deleteExercise);
 
 module.exports = router;

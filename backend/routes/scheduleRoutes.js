@@ -1,23 +1,28 @@
+// backend/routes/scheduleRoutes.js
 const express = require("express");
-const ScheduleController = require("../controllers/scheduleController");
 const { authenticateToken } = require("../middleware/auth");
+const ScheduleController = require("../controllers/scheduleController");
 
 const router = express.Router();
 
-// Get my schedule (1:1 row)
-router.get("/", authenticateToken, ScheduleController.getMySchedule);
+// All schedule endpoints require auth
+router.use(authenticateToken);
 
-// Ensure/update schedule metadata if you decide to store fields on schedules
-router.put("/", authenticateToken, ScheduleController.upsertMySchedule);
+/**
+ * Order matters: put specific paths before "/:id"
+ * so "/events" doesn't get captured by a param route.
+ */
 
-// Events (children of my schedule)
-router.post("/events", authenticateToken, ScheduleController.createEvent);
+// --- Schedule (single schedule per user) ---
+router.get("/", ScheduleController.getSchedule);
+router.post("/", ScheduleController.createSchedule);
+router.put("/", ScheduleController.updateSchedule);
 
-// List events with optional range filters (?from=YYYY-MM-DD&to=YYYY-MM-DD)
-router.get("/events", authenticateToken, ScheduleController.listEvents);
-
-router.get("/events/:id", authenticateToken, ScheduleController.getEvent);
-router.put("/events/:id", authenticateToken, ScheduleController.updateEvent);
-router.delete("/events/:id", authenticateToken, ScheduleController.deleteEvent);
+// --- Events under the user's schedule ---
+router.get("/events", ScheduleController.listEvents);
+router.post("/events", ScheduleController.createEvent);
+router.get("/events/:id", ScheduleController.getEventById);
+router.put("/events/:id", ScheduleController.updateEvent);
+router.delete("/events/:id", ScheduleController.deleteEvent);
 
 module.exports = router;
