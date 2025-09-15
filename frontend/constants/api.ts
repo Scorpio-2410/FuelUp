@@ -26,7 +26,6 @@ const EP = {
   checkEmail: "/api/users/check-email",
 
   // fitness (profile + plans + exercises)
-  // NOTE: you renamed route group to /api/fitness-profiles
   fitnessProfilesRoot: "/api/fitness-profiles", // GET/PUT -> current user's fitness profile
   fitnessPlans: "/api/fitness-plans",
   fitnessPlansCurrent: "/api/fitness-plans/current",
@@ -34,7 +33,6 @@ const EP = {
   exercises: "/api/exercises",
 
   // nutrition (merged targets + prefs into a single profile)
-  // backend exposes /api/nutrition/profile
   nutritionProfile: "/api/nutrition/profile",
 
   // meals (+ plans)
@@ -44,9 +42,10 @@ const EP = {
   mealPlansCurrent: "/api/meal-plans/current",
   mealPlansRecommend: "/api/meal-plans/recommend",
 
-  // schedule + events (one schedule per user). Your server mounts /api/schedules
-  schedulesRoot: "/api/schedules",
-  events: "/api/schedules/events",
+  // --- FIXED: schedule endpoints ---
+  schedulesRoot: "/api/schedule",
+  events: "/api/schedule/events",
+  suggest: "/api/schedule/suggest",
 };
 
 function asJson<T = any>(res: Response): Promise<T> {
@@ -337,7 +336,7 @@ export async function apiGetSchedule() {
   const res = await fetch(`${BASE_URL}${EP.schedulesRoot}`, {
     headers: await authHeaders(),
   });
-  return asJson<{ schedule: any | null }>(res);
+  return asJson<{ success?: boolean; schedule: any | null }>(res);
 }
 export async function apiCreateSchedule(payload: {
   title?: string | null;
@@ -364,4 +363,31 @@ export async function apiCreateEvent(payload: {
     body: JSON.stringify(payload),
   });
   return asJson<{ event: any }>(res);
+}
+
+/** NEW: list events in a window */
+export async function apiListEvents(params?: { from?: string; to?: string }) {
+  const url = new URL(`${BASE_URL}${EP.events}`);
+  if (params?.from) url.searchParams.set("from", params.from);
+  if (params?.to) url.searchParams.set("to", params.to);
+  const res = await fetch(url.toString(), { headers: await authHeaders() });
+  return asJson<{ success?: boolean; events: any[] }>(res);
+}
+
+/** NEW: get suggested times */
+export async function apiSuggestTimes(payload?: { horizonDays?: number }) {
+  const res = await fetch(`${BASE_URL}${EP.suggest}`, {
+    method: "POST",
+    headers: await authHeaders(),
+    body: JSON.stringify(payload ?? {}),
+  });
+  return asJson<{
+    suggestions: Array<{
+      type: "workout" | "meal_prep";
+      title: string;
+      start_at: string;
+      end_at: string;
+      reason: string;
+    }>;
+  }>(res);
 }

@@ -8,11 +8,6 @@ const router = express.Router();
 // All schedule endpoints require auth
 router.use(authenticateToken);
 
-/**
- * Order matters: put specific paths before "/:id"
- * so "/events" doesn't get captured by a param route.
- */
-
 // --- Schedule (single schedule per user) ---
 router.get("/", ScheduleController.getSchedule);
 router.post("/", ScheduleController.createSchedule);
@@ -24,5 +19,8 @@ router.post("/events", ScheduleController.createEvent);
 router.get("/events/:id", ScheduleController.getEventById);
 router.put("/events/:id", ScheduleController.updateEvent);
 router.delete("/events/:id", ScheduleController.deleteEvent);
+
+// --- Suggestions (smart time slots) ---
+router.post("/suggest", ScheduleController.suggestTimes);
 
 module.exports = router;
