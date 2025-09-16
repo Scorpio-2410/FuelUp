@@ -1,27 +1,26 @@
-import { View, Modal, Pressable, ScrollView, StyleSheet } from "react-native";
-import { Ionicons } from "@expo/vector-icons"; 
-import WeeklySchedule from './WeeklySchedule';
-import { useState } from "react";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { View, Modal, Pressable, StyleSheet } from "react-native";
+import WeeklySchedule from "./WeeklySchedule";
 
 interface WeeklyScheduleModalProps {
   visible: boolean;
   onClose: () => void;
 }
 
-export default function WeeklySchedulePopUp({ visible, onClose }: WeeklyScheduleModalProps) {
-    return (
-  <Modal
+export default function WeeklySchedulePopUp({
+  visible,
+  onClose,
+}: WeeklyScheduleModalProps) {
+  // NOTE: We removed the extra “X” here to avoid two closes.
+  // The only close lives inside WeeklySchedule and calls onClose().
+  return (
+    <Modal
       animationType="slide"
-      transparent={true}
+      transparent
       visible={visible}
-      onRequestClose={onClose} >
+      onRequestClose={onClose}>
       <View style={styles.overlay}>
         <View style={styles.modalContainer}>
-          <Pressable style={styles.closeButton} onPress={onClose}>
-            <Ionicons name="close-circle" size={28} color="#4ade80" />
-          </Pressable>
-            <WeeklySchedule  />
+          <WeeklySchedule onClose={onClose} />
         </View>
       </View>
     </Modal>
@@ -32,23 +31,11 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
   },
-    modalContainer: {
-      backgroundColor: "#1a1a1a",
-      borderRadius: 20,
-      width: "100%",
-      maxHeight: "85%",
-      padding: 16,
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
-      position: "absolute",
-      bottom: 0,
-  },
-  closeButton: {
-    alignSelf: "flex-end",
-    marginBottom: 8,
-    zIndex: 10,
+  modalContainer: {
+    backgroundColor: "#1a1a1a",
+    width: "100%",
+    height: "100%", // cover whole screen
+    paddingTop: 4, // pushes content a touch lower
   },
 });

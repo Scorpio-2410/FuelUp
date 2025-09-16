@@ -42,7 +42,7 @@ const EP = {
   mealPlansCurrent: "/api/meal-plans/current",
   mealPlansRecommend: "/api/meal-plans/recommend",
 
-  // --- FIXED: schedule endpoints ---
+  // --- schedule endpoints ---
   schedulesRoot: "/api/schedule",
   events: "/api/schedule/events",
   suggest: "/api/schedule/suggest",
@@ -332,62 +332,90 @@ export async function apiRecommendMealPlan() {
 }
 
 /* ---------------- schedule + events ---------------- */
+
 export async function apiGetSchedule() {
   const res = await fetch(`${BASE_URL}${EP.schedulesRoot}`, {
     headers: await authHeaders(),
   });
-  return asJson<{ success?: boolean; schedule: any | null }>(res);
+  return asJson<{ success: boolean; schedule: any | null }>(res);
 }
-export async function apiCreateSchedule(payload: {
-  title?: string | null;
-  timezone?: string | null;
-}) {
-  const res = await fetch(`${BASE_URL}${EP.schedulesRoot}`, {
-    method: "POST",
-    headers: await authHeaders(),
-    body: JSON.stringify(payload),
-  });
-  return asJson<{ schedule: any }>(res);
+
+export async function apiListEvents(params?: { from?: string; to?: string }) {
+  const q = new URLSearchParams();
+  if (params?.from) q.set("from", params.from);
+  if (params?.to) q.set("to", params.to);
+
+  const url = `${BASE_URL}${EP.events}${
+    q.toString() ? `?${q.toString()}` : ""
+  }`;
+  const res = await fetch(url, { headers: await authHeaders() });
+  // Make db_id visible to TS so we always pick it up on the client
+  return asJson<{
+    success: boolean;
+    events: Array<{
+      id: number | string;
+      db_id?: number;
+      dbId?: number;
+      schedule_id?: number;
+      category: string;
+      title: string;
+      start_at?: string;
+      end_at?: string | null;
+      startAt?: string;
+      endAt?: string | null;
+      notes?: string | null;
+    }>;
+  }>(res);
 }
+
 export async function apiCreateEvent(payload: {
-  category: "meal" | "workout" | "other";
+  category: "meal" | "workout" | "work" | "other";
   title: string;
-  start_at: string; // ISO
-  end_at?: string | null;
-  location?: string | null;
+  start_at: string; // ISO UTC
+  end_at?: string | null; // ISO UTC
   notes?: string | null;
+  recurrence_rule?: "none" | "daily" | "weekly"; // ← do NOT send "weekday"
+  recurrence_until?: string | null; // ISO UTC
 }) {
   const res = await fetch(`${BASE_URL}${EP.events}`, {
     method: "POST",
     headers: await authHeaders(),
     body: JSON.stringify(payload),
   });
-  return asJson<{ event: any }>(res);
+  return asJson<{ success: boolean; event: any }>(res);
 }
 
-/** NEW: list events in a window */
-export async function apiListEvents(params?: { from?: string; to?: string }) {
-  const url = new URL(`${BASE_URL}${EP.events}`);
-  if (params?.from) url.searchParams.set("from", params.from);
-  if (params?.to) url.searchParams.set("to", params.to);
-  const res = await fetch(url.toString(), { headers: await authHeaders() });
-  return asJson<{ success?: boolean; events: any[] }>(res);
-}
-
-/** NEW: get suggested times */
-export async function apiSuggestTimes(payload?: { horizonDays?: number }) {
-  const res = await fetch(`${BASE_URL}${EP.suggest}`, {
-    method: "POST",
+export async function apiGetEvent(id: number) {
+  const res = await fetch(`${BASE_URL}${EP.events}/${id}`, {
     headers: await authHeaders(),
-    body: JSON.stringify(payload ?? {}),
   });
-  return asJson<{
-    suggestions: Array<{
-      type: "workout" | "meal_prep";
-      title: string;
-      start_at: string;
-      end_at: string;
-      reason: string;
-    }>;
-  }>(res);
+  return asJson<{ success: boolean; event: any }>(res);
+}
+
+export async function apiUpdateEvent(
+  id: number,
+  payload: {
+    category?: "meal" | "workout" | "work" | "other";
+    title?: string;
+    start_at?: string; // ISO UTC
+    end_at?: string | null; // ISO UTC
+    notes?: string | null;
+    recurrence_rule?: "none" | "daily" | "weekly";
+    recurrence_until?: string | null; // ISO UTC
+  }
+) {
+  const res = await fetch(`${BASE_URL}${EP.events}/${id}`, {
+    method: "PUT",
+    headers: await authHeaders(),
+    body: JSON.stringify(payload),
+  });
+  return asJson<{ success: boolean; event: any }>(res);
+}
+
+export async function apiDeleteEvent(id: number) {
+  const res = await fetch(`${BASE_URL}${EP.events}/${id}`, {
+    method: "DELETE",
+    headers: await authHeaders(),
+  });
+  return asJson<{ success: boolean }>(res);
 }
