@@ -1,27 +1,32 @@
-const express = require('express');
-const MealController = require('../controllers/mealController');
-const { authenticateToken } = require('../middleware/auth');
+// backend/routes/mealRoutes.js
+const express = require("express");
+const { authenticateToken } = require("../middleware/auth");
+const MealController = require("../controllers/mealController");
 
 const router = express.Router();
 
-// All meal routes require authentication
+// Everything here requires auth
 router.use(authenticateToken);
 
-// Meal CRUD operations
-router.post('/', MealController.createMeal);
-router.get('/', MealController.getUserMeals);
+/**
+ * IMPORTANT: Order matters. Put the specific paths BEFORE "/:id"
+ * to avoid "/plans" or "/daily" being captured by the id param.
+ */
 
-// Date-based queries (MUST come before /:id to avoid conflicts)
-router.get('/date/:date', MealController.getMealsByDate);
-router.get('/date-range', MealController.getMealsByDateRange);
+// ---- collections & aggregates ----
+router.get("/daily", MealController.getDailyTotals);
 
-// Nutrition analysis
-router.get('/nutrition/:date', MealController.getDailyNutrition);
-router.get('/by-type/:date', MealController.getMealsByTypeAndDate);
+// ---- meal plans ----
+router.get("/plans/current", MealController.getCurrentMealPlan);
+router.post("/plans/recommend", MealController.recommendMealPlan);
+router.post("/plans", MealController.createMealPlan);
 
-// Single meal operations (MUST come LAST)
-router.get('/:id', MealController.getMeal);
-router.put('/:id', MealController.updateMeal);
-router.delete('/:id', MealController.deleteMeal);
+// ---- meals (CRUD) ----
+router.get("/", MealController.listMeals);
+router.post("/", MealController.createMeal);
+
+router.get("/:id", MealController.getMealById);
+router.put("/:id", MealController.updateMeal);
+router.delete("/:id", MealController.deleteMeal);
 
 module.exports = router;

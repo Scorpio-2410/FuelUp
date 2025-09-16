@@ -14,16 +14,9 @@ import { useEffect } from "react";
 
 import { useColorScheme } from "../components/useColorScheme";
 
-export {
-  // Catch any errors thrown by the Layout component.
-  ErrorBoundary,
-} from "expo-router";
+export { ErrorBoundary } from "expo-router";
 
-export const unstable_settings = {
-  initialRouteName: "targetquestions",
-};
-
-// Prevent the splash screen from auto-hiding before asset loading is complete.
+// DO NOT set initialRouteName; let index.tsx decide via Redirect
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
@@ -32,32 +25,31 @@ export default function RootLayout() {
     ...FontAwesome.font,
   });
 
-  // Expo Router uses Error Boundaries to catch errors in the navigation tree.
   useEffect(() => {
     if (error) throw error;
   }, [error]);
-
   useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
-    }
+    if (loaded) SplashScreen.hideAsync();
   }, [loaded]);
-
-  if (!loaded) {
-    return null;
-  }
+  if (!loaded) return null;
 
   return <RootLayoutNav />;
 }
 
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
-
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
       <Stack>
+        {/* Core routes */}
+        <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="targetquestions" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+
+        {/* Auth + onboarding: hide headers */}
+        <Stack.Screen name="authlogin" options={{ headerShown: false }} />
+        <Stack.Screen name="authsignup" options={{ headerShown: false }} />
+        <Stack.Screen name="onboarding" options={{ headerShown: false }} />
       </Stack>
     </ThemeProvider>
   );

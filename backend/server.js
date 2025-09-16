@@ -1,98 +1,124 @@
+// server.js
 const express = require("express");
 const cors = require("cors");
-require('dotenv').config();
+require("dotenv").config();
 
-const { testConnection, initializeDatabase } = require('./config/database');
-const userRoutes = require('./routes/userRoutes');
-const mealRoutes = require('./routes/mealRoutes');
-const fitnessRoutes = require('./routes/fitnessRoutes');
-const exerciseRoutes = require('./routes/exerciseRoutes');
+const { testConnection, initializeDatabase } = require("./config/database");
+const { verifySmtp } = require("./utils/mailer");
 
+// Route groups (files you already have)
+const userRoutes = require("./routes/userRoutes");
+const fitnessProfileRoutes = require("./routes/fitnessProfileRoutes");
+const fitnessPlanRoutes = require("./routes/fitnessPlanRoutes");
+const exerciseRoutes = require("./routes/exerciseRoutes");
+const nutritionRoutes = require("./routes/nutritionRoutes");
+const mealPlanRoutes = require("./routes/mealPlanRoutes");
+const mealRoutes = require("./routes/mealRoutes");
+const scheduleRoutes = require("./routes/scheduleRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 4000;
 
 // Middleware
-app.use(cors());
-app.use(express.json({ limit: '10mb' })); // Increased limit for avatar uploads
+app.use(cors()); // configure origins if needed
+app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use('/api/exercises', exerciseRoutes);
 
 
-// API Routes
-app.use('/api/users', userRoutes);
-app.use('/api/meals', mealRoutes);
-app.use('/api/fitness', fitnessRoutes);
+// ---------------- API routes ----------------
 
-// Root route
+// Users
+app.use("/api/users", userRoutes);
+
+// Fitness namespace (matches frontend: /api/fitness/**)
+app.use("/api/fitness", fitnessProfileRoutes); // expects internal routes like /profile
+app.use("/api/fitness", fitnessPlanRoutes); // expects internal routes like /plans, /plans/current, /plans/recommend
+app.use("/api/fitness", exerciseRoutes); // expects internal routes like /exercises, /exercises/:id
+
+// Nutrition (matches frontend: /api/nutrition/profile)
+app.use("/api/nutrition", nutritionRoutes); // expects internal routes like /profile
+
+// Meals namespace (matches frontend: /api/meals, /api/meals/plans, /api/meals/daily)
+app.use("/api/meals", mealRoutes); // expects internal routes like / (CRUD), /daily
+app.use("/api/meals", mealPlanRoutes); // expects internal routes like /plans, /plans/current, /plans/recommend
+
+// Schedule namespace (matches frontend: /api/schedule and /api/schedule/events)
+app.use("/api/schedule", scheduleRoutes); // expects internal routes like / (GET/POST/PUT), /events, /events/:id
+
+// ---------------- Root + health ----------------
 app.get("/", (req, res) => {
   res.json({
     message: "FuelUp Backend API",
     version: "1.0.0",
     endpoints: {
       users: "/api/users",
-      meals: "/api/meals", 
-      fitness: "/api/fitness"
-    }
+      fitness: {
+        profile: "/api/fitness/profile",
+        plans: "/api/fitness/plans",
+        plansCurrent: "/api/fitness/plans/current",
+        plansRecommend: "/api/fitness/plans/recommend",
+        exercises: "/api/fitness/exercises",
+      },
+      nutrition: {
+        profile: "/api/nutrition/profile",
+      },
+      meals: {
+        base: "/api/meals",
+        daily: "/api/meals/daily",
+        plans: "/api/meals/plans",
+        plansCurrent: "/api/meals/plans/current",
+        plansRecommend: "/api/meals/plans/recommend",
+      },
+      schedule: {
+        base: "/api/schedule",
+        events: "/api/schedule/events",
+      },
+    },
   });
 });
 
-// Health check endpoint
 app.get("/health", (req, res) => {
   res.json({
     status: "OK",
     timestamp: new Date().toISOString(),
-    uptime: process.uptime()
+    uptime: process.uptime(),
   });
 });
 
-// 404 handler
-app.use("*", (req, res) => {
-  res.status(404).json({
-    error: "Endpoint not found",
-    path: req.originalUrl
-  });
-});
+// 404
+app.use("*", (req, res) =>
+  res.status(404).json({ error: "Endpoint not found", path: req.originalUrl })
+);
 
 // Global error handler
 app.use((error, req, res, next) => {
-  console.error('Global error handler:', error);
+  console.error("Global error handler:", error);
   res.status(500).json({
-    error: 'Internal server error',
-    message: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+    error: "Internal server error",
+    message:
+      process.env.NODE_ENV === "development"
+        ? error.message
+        : "Something went wrong",
   });
 });
 
-// Initialize database and start server
+// Bootstrap
 const startServer = async () => {
   try {
-    // Test database connection
     await testConnection();
-    
-    // Initialize database tables
-    await initializeDatabase();
-    
-    // Start server
-    app.listen(PORT, () => {
-      console.log(`🚀 Server running at http://localhost:${PORT}`);
-      console.log(`📊 API Documentation available at http://localhost:${PORT}`);
-      console.log(`💾 Database: Connected to Neon PostgreSQL`);
-    });
+    await initializeDatabase(); // creates/ensures unified schema + triggers
+    await verifySmtp(); // logs SMTP status; non-fatal
+    app.listen(PORT, () =>
+      console.log(`Server running at http://localhost:${PORT}`)
+    );
   } catch (error) {
-    console.error('Failed to start server:', error);
+    console.error("Failed to start server:", error);
     process.exit(1);
   }
 };
 
-// Handle graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('Received SIGTERM, shutting down gracefully');
-  process.exit(0);
-});
-
-process.on('SIGINT', () => {
-  console.log('Received SIGINT, shutting down gracefully');
-  process.exit(0);
-});
+process.on("SIGTERM", () => process.exit(0));
+process.on("SIGINT", () => process.exit(0));
 
 startServer();

@@ -1,87 +1,104 @@
 import React from "react";
-import {
-  View,
-  Text,
-  Pressable,
-  Image,
-  Alert,
-  Platform,
-  Linking,
-} from "react-native";
+import { View, Image, Pressable, Text, Platform, Alert } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-
-type Profile = {
-  username: string;
-  fullName: string;
-  email: string;
-  dob?: string;
-  heightCm?: number;
-  weightKg?: number;
-  notifications: boolean;
-  avatarUri?: string;
-  ethnicity?: string;
-  followUpFrequency?: "daily" | "weekly" | "monthly";
-  fitnessGoal?:
-    | "lose_weight"
-    | "build_muscle"
-    | "improve_strength"
-    | "increase_endurance"
-    | "recomposition"
-    | "general_health";
-};
+import * as FileSystem from "expo-file-system";
+import * as Linking from "expo-linking";
+import { apiUpdateMe } from "../../constants/api";
 
 type Props = {
-  profile: Profile;
-  setProfile: React.Dispatch<React.SetStateAction<Profile>>;
+  profile: { avatarUri?: string };
+  setProfile: (updater: any) => void;
+  autosave?: boolean; // when true, immediately PUT avatar_uri to backend
 };
 
-export default function ProfileAvatar({ profile, setProfile }: Props) {
-  async function pickAvatar() {
-    const { granted, canAskAgain } =
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!granted) {
+export default function ProfileAvatar({
+  profile,
+  setProfile,
+  autosave = false,
+}: Props) {
+  async function ensurePermission() {
+    const { status, canAskAgain } =
+      await ImagePicker.getMediaLibraryPermissionsAsync();
+    if (status === "granted") return true;
+
+    const req = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (req.status === "granted") return true;
+
+    // on iOS show a quick link to Settings
+    if (Platform.OS === "ios" && !req.canAskAgain) {
       Alert.alert(
-        "Permission needed",
-        "Enable Photos access to choose an avatar.",
+        "Allow Photos Access",
+        "We need access to your library to pick a profile photo.",
         [
           { text: "Cancel", style: "cancel" },
-          {
-            text: Platform.OS === "ios" ? "Open Settings" : "Open App Settings",
-            onPress: () => Linking.openSettings?.(),
-          },
+          { text: "Open Settings", onPress: () => Linking.openSettings() },
         ]
       );
-      if (!canAskAgain) return;
     }
+    return false;
+  }
+
+  async function pickAvatar() {
+    if (!(await ensurePermission())) return;
+
+    // Support both new and old ImagePicker API shapes
+    const mediaTypes: any =
+      (ImagePicker as any).MediaType?.Images ??
+      ImagePicker.MediaTypeOptions?.Images;
 
     const res = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes,
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.7,
-    });
+      quality: 0.85,
+    } as any);
 
-    if (!res.canceled && res.assets && res.assets[0]) {
-      const uri = res.assets[0].uri;
-      setProfile((p) => ({ ...p, avatarUri: uri }));
+    if (res.canceled || !res.assets || !res.assets[0]) return;
+
+    // Persist selected image to a stable path so it survives restarts
+    const src = res.assets[0].uri;
+    const dir = FileSystem.documentDirectory + "avatar";
+    try {
+      await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
+    } catch {}
+    const dest = `${dir}/avatar-${Date.now()}.jpg`;
+    try {
+      await FileSystem.copyAsync({ from: src, to: dest });
+    } catch (e) {
+      // If copy fails, fall back to original uri
+      console.warn("avatar copy failed, using original uri", e);
+      setProfile((p: any) => ({ ...p, avatarUri: src }));
+      if (autosave) await apiUpdateMe({ avatar_uri: src });
+      return;
+    }
+
+    setProfile((p: any) => ({ ...p, avatarUri: dest }));
+    if (autosave) {
+      try {
+        await apiUpdateMe({ avatar_uri: dest });
+      } catch (e) {
+        console.warn("autosave avatar failed", e);
+      }
     }
   }
 
   return (
-    <Pressable onPress={pickAvatar} className="items-center mb-4">
-      <View className="w-28 h-28 rounded-full bg-neutral-800 overflow-hidden items-center justify-center">
+    <View className="items-center mb-4">
+      <Pressable
+        onPress={pickAvatar}
+        className="w-24 h-24 rounded-full overflow-hidden">
         {profile.avatarUri ? (
           <Image
             source={{ uri: profile.avatarUri }}
             className="w-full h-full"
           />
         ) : (
-          <Text className="text-neutral-400">Pick Avatar</Text>
+          <View className="w-full h-full items-center justify-center bg-neutral-800">
+            <Text className="text-gray-400">Add photo</Text>
+          </View>
         )}
-      </View>
-      <Text className="text-neutral-400 mt-2">
-        {profile.username ? profile.username : "username"}
-      </Text>
-    </Pressable>
+      </Pressable>
+      <Text className="text-gray-400 mt-2 text-xs">Tap to change</Text>
+    </View>
   );
 }

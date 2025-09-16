@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, Switch } from "react-native";
 
 import ProfileAvatar from "./ProfileAvatar";
@@ -9,75 +9,58 @@ import ProfileRow from "./ProfileRow";
 import {
   ETHNICITY_ITEMS,
   FREQUENCY_ITEMS,
-  FITNESS_GOAL_ITEMS,
-  HEIGHT_UNITS,
-  WEIGHT_UNITS,
+  GENDER_ITEMS,
 } from "./profileConstants";
 
-import type { Profile } from "../../app/(tabs)/user";
+/** USER-ONLY type */
+type Profile = {
+  username: string;
+  fullName: string;
+  email: string;
+  dob?: string;
+  notifications: boolean;
+  avatarUri?: string;
+  ethnicity?: string;
+  followUpFrequency?: "daily" | "weekly" | "monthly";
+  gender?: string;
+  /** display-only unit prefs for DOB inputs etc. kept here if needed later */
+  heightUnit?: "cm" | "ft";
+  weightUnit?: "kg" | "lb";
+};
 
-// ---------- Helpers ----------
+// ----- date helpers (no JS Date objects) -----
 const pad2 = (n: number) => String(n).padStart(2, "0");
-
+const plain = (val?: string) => (val ? String(val).slice(0, 10) : undefined);
+const isLeap = (y: number) => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+const mdays = (y: number, m: number) =>
+  [31, isLeap(y) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][m - 1];
+const isValidYMD = (y?: number, m?: number, d?: number) =>
+  !!y && !!m && !!d && m >= 1 && m <= 12 && d >= 1 && d <= mdays(y, m);
 const parseISO = (iso?: string) => {
-  if (!iso) return undefined;
-  const [y, m, d] = iso.split("-").map(Number);
-  if (!y || !m || !d) return undefined;
+  const s = plain(iso);
+  if (!s) return undefined;
+  const [y, m, d] = s.split("-").map(Number);
+  if (!isValidYMD(y, m, d)) return undefined;
   return { y, m, d };
 };
 const toISO = (y: number, m: number, d: number) => `${y}-${pad2(m)}-${pad2(d)}`;
-const isValidYMD = (y?: number, m?: number, d?: number) => {
-  if (!y || !m || !d) return false;
-  const dt = new Date(y, m - 1, d);
-  return (
-    dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d
-  );
-};
 
-// conversions (canonical = cm/kg)
-const cmPerFt = 30.48;
-const cmToFt = (cm: number) => cm / cmPerFt;
-const ftToCm = (ft: number) => ft * cmPerFt;
-const kgToLb = (kg: number) => kg * 2.2046226218;
-const lbToKg = (lb: number) => lb / 2.2046226218;
-
-// build numeric item arrays (labels are just numbers)
-const numericItems = (
-  start: number,
-  end: number,
-  step = 1,
-  toLabel?: (v: number) => string
-) =>
-  Array.from({ length: Math.floor((end - start) / step) + 1 }, (_, i) => {
-    const v = +(start + i * step).toFixed(10);
-    const label = toLabel ? toLabel(v) : String(v);
-    return { label, value: String(v) };
-  });
-
-// DOB items (three separate dropdowns)
-const dayItems = numericItems(1, 31, 1, (v) => pad2(v));
+// DOB picker items
+const dayItems = Array.from({ length: 31 }, (_, i) => {
+  const d = pad2(i + 1);
+  return { label: d, value: d };
+});
 const monthItems = Array.from({ length: 12 }, (_, i) => {
-  const mm = i + 1;
-  const names = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-  ];
-  return { label: `${pad2(mm)} (${names[i]})`, value: pad2(mm) };
+  const mm = pad2(i + 1);
+  return { label: mm, value: mm };
 });
 const yearItems = (() => {
   const now = new Date().getFullYear();
   const start = now - 100;
-  return numericItems(start, now, 1).reverse();
+  return Array.from({ length: now - start + 1 }, (_, i) => {
+    const y = String(now - i);
+    return { label: y, value: y };
+  });
 })();
 
 type Props = {
@@ -86,82 +69,50 @@ type Props = {
 };
 
 export default function ProfileForm({ profile, setProfile }: Props) {
-  // ----- DOB (3 dropdowns inline) -----
-  const dobParts = parseISO(profile.dob);
-  const dd = dobParts ? pad2(dobParts.d) : "";
-  const mm = dobParts ? pad2(dobParts.m) : "";
-  const yyyy = dobParts ? String(dobParts.y) : "";
+  // DOB local draft
+  const initial = parseISO(profile.dob);
+  const [dobDay, setDobDay] = useState<string>(initial ? pad2(initial.d) : "");
+  const [dobMonth, setDobMonth] = useState<string>(
+    initial ? pad2(initial.m) : ""
+  );
+  const [dobYear, setDobYear] = useState<string>(
+    initial ? String(initial.y) : ""
+  );
 
-  const handleDobPart = (part: "d" | "m" | "y", v: string) => {
-    const D = part === "d" ? Number(v) : Number(dd || "0");
-    const M = part === "m" ? Number(v) : Number(mm || "0");
-    const Y = part === "y" ? Number(v) : Number(yyyy || "0");
-    if (isValidYMD(Y, M, D)) {
-      setProfile({ ...profile, dob: toISO(Y, M, D) });
-    } else {
-      setProfile({ ...profile, dob: undefined });
+  useEffect(() => {
+    const p = parseISO(profile.dob);
+    if (p) {
+      setDobDay(pad2(p.d));
+      setDobMonth(pad2(p.m));
+      setDobYear(String(p.y));
     }
-  };
+  }, [profile.dob]);
 
-  // ----- Height items (cm or ft) — labels are numbers only
-  const heightItems = useMemo(() => {
-    if ((profile.heightUnit ?? "cm") === "cm") {
-      // 120–220 cm, integers
-      return numericItems(120, 220, 1);
-    } else {
-      // 4.0–7.5 ft, step 0.1
-      return numericItems(4.0, 7.5, 0.1, (v) => v.toFixed(1));
-    }
-  }, [profile.heightUnit]);
+  const handleDobChange = (part: "d" | "m" | "y", v: string) => {
+    let D = dobDay,
+      M = dobMonth,
+      Y = dobYear;
+    if (part === "d") D = v;
+    if (part === "m") M = v;
+    if (part === "y") Y = v;
 
-  // ----- Weight items (kg or lb) — labels are numbers only
-  const weightItems = useMemo(() => {
-    if ((profile.weightUnit ?? "kg") === "kg") {
-      // 30–200 kg
-      return numericItems(30, 200, 1);
-    } else {
-      // 66–440 lb
-      return numericItems(66, 440, 1);
-    }
-  }, [profile.weightUnit]);
+    setDobDay(D);
+    setDobMonth(M);
+    setDobYear(Y);
 
-  // Display-selected values derived from canonical cm/kg
-  const heightSelected = useMemo(() => {
-    if (!profile.heightCm) return "";
-    return (profile.heightUnit ?? "cm") === "cm"
-      ? String(Math.round(profile.heightCm))
-      : cmToFt(profile.heightCm).toFixed(1);
-  }, [profile.heightCm, profile.heightUnit]);
-
-  const weightSelected = useMemo(() => {
-    if (!profile.weightKg) return "";
-    return (profile.weightUnit ?? "kg") === "kg"
-      ? String(Math.round(profile.weightKg))
-      : String(Math.round(kgToLb(profile.weightKg)));
-  }, [profile.weightKg, profile.weightUnit]);
-
-  // Handlers for height/weight changes
-  const handleHeight = (v: string) => {
-    const n = Number(v);
-    if (isNaN(n)) return;
-    const cm = (profile.heightUnit ?? "cm") === "cm" ? n : ftToCm(n);
-    setProfile({ ...profile, heightCm: Math.round(cm) });
-  };
-
-  const handleWeight = (v: string) => {
-    const n = Number(v);
-    if (isNaN(n)) return;
-    const kg = (profile.weightUnit ?? "kg") === "kg" ? n : lbToKg(n);
-    setProfile({ ...profile, weightKg: Math.round(kg) });
+    const y = Number(Y),
+      m = Number(M),
+      d = Number(D);
+    if (isValidYMD(y, m, d)) setProfile({ ...profile, dob: toISO(y, m, d) });
+    else setProfile({ ...profile, dob: undefined });
   };
 
   return (
     <>
       <ProfileAvatar profile={profile as any} setProfile={setProfile as any} />
 
-      {/* Username */}
       <ProfileField
-        label="Username (shown in app)"
+        label="Username"
         textInputProps={{
           placeholder: "username",
           autoCapitalize: "none",
@@ -170,7 +121,6 @@ export default function ProfileForm({ profile, setProfile }: Props) {
         }}
       />
 
-      {/* Full name */}
       <ProfileField
         label="Full name"
         textInputProps={{
@@ -180,101 +130,56 @@ export default function ProfileForm({ profile, setProfile }: Props) {
         }}
       />
 
-      {/* Email */}
-      <ProfileField
-        label="Email"
-        textInputProps={{
-          placeholder: "you@example.com",
-          autoCapitalize: "none",
-          keyboardType: "email-address",
-          value: profile.email,
-          onChangeText: (v) => setProfile({ ...profile, email: v }),
-        }}
-      />
+      {/* Email (view-only) */}
+      <View className="opacity-60">
+        <ProfileField
+          label="Email"
+          textInputProps={{
+            value: profile.email,
+            editable: false,
+            selectTextOnFocus: false,
+            placeholder: "you@example.com",
+          }}
+        />
+      </View>
 
-      {/* DOB (three separate dropdowns) */}
+      {/* DOB */}
       <ProfileField label="Date of birth (DD-MM-YYYY)">
         <View className="flex-row gap-3">
           <View style={{ flex: 1 }}>
             <ProfileDropdown
-              value={dd}
+              value={dobDay}
               items={dayItems}
               placeholderLabel="DD"
-              onChange={(v) => handleDobPart("d", v)}
+              onChange={(v) => handleDobChange("d", v)}
             />
           </View>
           <View style={{ flex: 1.2 }}>
             <ProfileDropdown
-              value={mm}
+              value={dobMonth}
               items={monthItems}
               placeholderLabel="MM"
-              onChange={(v) => handleDobPart("m", v)}
+              onChange={(v) => handleDobChange("m", v)}
             />
           </View>
           <View style={{ flex: 1.2 }}>
             <ProfileDropdown
-              value={yyyy}
+              value={dobYear}
               items={yearItems}
               placeholderLabel="YYYY"
-              onChange={(v) => handleDobPart("y", v)}
+              onChange={(v) => handleDobChange("y", v)}
             />
           </View>
         </View>
-        {profile.dob ? (
-          <Text className="text-neutral-400 mt-2">
-            Selected:{" "}
-            {dobParts
-              ? `${pad2(dobParts.d)}-${pad2(dobParts.m)}-${dobParts.y}`
-              : ""}
-          </Text>
-        ) : (
-          <Text className="text-neutral-500 mt-2">
-            Select all three to set DOB
-          </Text>
-        )}
       </ProfileField>
 
-      {/* Height (dropdown + unit selector on right; options show numbers only) */}
-      <ProfileField
-        label="Height"
-        rightAccessory={
-          <View style={{ width: 110 }}>
-            <ProfileDropdown
-              value={profile.heightUnit ?? "cm"}
-              items={HEIGHT_UNITS}
-              placeholderLabel="Unit"
-              onChange={(u) => setProfile({ ...profile, heightUnit: u as any })}
-            />
-          </View>
-        }>
+      {/* Gender */}
+      <ProfileField label="Gender">
         <ProfileDropdown
-          value={heightSelected}
-          items={heightItems}
-          placeholderLabel={
-            (profile.heightUnit ?? "cm") === "cm" ? "Value" : "Value"
-          }
-          onChange={handleHeight}
-        />
-      </ProfileField>
-
-      {/* Weight (dropdown + unit selector on right; options show numbers only) */}
-      <ProfileField
-        label="Weight"
-        rightAccessory={
-          <View style={{ width: 110 }}>
-            <ProfileDropdown
-              value={profile.weightUnit ?? "kg"}
-              items={WEIGHT_UNITS}
-              placeholderLabel="Unit"
-              onChange={(u) => setProfile({ ...profile, weightUnit: u as any })}
-            />
-          </View>
-        }>
-        <ProfileDropdown
-          value={weightSelected}
-          items={weightItems}
-          placeholderLabel="Value"
-          onChange={handleWeight}
+          value={profile.gender ?? "prefer_not_to_say"}
+          items={GENDER_ITEMS}
+          placeholderLabel="Select gender"
+          onChange={(v) => setProfile({ ...profile, gender: v })}
         />
       </ProfileField>
 
@@ -297,16 +202,6 @@ export default function ProfileForm({ profile, setProfile }: Props) {
           onChange={(v) =>
             setProfile({ ...profile, followUpFrequency: v as any })
           }
-        />
-      </ProfileField>
-
-      {/* Fitness goal */}
-      <ProfileField label="Fitness goal">
-        <ProfileDropdown
-          value={profile.fitnessGoal ?? "general_health"}
-          items={FITNESS_GOAL_ITEMS}
-          placeholderLabel="Select primary goal"
-          onChange={(v) => setProfile({ ...profile, fitnessGoal: v as any })}
         />
       </ProfileField>
 
