@@ -1,15 +1,25 @@
 // backend/controllers/scheduleController.js
-const Schedule = require("../models/Schedule");
+const Schedule = require("../models/schedule");
 const Event = require("../models/event");
 const { pool } = require("../config/database");
 
-/** Ensure a user has a schedule (create if missing) */
-const ensureSchedule = async (userId) => {
-  return Schedule.getOrCreate(userId);
+const ensureSchedule = async (userId) => Schedule.getOrCreate(userId);
+
+// Recover the real DB id if a synthetic occurrence id was passed.
+const coerceDbId = (raw) => {
+  const n = Number(raw);
+  if (Number.isNaN(n)) return null;
+  // If an occurrence id was built as `${dbId}${last6OfStart}`, peel the suffix.
+  // Adjust threshold as needed for your DB id range.
+  if (n > 9_000_000_000) {
+    return Math.floor(n / 1_000_000);
+  }
+  return n;
 };
 
-/** Verify the event belongs to the user's schedule */
-const assertOwnsEvent = async (userId, eventId) => {
+const assertOwnsEvent = async (userId, eventIdRaw) => {
+  const eventId = coerceDbId(eventIdRaw);
+  if (eventId == null) return null;
   const evt = await Event.findById(eventId);
   if (!evt) return null;
   const sch = await Schedule.findByUserId(userId);
@@ -17,14 +27,15 @@ const assertOwnsEvent = async (userId, eventId) => {
   return { evt, sch };
 };
 
-/** Build free slots between dayStart..dayEnd from existing events */
+/* ---------- simple helper for suggestions ---------- */
 function computeFreeSlots(events, dayStart = 6, dayEnd = 22) {
-  const byDay = new Map(); // yyyy-mm-dd -> [{start,end}]
+  const byDay = new Map();
   for (const e of events) {
-    const s = new Date(e.startAt);
-    const eEnd = e.endAt
-      ? new Date(e.endAt)
-      : new Date(s.getTime() + 30 * 60000);
+    const s = new Date(e.startAt || e.start_at);
+    const eEnd =
+      e.endAt || e.end_at
+        ? new Date(e.endAt || e.end_at)
+        : new Date(s.getTime() + 30 * 60000);
     const day = s.toISOString().slice(0, 10);
     if (!byDay.has(day)) byDay.set(day, []);
     byDay.get(day).push({ start: s, end: eEnd });
@@ -52,7 +63,6 @@ function computeFreeSlots(events, dayStart = 6, dayEnd = 22) {
 }
 
 const ScheduleController = {
-  // GET /api/schedule
   async getSchedule(req, res) {
     try {
       const schedule = await Schedule.findByUserId(req.userId);
@@ -63,12 +73,10 @@ const ScheduleController = {
     }
   },
 
-  // POST /api/schedule
   async createSchedule(req, res) {
     try {
       const existing = await Schedule.findByUserId(req.userId);
       if (existing) return res.json({ success: true, schedule: existing });
-
       const created = await Schedule.getOrCreate(req.userId);
       if (req.body?.timezone || req.body?.preferences) {
         await created.update({
@@ -83,7 +91,6 @@ const ScheduleController = {
     }
   },
 
-  // PUT /api/schedule
   async updateSchedule(req, res) {
     try {
       const schedule = await Schedule.findByUserId(req.userId);
@@ -100,7 +107,7 @@ const ScheduleController = {
     }
   },
 
-  // GET /api/schedule/events?from=&to=
+  // list expanded events within optional ?from&to
   async listEvents(req, res) {
     try {
       const schedule = await ensureSchedule(req.userId);
@@ -115,18 +122,22 @@ const ScheduleController = {
     }
   },
 
-  // POST /api/schedule/events
   async createEvent(req, res) {
     try {
       const schedule = await ensureSchedule(req.userId);
+      const category = String(req.body.category || "")
+        .toLowerCase()
+        .trim();
+
       const created = await Event.create({
         scheduleId: schedule.id,
-        category: req.body.category, // "meal" | "workout" | "other"
+        category,
         title: req.body.title,
-        startAt: req.body.start_at, // ISO string
+        startAt: req.body.start_at,
         endAt: req.body.end_at ?? null,
-        location: req.body.location ?? null,
         notes: req.body.notes ?? null,
+        recurrence_rule: req.body.recurrence_rule || "none",
+        recurrence_until: req.body.recurrence_until || null,
       });
       res.status(201).json({ success: true, event: created });
     } catch (e) {
@@ -135,10 +146,9 @@ const ScheduleController = {
     }
   },
 
-  // GET /api/schedule/events/:id
   async getEventById(req, res) {
     try {
-      const owned = await assertOwnsEvent(req.userId, Number(req.params.id));
+      const owned = await assertOwnsEvent(req.userId, req.params.id);
       if (!owned) return res.status(404).json({ error: "Event not found" });
       res.json({ success: true, event: owned.evt });
     } catch (e) {
@@ -147,20 +157,15 @@ const ScheduleController = {
     }
   },
 
-  // PUT /api/schedule/events/:id
   async updateEvent(req, res) {
     try {
-      const owned = await assertOwnsEvent(req.userId, Number(req.params.id));
+      const owned = await assertOwnsEvent(req.userId, req.params.id);
       if (!owned) return res.status(404).json({ error: "Event not found" });
+      const patch = { ...req.body };
+      if (patch.category)
+        patch.category = String(patch.category).toLowerCase().trim();
 
-      const updated = await owned.evt.update({
-        category: req.body.category,
-        title: req.body.title,
-        start_at: req.body.start_at,
-        end_at: req.body.end_at,
-        location: req.body.location,
-        notes: req.body.notes,
-      });
+      const updated = await owned.evt.update(patch);
       res.json({ success: true, event: updated });
     } catch (e) {
       console.error("updateEvent error:", e);
@@ -168,10 +173,9 @@ const ScheduleController = {
     }
   },
 
-  // DELETE /api/schedule/events/:id
   async deleteEvent(req, res) {
     try {
-      const owned = await assertOwnsEvent(req.userId, Number(req.params.id));
+      const owned = await assertOwnsEvent(req.userId, req.params.id);
       if (!owned) return res.status(404).json({ error: "Event not found" });
       await owned.evt.delete();
       res.json({ success: true });
@@ -181,29 +185,23 @@ const ScheduleController = {
     }
   },
 
-  // POST /api/schedule/suggest
-  // Suggests workout slots (based on fitness profile) and one meal-prep block (based on nutrition profile)
+  // optional suggestions (unchanged behavior)
   async suggestTimes(req, res) {
     try {
       const horizonDays = Number(req.body?.horizonDays ?? 7);
       const schedule = await ensureSchedule(req.userId);
 
-      // profile data
-      const [{ rows: uRows }, { rows: fRows }, { rows: nRows }] =
-        await Promise.all([
-          pool.query(`SELECT * FROM users WHERE id=$1`, [req.userId]),
-          pool.query(`SELECT * FROM fitness_profiles WHERE user_id=$1`, [
-            req.userId,
-          ]),
-          pool.query(`SELECT * FROM nutrition_profiles WHERE user_id=$1`, [
-            req.userId,
-          ]),
-        ]);
-      const user = uRows[0] || {};
+      const [{ rows: fRows }, { rows: nRows }] = await Promise.all([
+        pool.query(`SELECT * FROM fitness_profiles WHERE user_id=$1`, [
+          req.userId,
+        ]),
+        pool.query(`SELECT * FROM nutrition_profiles WHERE user_id=$1`, [
+          req.userId,
+        ]),
+      ]);
       const fitness = fRows[0] || {};
       const nutrition = nRows[0] || {};
 
-      // window & events
       const from = new Date();
       const to = new Date(Date.now() + horizonDays * 24 * 3600 * 1000);
       const events = await Event.listForSchedule(schedule.id, {
@@ -214,7 +212,6 @@ const ScheduleController = {
       const freeByDay = computeFreeSlots(events);
       const suggestions = [];
 
-      // Workout heuristic
       const daysPerWeek = Math.max(
         1,
         Math.min(6, Number(fitness.days_per_week ?? 3))
@@ -240,12 +237,11 @@ const ScheduleController = {
               reason: `Fits your ${sessionMin} min session; preferred time window.`,
             });
             needed--;
-            break; // one per day
+            break;
           }
         }
       }
 
-      // Meal prep heuristic
       const mealPrepMin = nutrition?.macros ? 120 : 90;
       outer: for (const [day, slots] of freeByDay.entries()) {
         for (const slot of slots) {
