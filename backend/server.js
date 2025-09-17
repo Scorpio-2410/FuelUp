@@ -35,7 +35,7 @@ app.use("/api/users", userRoutes);
 
 // Fitness namespace (matches frontend: /api/fitness/**)
 app.use("/api/fitness", fitnessProfileRoutes); // expects internal routes like /profile
-app.use("/api/fitness", fitnessPlanRoutes); // expects internal routes like /plans, /plans/current, /plans/recommend
+app.use("/api/fitness/plans", fitnessPlanRoutes);// expects internal routes like /plans, /plans/current, /plans/recommend
 // Removed duplicate mount; /api/exercises is the canonical path.
 
 // Nutrition (matches frontend: /api/nutrition/profile)

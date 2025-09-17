@@ -1,3 +1,4 @@
+// models/User.js
 const { pool } = require("../config/database");
 const bcrypt = require("bcryptjs");
 
@@ -6,7 +7,7 @@ class User {
     this.id = row.id;
     this.email = row.email;
     this.username = row.username;
-    this.passwordHash = row.password_hash;
+    this.password = row.password; // <-- maps to DB column "password"
 
     this.fullName = row.full_name;
     this.dob = row.dob;
@@ -27,19 +28,20 @@ class User {
     const r = await pool.query(
       `
       INSERT INTO users (
-        email, username, password_hash,
+        email, username, password,
         full_name, dob, gender, ethnicity, avatar_uri,
         notifications_enabled, follow_up_frequency
       )
       VALUES ($1,$2,$3,$4,$5,$6,COALESCE($7,'not_specified'),$8,
               COALESCE($9,TRUE),COALESCE($10,'daily'))
-      RETURNING *`,
+      RETURNING *
+      `,
       [
         data.email,
         data.username,
-        hashed,
+        hashed,                 // <-- store into "password"
         data.fullName || null,
-        data.dob || null, // DATE (YYYY-MM-DD)
+        data.dob || null,       // DATE (YYYY-MM-DD)
         data.gender || null,
         data.ethnicity || null,
         data.avatarUri || null,
@@ -49,41 +51,39 @@ class User {
     );
     return new User(r.rows[0]);
   }
-  
 
   static async findById(id) {
     const r = await pool.query(`SELECT * FROM users WHERE id=$1`, [id]);
     return r.rows[0] ? new User(r.rows[0]) : null;
   }
+
   static async findByEmail(email) {
     const r = await pool.query(`SELECT * FROM users WHERE email=$1`, [email]);
     return r.rows[0] ? new User(r.rows[0]) : null;
   }
+
   static async findByUsername(username) {
-    const r = await pool.query(`SELECT * FROM users WHERE username=$1`, [
-      username,
-    ]);
+    const r = await pool.query(`SELECT * FROM users WHERE username=$1`, [username]);
     return r.rows[0] ? new User(r.rows[0]) : null;
   }
 
   async verifyPassword(plain) {
-    return bcrypt.compare(plain, this.passwordHash);
+    // compare against this.password (hashed)
+    return bcrypt.compare(plain, this.password);
   }
 
   async setPassword(newPassword) {
     const hashed = await bcrypt.hash(newPassword, 10);
     const r = await pool.query(
-      `UPDATE users SET password_hash=$1, updated_at=NOW() WHERE id=$2 RETURNING *`,
-      [hashed, this.id]
+      `UPDATE users SET password=$1, updated_at=NOW() WHERE id=$2 RETURNING *`,
+      [hashed, this.id]        // <-- update "password"
     );
     Object.assign(this, new User(r.rows[0]));
     return this;
   }
 
   async touchLogin() {
-    await pool.query(`UPDATE users SET last_login_at=NOW() WHERE id=$1`, [
-      this.id,
-    ]);
+    await pool.query(`UPDATE users SET last_login_at=NOW() WHERE id=$1`, [this.id]);
   }
 
   async update(patch) {
@@ -114,9 +114,7 @@ class User {
     if (!sets.length) throw new Error("No valid fields to update");
     vals.push(this.id);
 
-    const sql = `UPDATE users SET ${sets.join(
-      ", "
-    )}, updated_at=NOW() WHERE id=$${i} RETURNING *`;
+    const sql = `UPDATE users SET ${sets.join(", ")}, updated_at=NOW() WHERE id=$${i} RETURNING *`;
     const r = await pool.query(sql, vals);
     Object.assign(this, new User(r.rows[0]));
     return this;
@@ -128,7 +126,8 @@ class User {
   }
 
   toJSON() {
-    const { passwordHash, ...rest } = this;
+    // never return password hash to clients
+    const { password, ...rest } = this;
     return rest;
   }
 }
