@@ -250,6 +250,31 @@ const initializeDatabase = async () => {
         updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
 
+      
+      CREATE TABLE IF NOT EXISTS exercise_instructions (
+        id             INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        exercise_id    INTEGER NOT NULL REFERENCES exercises(id) ON DELETE CASCADE,
+
+        format         VARCHAR(20) CHECK (format IN ('text','video','both')),
+        steps_md       TEXT,        -- Markdown for step-by-step instructions
+        tips_md        TEXT,        -- Optional cues, common mistakes
+        video_url      TEXT,        -- Optional single video link
+        video_sources  JSONB,       -- Optional array/object of video variants (e.g. hls/mp4)
+        language       VARCHAR(10) DEFAULT 'en',
+
+        created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_ex_instr_ex_lang
+        ON exercise_instructions(exercise_id, language);
+
+      DROP TRIGGER IF EXISTS trg_exercise_instructions_updated_at ON exercise_instructions;
+      CREATE TRIGGER trg_exercise_instructions_updated_at
+      BEFORE UPDATE ON exercise_instructions
+      FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+
       CREATE INDEX IF NOT EXISTS idx_exercises_plan ON exercises(fitness_plan_id);
 
       DROP TRIGGER IF EXISTS trg_exercises_updated_at ON exercises;

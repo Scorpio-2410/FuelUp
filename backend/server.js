@@ -15,6 +15,8 @@ const nutritionRoutes = require("./routes/nutritionRoutes");
 const mealPlanRoutes = require("./routes/mealPlanRoutes");
 const mealRoutes = require("./routes/mealRoutes");
 const scheduleRoutes = require("./routes/scheduleRoutes");
+const exerciseInstructionRoutes = require("./routes/exerciseInstructionRoutes");
+
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -34,7 +36,7 @@ app.use("/api/users", userRoutes);
 // Fitness namespace (matches frontend: /api/fitness/**)
 app.use("/api/fitness", fitnessProfileRoutes); // expects internal routes like /profile
 app.use("/api/fitness", fitnessPlanRoutes); // expects internal routes like /plans, /plans/current, /plans/recommend
-app.use("/api/fitness", exerciseRoutes); // expects internal routes like /exercises, /exercises/:id
+// Removed duplicate mount; /api/exercises is the canonical path.
 
 // Nutrition (matches frontend: /api/nutrition/profile)
 app.use("/api/nutrition", nutritionRoutes); // expects internal routes like /profile
@@ -45,6 +47,9 @@ app.use("/api/meals", mealPlanRoutes); // expects internal routes like /plans, /
 
 // Schedule namespace (matches frontend: /api/schedule and /api/schedule/events)
 app.use("/api/schedule", scheduleRoutes); // expects internal routes like / (GET/POST/PUT), /events, /events/:id
+// Exercise instructions
+app.use("/api", exerciseInstructionRoutes);
+
 
 // ---------------- Root + health ----------------
 app.get("/", (req, res) => {

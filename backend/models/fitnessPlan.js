@@ -14,11 +14,12 @@ class FitnessPlan {
     this.updatedAt = row.updated_at;
   }
 
-  static async create(userId, fitnessProfileId, data) {
+  static async create({ userId, fitnessProfileId, name, status = 'active', startDate = null, endDate = null, notes = null }) {
     const r = await pool.query(
       `INSERT INTO fitness_plans
         (user_id, fitness_profile_id, name, status, start_date, end_date, notes)
-       VALUES ($1,$2,$3,COALESCE($4,'active'),$5,$6,$7)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)
+       // VALUES ($1,$2,$3,COALESCE($4,'active'),$5,$6,$7)
        RETURNING *`,
       [
         userId,
@@ -29,14 +30,32 @@ class FitnessPlan {
         data.endDate || null,
         data.notes || null,
       ]
+      [ userId, fitnessProfileId, name, status, startDate, endDate, notes ]
     );
     return new FitnessPlan(r.rows[0]);
+  }
+
+  toJSON() {
+    return {
+      id: this.id,
+      userId: this.userId,
+      fitnessProfileId: this.fitnessProfileId,
+      name: this.name,
+      status: this.status,
+      startDate: this.startDate,
+      endDate: this.endDate,
+      notes: this.notes,
+      createdAt: this.createdAt,
+      updatedAt: this.updatedAt,
+    };
   }
 
   static async findById(id) {
     const r = await pool.query(`SELECT * FROM fitness_plans WHERE id=$1`, [id]);
     return r.rows[0] ? new FitnessPlan(r.rows[0]) : null;
   }
+
+  
 
   static async listForUser(userId, { status, limit = 50, offset = 0 } = {}) {
     const where = ["user_id=$1"];

@@ -8,7 +8,7 @@ class FitnessPlanController {
   static async createPlan(req, res) {
     try {
       const userId = req.userId;
-      const {
+      /*const {
         name,
         goal, // optional (plan-level label), e.g. "cut", "bulk"
         status = "active", // active | archived | draft
@@ -16,20 +16,30 @@ class FitnessPlanController {
         endDate, // "YYYY-MM-DD"
         notes,
         fitnessProfileId, // optional: associate to an existing profile
-      } = req.body;
+      } = req.body; */
+      const { name, status = "active", startDate, endDate, notes, fitnessProfileId } = req.body;
+      if (!fitnessProfileId) {
+        return res.status(400).json({ error: "fitnessProfileId is required" });
+      }
 
       if (!name) {
         return res.status(400).json({ error: "Plan name is required" });
       }
-
+      /*
       if (fitnessProfileId) {
         const profile = await FitnessProfile.findById(fitnessProfileId);
         if (!profile || profile.userId !== userId) {
           return res.status(403).json({ error: "Invalid fitness profile" });
         }
+      } */
+
+      // Ownership check
+      const profile = await FitnessProfile.findById?.(fitnessProfileId);
+      if (!profile || profile.userId !== userId) {
+        return res.status(403).json({ error: "Invalid fitness profile" });
       }
 
-      const plan = await FitnessPlan.create({
+      /*const plan = await FitnessPlan.create({
         userId,
         name,
         goal: goal || null,
@@ -38,7 +48,9 @@ class FitnessPlanController {
         endDate: endDate || null,
         notes: notes || null,
         fitnessProfileId: fitnessProfileId || null,
-      });
+      }); */
+      const plan = await FitnessPlan.create({ userId, fitnessProfileId, name, status, startDate: startDate || null, endDate: endDate || null, notes: notes || null });
+
 
       res.status(201).json({ success: true, plan: plan.toJSON() });
     } catch (e) {
@@ -76,18 +88,21 @@ class FitnessPlanController {
       }
 
       // Include profile (if set) and related exercises via the profile
-      let profile = null;
+      /*let profile = null;
       let exercises = [];
       if (plan.fitnessProfileId) {
         profile = await FitnessProfile.findById(plan.fitnessProfileId);
         if (profile && profile.userId === req.userId) {
           exercises = await Exercise.listByProfile(plan.fitnessProfileId);
         }
-      }
+      }*/
+
+      let profile = await FitnessProfile.findById?.(plan.fitnessProfileId);
+      if (!profile || profile.userId !== req.userId) profile = null;
+      const exercises = await Exercise.listByPlan(plan.id);
+      
 
       res.json({
-        success: true,
-        plan: plan.toJSON(),
         profile: profile ? profile.toJSON() : null,
         exercises: exercises.map((x) => x.toJSON()),
       });
@@ -162,12 +177,7 @@ class FitnessPlanController {
       if (!plan || plan.userId !== req.userId) {
         return res.status(404).json({ error: "Plan not found" });
       }
-      if (!plan.fitnessProfileId) {
-        return res.json({ success: true, exercises: [] });
-      }
-      const items = await Exercise.listByProfile(plan.fitnessProfileId, {
-        userId: req.userId,
-      });
+      const items = await Exercise.listByPlan(plan.id);
       res.json({ success: true, exercises: items.map((x) => x.toJSON()) });
     } catch (e) {
       console.error("listPlanExercises error:", e);

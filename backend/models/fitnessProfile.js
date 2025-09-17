@@ -82,6 +82,11 @@ class FitnessProfile {
     return r.rows[0] ? new FitnessProfile(r.rows[0]) : null;
   }
 
+  static async findById(id) {
+    const r = await pool.query(`SELECT * FROM fitness_profiles WHERE id=$1`, [id]);
+    return r.rows[0] ? new FitnessProfile(r.rows[0]) : null;
+  }
+
   async update(patch) {
     const allowed = [
       "height_cm",
