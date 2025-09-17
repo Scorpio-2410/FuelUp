@@ -1,11 +1,6 @@
-// frontend/constants/api.ts
 import * as SecureStore from "expo-secure-store";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-/** IMPORTANT:
- *  If you test on a physical device, replace localhost with your machine's LAN IP.
- *  For iOS Simulator, localhost is fine.
- */
 export const BASE_URL = "http://localhost:4000";
 
 // small things in SecureStore (token); larger profile cache in AsyncStorage
@@ -26,18 +21,18 @@ const EP = {
   checkEmail: "/api/users/check-email",
 
   // fitness (profile + plans + exercises)
-  fitnessProfilesRoot: "/api/fitness-profiles", // GET/PUT -> current user's fitness profile
+  fitnessProfilesRoot: "/api/fitness-profiles",
   fitnessPlans: "/api/fitness-plans",
   fitnessPlansCurrent: "/api/fitness-plans/current",
   fitnessPlansRecommend: "/api/fitness-plans/recommend",
   exercises: "/api/exercises",
 
-  // nutrition (merged targets + prefs into a single profile)
+  // nutrition
   nutritionProfile: "/api/nutrition/profile",
 
   // meals (+ plans)
   meals: "/api/meals",
-  mealsDaily: "/api/meals/daily", // ?date=YYYY-MM-DD
+  mealsDaily: "/api/meals/daily",
   mealPlans: "/api/meal-plans",
   mealPlansCurrent: "/api/meal-plans/current",
   mealPlansRecommend: "/api/meal-plans/recommend",
@@ -46,6 +41,7 @@ const EP = {
   schedulesRoot: "/api/schedule",
   events: "/api/schedule/events",
   suggest: "/api/schedule/suggest",
+  autoPlan: "/api/schedule/auto-plan",
 };
 
 function asJson<T = any>(res: Response): Promise<T> {
@@ -345,11 +341,8 @@ export async function apiListEvents(params?: { from?: string; to?: string }) {
   if (params?.from) q.set("from", params.from);
   if (params?.to) q.set("to", params.to);
 
-  const url = `${BASE_URL}${EP.events}${
-    q.toString() ? `?${q.toString()}` : ""
-  }`;
+  const url = `${BASE_URL}${EP.events}${q.toString() ? `?${q}` : ""}`;
   const res = await fetch(url, { headers: await authHeaders() });
-  // Make db_id visible to TS so we always pick it up on the client
   return asJson<{
     success: boolean;
     events: Array<{
@@ -374,7 +367,8 @@ export async function apiCreateEvent(payload: {
   start_at: string; // ISO UTC
   end_at?: string | null; // ISO UTC
   notes?: string | null;
-  recurrence_rule?: "none" | "daily" | "weekly"; // ← do NOT send "weekday"
+  /** Now supports 'weekday' too */
+  recurrence_rule?: "none" | "daily" | "weekly" | "weekday";
   recurrence_until?: string | null; // ISO UTC
 }) {
   const res = await fetch(`${BASE_URL}${EP.events}`, {
@@ -400,7 +394,8 @@ export async function apiUpdateEvent(
     start_at?: string; // ISO UTC
     end_at?: string | null; // ISO UTC
     notes?: string | null;
-    recurrence_rule?: "none" | "daily" | "weekly";
+    /** Now supports 'weekday' too */
+    recurrence_rule?: "none" | "daily" | "weekly" | "weekday";
     recurrence_until?: string | null; // ISO UTC
   }
 ) {
@@ -418,4 +413,16 @@ export async function apiDeleteEvent(id: number) {
     headers: await authHeaders(),
   });
   return asJson<{ success: boolean }>(res);
+}
+
+/* ---------- trigger backend auto-planning of workouts ---------- */
+export async function apiAutoPlanWorkouts(horizonDays: number = 7) {
+  const res = await fetch(`${BASE_URL}${EP.autoPlan}`, {
+    method: "POST",
+    headers: await authHeaders(),
+    body: JSON.stringify({ horizonDays }),
+  });
+  return asJson<{ success: boolean; created_count: number; events: any[] }>(
+    res
+  );
 }

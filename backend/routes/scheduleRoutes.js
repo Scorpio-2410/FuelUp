@@ -8,10 +8,6 @@ const router = express.Router();
 // All schedule endpoints require auth
 router.use(authenticateToken);
 
-/**
- * Order matters: put specific paths before "/:id"
- */
-
 // --- Schedule (single schedule per user) ---
 router.get("/", ScheduleController.getSchedule);
 router.post("/", ScheduleController.createSchedule);
@@ -19,6 +15,9 @@ router.put("/", ScheduleController.updateSchedule);
 
 // --- Suggestions (auto compute workout/meal-prep windows) ---
 router.post("/suggest", ScheduleController.suggestTimes);
+
+// --- NEW: Auto-plan workouts into the calendar ---
+router.post("/auto-plan", ScheduleController.autoPlanWorkouts);
 
 // --- Events under the user's schedule ---
 router.get("/events", ScheduleController.listEvents);
