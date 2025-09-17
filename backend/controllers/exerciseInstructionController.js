@@ -1,3 +1,4 @@
+// controllers/exerciseInstructionController.js
 const ExerciseInstruction = require("../models/exerciseInstruction");
 const Exercise = require("../models/exercise");
 const FitnessPlan = require("../models/fitnessPlan");
