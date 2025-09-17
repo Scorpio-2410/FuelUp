@@ -1,4 +1,3 @@
-// backend/controllers/exerciseController.js
 const Exercise = require("../models/exercise");
 const FitnessPlan = require("../models/fitnessPlan");
 
@@ -9,6 +8,7 @@ async function assertPlanOwner(planId, userId) {
 }
 
 const ExerciseController = {
+  // GET /api/exercises?planId=123
   async listExercises(req, res) {
     try {
       const planId = Number(req.query.planId);
@@ -23,8 +23,10 @@ const ExerciseController = {
     }
   },
 
+  // GET /api/exercises/:id
   async getExerciseById(req, res) {
     try {
+      const id = Number(req.params.id);
       const exercise = await Exercise.findById(id);
       if (!exercise) return res.status(404).json({ error: "Exercise not found" });
       const plan = await assertPlanOwner(exercise.fitnessPlanId, req.userId);
@@ -36,14 +38,20 @@ const ExerciseController = {
     }
   },
 
+  // POST /api/exercises
   async createExercise(req, res) {
     try {
       const planId = Number(req.body.planId);
       if (!planId) return res.status(400).json({ error: "planId is required" });
+
+      const name = (req.body.name || "").trim();
+      if (!name) return res.status(400).json({ error: "name is required" });
+
       const plan = await assertPlanOwner(planId, req.userId);
       if (!plan) return res.status(403).json({ error: "Forbidden" });
 
       const created = await Exercise.create(planId, {
+        name,
         muscleGroup: req.body.muscleGroup ?? null,
         equipment: req.body.equipment ?? null,
         difficulty: req.body.difficulty ?? null,
@@ -53,30 +61,36 @@ const ExerciseController = {
         restSeconds: req.body.restSeconds ?? null,
         notes: req.body.notes ?? null,
       });
-      res.status(201).json({ success: true, exercise: created.toJSON() });
-     } catch (e) {
-       console.error("createExercise error:", e);
-       res.status(500).json({ error: "Failed to create exercise" });
-     }
-   },
 
+      res.status(201).json({ success: true, exercise: created.toJSON() });
+    } catch (e) {
+      console.error("createExercise error:", e);
+      res.status(500).json({ error: "Failed to create exercise" });
+    }
+  },
+
+  // PUT /api/exercises/:id
   async updateExercise(req, res) {
     try {
+      const id = Number(req.params.id);
       const exercise = await Exercise.findById(id);
       if (!exercise) return res.status(404).json({ error: "Exercise not found" });
+
       const plan = await assertPlanOwner(exercise.fitnessPlanId, req.userId);
       if (!plan) return res.status(403).json({ error: "Forbidden" });
+
       const updated = await exercise.update({
         name: req.body.name,
         muscle_group: req.body.muscleGroup,
         equipment: req.body.equipment,
         difficulty: req.body.difficulty,
-        duration_min: req.body.durationMin,        
+        duration_min: req.body.durationMin,
         sets: req.body.sets,
         reps: req.body.reps,
         rest_seconds: req.body.restSeconds,
         notes: req.body.notes,
       });
+
       res.json({ success: true, exercise: updated.toJSON() });
     } catch (e) {
       console.error("updateExercise error:", e);
@@ -84,12 +98,16 @@ const ExerciseController = {
     }
   },
 
+  // DELETE /api/exercises/:id
   async deleteExercise(req, res) {
     try {
+      const id = Number(req.params.id);
       const exercise = await Exercise.findById(id);
       if (!exercise) return res.status(404).json({ error: "Exercise not found" });
+
       const plan = await assertPlanOwner(exercise.fitnessPlanId, req.userId);
       if (!plan) return res.status(403).json({ error: "Forbidden" });
+
       await exercise.delete();
       res.json({ success: true });
     } catch (e) {

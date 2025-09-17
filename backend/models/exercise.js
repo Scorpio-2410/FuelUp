@@ -93,9 +93,27 @@ class Exercise {
     return this;
   }
 
-  async delete() {
+async delete() {
     await pool.query(`DELETE FROM exercises WHERE id=$1`, [this.id]);
     return true;
+  }
+
+  toJSON() {
+    return {
+      id: this.id,
+      fitnessPlanId: this.fitnessPlanId,
+      name: this.name,
+      muscleGroup: this.muscleGroup,
+      equipment: this.equipment,
+      difficulty: this.difficulty,
+      durationMin: this.durationMin,
+      sets: this.sets,
+      reps: this.reps,
+      restSeconds: this.restSeconds,
+      notes: this.notes,
+      createdAt: this.createdAt,
+      updatedAt: this.updatedAt,
+    };
   }
 }
 

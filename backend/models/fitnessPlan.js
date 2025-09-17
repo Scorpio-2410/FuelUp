@@ -1,3 +1,4 @@
+// models/fitnessPlan.js
 const { pool } = require("../config/database");
 
 class FitnessPlan {
@@ -14,23 +15,13 @@ class FitnessPlan {
     this.updatedAt = row.updated_at;
   }
 
-  static async create({ userId, fitnessProfileId, name, status = 'active', startDate = null, endDate = null, notes = null }) {
+  static async create({ userId, fitnessProfileId, name, status = "active", startDate = null, endDate = null, notes = null }) {
     const r = await pool.query(
       `INSERT INTO fitness_plans
-        (user_id, fitness_profile_id, name, status, start_date, end_date, notes)
+         (user_id, fitness_profile_id, name, status, start_date, end_date, notes)
        VALUES ($1,$2,$3,$4,$5,$6,$7)
-       // VALUES ($1,$2,$3,COALESCE($4,'active'),$5,$6,$7)
        RETURNING *`,
-      [
-        userId,
-        fitnessProfileId,
-        data.name,
-        data.status || null,
-        data.startDate || null,
-        data.endDate || null,
-        data.notes || null,
-      ]
-      [ userId, fitnessProfileId, name, status, startDate, endDate, notes ]
+      [userId, fitnessProfileId, name, status, startDate, endDate, notes]
     );
     return new FitnessPlan(r.rows[0]);
   }
@@ -55,36 +46,43 @@ class FitnessPlan {
     return r.rows[0] ? new FitnessPlan(r.rows[0]) : null;
   }
 
-  
-
   static async listForUser(userId, { status, limit = 50, offset = 0 } = {}) {
     const where = ["user_id=$1"];
     const vals = [userId];
     let i = 2;
     if (status) {
-      where.push("status=$" + i);
+      where.push(`status=$${i}`);
       vals.push(status);
       i++;
     }
     const r = await pool.query(
-      `SELECT * FROM fitness_plans WHERE ${where.join(" AND ")}
+      `SELECT * FROM fitness_plans
+       WHERE ${where.join(" AND ")}
        ORDER BY created_at DESC
        LIMIT ${Number(limit) | 0} OFFSET ${Number(offset) | 0}`,
       vals
     );
-    return r.rows.map((row) => new FitnessPlan(row));
+    return r.rows.map(row => new FitnessPlan(row));
   }
 
-  async update(patch) {
-    const allowed = ["name", "status", "start_date", "end_date", "notes"];
+  async update(patch = {}) {
+    // Map camelCase -> snake_case for DB columns
+    const map = {
+      name: "name",
+      status: "status",
+      startDate: "start_date",
+      endDate: "end_date",
+      notes: "notes",
+      fitnessProfileId: "fitness_profile_id",
+    };
+
     const sets = [];
     const vals = [];
     let i = 1;
-
-    for (const col of allowed) {
-      if (Object.prototype.hasOwnProperty.call(patch, col)) {
-        sets.push(`${col}=$${i}`);
-        vals.push(patch[col]);
+    for (const k of Object.keys(map)) {
+      if (Object.prototype.hasOwnProperty.call(patch, k)) {
+        sets.push(`${map[k]}=$${i}`);
+        vals.push(patch[k]);
         i++;
       }
     }
@@ -92,9 +90,10 @@ class FitnessPlan {
 
     vals.push(this.id);
     const r = await pool.query(
-      `UPDATE fitness_plans SET ${sets.join(
-        ", "
-      )}, updated_at=NOW() WHERE id=$${i} RETURNING *`,
+      `UPDATE fitness_plans
+       SET ${sets.join(", ")}, updated_at=NOW()
+       WHERE id=$${i}
+       RETURNING *`,
       vals
     );
     Object.assign(this, new FitnessPlan(r.rows[0]));
