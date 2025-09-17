@@ -9,11 +9,7 @@ const ensureSchedule = async (userId) => Schedule.getOrCreate(userId);
 const coerceDbId = (raw) => {
   const n = Number(raw);
   if (Number.isNaN(n)) return null;
-  // If an occurrence id was built as `${dbId}${last6OfStart}`, peel the suffix.
-  // Adjust threshold as needed for your DB id range.
-  if (n > 9_000_000_000) {
-    return Math.floor(n / 1_000_000);
-  }
+  if (n > 9_000_000_000) return Math.floor(n / 1_000_000);
   return n;
 };
 
@@ -27,40 +23,68 @@ const assertOwnsEvent = async (userId, eventIdRaw) => {
   return { evt, sch };
 };
 
-/* ---------- simple helper for suggestions ---------- */
-function computeFreeSlots(events, dayStart = 6, dayEnd = 22) {
+/* ---------------- local-time helpers ---------------- */
+const pad2 = (n) => String(n).padStart(2, "0");
+const ymdLocal = (d) =>
+  `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+
+const atLocal = (ymdStr, hour = 0, minute = 0) => {
+  const [Y, M, D] = ymdStr.split("-").map(Number);
+  const x = new Date();
+  x.setFullYear(Y, M - 1, D);
+  x.setHours(hour, minute, 0, 0);
+  return x;
+};
+
+const mondayOfLocal = (d) => {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  const dow = x.getDay(); // 0=Sun..6=Sat (LOCAL)
+  const mondayOffset = dow === 0 ? -6 : 1 - dow;
+  x.setDate(x.getDate() + mondayOffset);
+  return x; // local Monday 00:00
+};
+
+/**
+ * Compute free windows per local day from a list of events.
+ * - Groups by local YYYY-MM-DD using the *start* timestamp.
+ * - Treats missing end as 30 minutes after start.
+ * - Bounds each day to [dayStart, dayEnd] local hours.
+ */
+function computeFreeSlotsLocal(events, dayStart = 6, dayEnd = 22) {
   const byDay = new Map();
+
   for (const e of events) {
     const s = new Date(e.startAt || e.start_at);
     const eEnd =
       e.endAt || e.end_at
         ? new Date(e.endAt || e.end_at)
         : new Date(s.getTime() + 30 * 60000);
-    const day = s.toISOString().slice(0, 10);
-    if (!byDay.has(day)) byDay.set(day, []);
-    byDay.get(day).push({ start: s, end: eEnd });
+    const key = ymdLocal(s);
+    if (!byDay.has(key)) byDay.set(key, []);
+    byDay.get(key).push({ start: s, end: eEnd });
   }
+
   for (const arr of byDay.values()) arr.sort((a, b) => a.start - b.start);
 
   const freeByDay = new Map();
-  for (const [day, arr] of byDay.entries()) {
-    const start = new Date(
-      `${day}T${String(dayStart).padStart(2, "0")}:00:00.000Z`
-    );
-    const end = new Date(
-      `${day}T${String(dayEnd).padStart(2, "0")}:00:00.000Z`
-    );
-    let cur = start;
+  for (const [key, arr] of byDay.entries()) {
+    const dayStartDt = atLocal(key, dayStart, 0);
+    const dayEndDt = atLocal(key, dayEnd, 0);
+    let cur = dayStartDt;
     const free = [];
     for (const { start: es, end: ee } of arr) {
       if (cur < es) free.push({ start: cur, end: es });
       if (ee > cur) cur = ee;
     }
-    if (cur < end) free.push({ start: cur, end });
-    freeByDay.set(day, free);
+    if (cur < dayEndDt) free.push({ start: cur, end: dayEndDt });
+    freeByDay.set(key, free);
   }
+
   return freeByDay;
 }
+
+/* --------------------------------------------------------------------- */
 
 const ScheduleController = {
   async getSchedule(req, res) {
@@ -185,7 +209,7 @@ const ScheduleController = {
     }
   },
 
-  // optional suggestions (unchanged behavior)
+  /* -------------------- SUGGEST WINDOWS (unchanged semantics) -------------------- */
   async suggestTimes(req, res) {
     try {
       const horizonDays = Number(req.body?.horizonDays ?? 7);
@@ -203,13 +227,17 @@ const ScheduleController = {
       const nutrition = nRows[0] || {};
 
       const from = new Date();
-      const to = new Date(Date.now() + horizonDays * 24 * 3600 * 1000);
+      from.setHours(0, 0, 0, 0);
+      const to = new Date(from);
+      to.setDate(to.getDate() + horizonDays);
+      to.setHours(0, 0, 0, 0);
+
       const events = await Event.listForSchedule(schedule.id, {
         from: from.toISOString(),
         to: to.toISOString(),
       });
 
-      const freeByDay = computeFreeSlots(events);
+      const freeByDay = computeFreeSlotsLocal(events);
       const suggestions = [];
 
       const daysPerWeek = Math.max(
@@ -217,35 +245,61 @@ const ScheduleController = {
         Math.min(6, Number(fitness.days_per_week ?? 3))
       );
       const sessionMin = Math.max(20, Number(fitness.session_length_min ?? 45));
-      let needed = daysPerWeek;
 
-      for (const [day, slots] of freeByDay.entries()) {
-        if (needed <= 0) break;
-        for (const slot of slots) {
-          const lenMin = Math.floor((slot.end - slot.start) / 60000);
-          const hour = new Date(slot.start).getUTCHours();
-          const preferred =
-            (hour >= 6 && hour < 9) || (hour >= 17 && hour < 20);
-          if (lenMin >= sessionMin && preferred) {
-            const start = new Date(slot.start);
-            const end = new Date(start.getTime() + sessionMin * 60000);
-            suggestions.push({
-              type: "workout",
-              title: "Workout",
-              start_at: start.toISOString(),
-              end_at: end.toISOString(),
-              reason: `Fits your ${sessionMin} min session; preferred time window.`,
-            });
-            needed--;
-            break;
-          }
+      // Walk each day; treat empty days as 06:00–22:00 free
+      const cur = new Date(from);
+      let needed = daysPerWeek;
+      while (cur < to && needed > 0) {
+        const key = ymdLocal(cur);
+        const slots = freeByDay.get(key) || [
+          { start: atLocal(key, 6), end: atLocal(key, 22) },
+        ];
+
+        const pick = (window) =>
+          slots.find(({ start, end }) => {
+            const h = start.getHours(); // local
+            const okWindow =
+              window === "am" ? h >= 6 && h < 10 : h >= 17 && h < 20;
+            const len = Math.floor((end - start) / 60000);
+            return okWindow && len >= sessionMin;
+          });
+
+        let chosen = pick("am") || pick("pm");
+        if (!chosen) {
+          const best = slots
+            .map((s) => ({ ...s, len: (s.end - s.start) / 60000 }))
+            .filter((s) => s.len >= sessionMin)
+            .sort((a, b) => b.len - a.len)[0];
+          if (best) chosen = best;
         }
+
+        if (chosen) {
+          const start = new Date(chosen.start);
+          const end = new Date(start.getTime() + sessionMin * 60000);
+          suggestions.push({
+            type: "workout",
+            title: "Workout",
+            start_at: start.toISOString(),
+            end_at: end.toISOString(),
+            reason: `Fits ${sessionMin} min in your day.`,
+          });
+          needed--;
+        }
+
+        cur.setDate(cur.getDate() + 1);
       }
 
+      // Optional: propose one evening meal-prep
       const mealPrepMin = nutrition?.macros ? 120 : 90;
-      outer: for (const [day, slots] of freeByDay.entries()) {
+      const cur2 = new Date(from);
+      let addedMeal = false;
+      while (cur2 < to && !addedMeal) {
+        const key = ymdLocal(cur2);
+        const slots = freeByDay.get(key) || [
+          { start: atLocal(key, 6), end: atLocal(key, 22) },
+        ];
         for (const slot of slots) {
-          const startH = new Date(slot.start).getUTCHours();
+          const startH = slot.start.getHours();
           const len = Math.floor((slot.end - slot.start) / 60000);
           if (startH >= 16 && len >= mealPrepMin) {
             const start = new Date(slot.start);
@@ -255,17 +309,135 @@ const ScheduleController = {
               title: "Meal Prep",
               start_at: start.toISOString(),
               end_at: end.toISOString(),
-              reason: `Evening block ≥ ${mealPrepMin} min to prep for your targets.`,
+              reason: `Evening block ≥ ${mealPrepMin} min.`,
             });
-            break outer;
+            addedMeal = true;
+            break;
           }
         }
+        cur2.setDate(cur2.getDate() + 1);
       }
 
       res.json({ suggestions });
     } catch (e) {
       console.error("suggestTimes error:", e);
       res.status(500).json({ error: "Failed to compute suggestions" });
+    }
+  },
+
+  /* --------- AUTO-CREATE WORKOUTS (LOCAL + STRICTLY CURRENT WEEK) --------- */
+  async autoPlanWorkouts(req, res) {
+    try {
+      const schedule = await ensureSchedule(req.userId);
+
+      const { rows: fRows } = await pool.query(
+        `SELECT days_per_week, session_length_min FROM fitness_profiles WHERE user_id=$1`,
+        [req.userId]
+      );
+      const fitness = fRows[0] || {};
+      const daysPerWeek = Math.max(
+        1,
+        Math.min(6, Number(fitness.days_per_week ?? 3))
+      );
+      const sessionMin = Math.max(20, Number(fitness.session_length_min ?? 45));
+
+      const { rows: sRows } = await pool.query(
+        `SELECT preferences FROM schedules WHERE id=$1`,
+        [schedule.id]
+      );
+      const prefs = sRows[0]?.preferences || {};
+      // If present, should be numbers in JS getDay() semantics: 0..6 (Sun..Sat)
+      const preferredDays = Array.isArray(prefs.preferred_workout_days)
+        ? prefs.preferred_workout_days.map(Number)
+        : null;
+
+      // ----- Bound to the current local week -----
+      const today = new Date();
+      const weekStart = mondayOfLocal(today); // local Mon 00:00
+      const weekEndOpen = new Date(weekStart);
+      weekEndOpen.setDate(weekEndOpen.getDate() + 7); // next Mon 00:00
+
+      // existing events within this week
+      const existing = await Event.listForSchedule(schedule.id, {
+        from: weekStart.toISOString(),
+        to: weekEndOpen.toISOString(),
+      });
+
+      const freeByDay = computeFreeSlotsLocal(existing, 6, 22);
+
+      // choose weekdays (local)
+      let targetWeekdays = [];
+      if (preferredDays && preferredDays.length) {
+        targetWeekdays = preferredDays.slice(0, daysPerWeek);
+      } else {
+        // Mon/Wed/Fri default, then Tue/Thu/Sat
+        targetWeekdays = [1, 3, 5, 2, 4, 6].slice(0, daysPerWeek);
+      }
+
+      const created = [];
+      let planned = 0;
+
+      // iterate ONLY inside this week (local)
+      const cursor = new Date(weekStart);
+      while (cursor < weekEndOpen && planned < daysPerWeek) {
+        const weekday = cursor.getDay(); // 0..6 local
+        if (!targetWeekdays.includes(weekday)) {
+          cursor.setDate(cursor.getDate() + 1);
+          continue;
+        }
+
+        const key = ymdLocal(cursor);
+        const slots = freeByDay.get(key) || [
+          { start: atLocal(key, 6), end: atLocal(key, 22) },
+        ];
+
+        const pick = (window) =>
+          slots.find(({ start, end }) => {
+            const h = start.getHours(); // LOCAL hour
+            const okWindow =
+              window === "am" ? h >= 6 && h < 10 : h >= 17 && h < 20;
+            const len = Math.floor((end - start) / 60000);
+            return okWindow && len >= sessionMin;
+          });
+
+        let slot = pick("am") || pick("pm");
+        if (!slot) {
+          const best = slots
+            .map((s) => ({ ...s, len: (s.end - s.start) / 60000 }))
+            .filter((s) => s.len >= sessionMin)
+            .sort((a, b) => b.len - a.len)[0];
+          if (best) slot = best;
+        }
+
+        if (slot) {
+          const start = new Date(slot.start);
+          const end = new Date(start.getTime() + sessionMin * 60000);
+
+          const ev = await Event.create({
+            scheduleId: schedule.id,
+            category: "workout",
+            title: "Workout",
+            startAt: start.toISOString(),
+            endAt: end.toISOString(),
+            notes: "Auto-planned",
+            recurrence_rule: "none",
+            recurrence_until: null,
+          });
+          created.push(ev);
+          planned++;
+        }
+
+        cursor.setDate(cursor.getDate() + 1);
+      }
+
+      res.status(201).json({
+        success: true,
+        created_count: created.length,
+        events: created,
+      });
+    } catch (e) {
+      console.error("autoPlanWorkouts error:", e);
+      res.status(500).json({ error: "Failed to auto-plan workouts" });
     }
   },
 };

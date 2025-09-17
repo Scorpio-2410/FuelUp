@@ -1,4 +1,3 @@
-// frontend/components/Fitness/WeeklySchedule.tsx
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import {
   View,
@@ -12,6 +11,7 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -20,14 +20,15 @@ import {
   apiListEvents,
   apiUpdateEvent,
   apiDeleteEvent,
+  apiAutoPlanWorkouts,
 } from "../../constants/api";
 
 type Category = "work" | "workout" | "meal" | "other";
 type Repeat = "none" | "daily" | "weekday" | "weekly";
 
 type LocalEvent = {
-  id: string; // UI instance id (can be synthetic for recurrences)
-  dbId: number; // REAL DB id for mutations
+  id: string;
+  dbId: number;
   dateKey: string; // YYYY-MM-DD (local)
   start: string; // HH:mm (local)
   end: string; // HH:mm (local)
@@ -47,7 +48,6 @@ const ymd = (d: Date) =>
   `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const hhmm = (d: Date) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 
-/** Monday of week for a local date string (YYYY-MM-DD) */
 function mondayOfWeek(dateStr: string) {
   const d = new Date(dateStr + "T00:00:00");
   const day = d.getDay(); // 0=Sun..6=Sat
@@ -57,7 +57,6 @@ function mondayOfWeek(dateStr: string) {
   return m;
 }
 
-/** 7 days (local) starting from given Monday */
 function weekFromMonday(monday: Date) {
   const out: { key: string; label: string; num: number; isToday: boolean }[] =
     [];
@@ -75,7 +74,6 @@ function weekFromMonday(monday: Date) {
   return out;
 }
 
-/** window for API list (local → ISO) */
 function weekWindowISO(monday: Date) {
   const from = new Date(monday);
   from.setHours(0, 0, 0, 0);
@@ -85,10 +83,87 @@ function weekWindowISO(monday: Date) {
   return { fromISO: from.toISOString(), toISO: to.toISOString() };
 }
 
+const monthYear = (d: Date) =>
+  d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+
 const GREEN = "#4ade80";
 const LEMON = "#F9FF6E";
 const CARD = "#121212";
 const TEXT_MUTED = "#9CA3AF";
+
+/* Nicely formatted long date+time for the input display */
+const fmtLong = (d: Date) =>
+  d.toLocaleString(undefined, {
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
+/* iOS-style wheel picker presented as a bottom sheet */
+function WheelPickerSheet(props: {
+  visible: boolean;
+  date: Date;
+  onConfirm: (d: Date) => void;
+  onCancel: () => void;
+}) {
+  const { visible, date, onCancel, onConfirm } = props;
+  const [temp, setTemp] = useState<Date>(date);
+
+  useEffect(() => setTemp(date), [date, visible]);
+
+  // spinner on iOS, default on Android
+  const DISPLAY_MODE: any = Platform.OS === "ios" ? "spinner" : "default";
+
+  return (
+    <Modal visible={visible} transparent animationType="slide">
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "flex-end",
+          backgroundColor: "rgba(0,0,0,0.5)",
+        }}>
+        <View
+          style={{
+            backgroundColor: "white",
+            borderTopLeftRadius: 16,
+            borderTopRightRadius: 16,
+            paddingBottom: 10,
+          }}>
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              paddingHorizontal: 12,
+              paddingTop: 8,
+              paddingBottom: 4,
+            }}>
+            <TouchableOpacity onPress={onCancel}>
+              <Text style={{ color: "#EF4444", fontWeight: "700" }}>
+                Cancel
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => onConfirm(temp)}>
+              <Text style={{ color: "#065F46", fontWeight: "700" }}>Done</Text>
+            </TouchableOpacity>
+          </View>
+
+          <DateTimePicker
+            value={temp}
+            mode="datetime"
+            display={DISPLAY_MODE}
+            onChange={(_: any, d?: Date) => {
+              if (d) setTemp(d);
+            }}
+            style={{ alignSelf: "center" }}
+          />
+        </View>
+      </View>
+    </Modal>
+  );
+}
 
 export default function WeeklySchedule({ onClose }: Props) {
   const todayKey = ymd(new Date());
@@ -126,20 +201,29 @@ export default function WeeklySchedule({ onClose }: Props) {
     return e;
   });
 
-  const [showStartPicker, setShowStartPicker] = useState(false);
-  const [showEndPicker, setShowEndPicker] = useState(false);
+  // wheel picker visibility (CREATE)
+  const [showStartWheel, setShowStartWheel] = useState(false);
+  const [showEndWheel, setShowEndWheel] = useState(false);
 
-  const [sheetOpen, setSheetOpen] = useState(false);
+  // full-screen create modal
+  const [createOpen, setCreateOpen] = useState(false);
+
   const [saving, setSaving] = useState(false);
 
   // EDIT dialog
   const [editOpen, setEditOpen] = useState(false);
-  const [editId, setEditId] = useState<number | null>(null); // DB id!
+  const [editId, setEditId] = useState<number | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editNotes, setEditNotes] = useState("");
   const [editCategory, setEditCategory] = useState<Category>("work");
   const [editStartDT, setEditStartDT] = useState<Date>(new Date());
   const [editEndDT, setEditEndDT] = useState<Date>(new Date());
+  // wheel pickers for EDIT
+  const [showEditStartWheel, setShowEditStartWheel] = useState(false);
+  const [showEditEndWheel, setShowEditEndWheel] = useState(false);
+
+  // NEW: auto-plan button state
+  const [planning, setPlanning] = useState(false);
 
   // keep start/end aligned with selected date if user taps another day
   useEffect(() => {
@@ -161,36 +245,40 @@ export default function WeeklySchedule({ onClose }: Props) {
 
       const grouped: Record<string, LocalEvent[]> = {};
       for (const ev of events) {
-        // ev.id may be synthetic for expanded recurrences; ev.db_id is the real row id
-        const s = new Date(ev.startAt || ev.start_at);
-        const e =
-          ev.endAt || ev.end_at ? new Date(ev.endAt || ev.end_at) : null;
+        const startStr: string | undefined =
+          (ev as any).startAt ?? (ev as any).start_at;
+        if (!startStr) continue;
 
-        const key = ymd(s); // local day key
+        const s = new Date(startStr);
+        const endStr: string | undefined | null =
+          (ev as any).endAt ?? (ev as any).end_at ?? undefined;
+        const e = endStr ? new Date(endStr) : null;
+
+        const key = ymd(s);
         if (!grouped[key]) grouped[key] = [];
 
         const realDbId =
-          typeof ev.db_id !== "undefined"
-            ? Number(ev.db_id)
-            : typeof ev.dbId !== "undefined"
-            ? Number(ev.dbId)
+          typeof (ev as any).db_id !== "undefined"
+            ? Number((ev as any).db_id)
+            : typeof (ev as any).dbId !== "undefined"
+            ? Number((ev as any).dbId)
             : Number(ev.id);
 
         grouped[key].push({
           id: String(ev.id),
-          dbId: realDbId, // ALWAYS the real DB id for mutations
+          dbId: realDbId,
           dateKey: key,
           start: hhmm(s),
           end: e ? hhmm(e) : hhmm(new Date(s.getTime() + 30 * 60 * 1000)),
-          title: ev.title,
-          notes: ev.notes || undefined,
-          category: (ev.category as Category) || "other",
+          title: (ev as any).title,
+          notes: (ev as any).notes || undefined,
+          category: ((ev as any).category as Category) || "other",
           color:
-            ev.category === "workout"
+            (ev as any).category === "workout"
               ? "#B3FF6E"
-              : ev.category === "meal"
+              : (ev as any).category === "meal"
               ? "#FFE08A"
-              : ev.category === "work"
+              : (ev as any).category === "work"
               ? "#93C5FD"
               : "#E5E7EB",
         });
@@ -239,52 +327,48 @@ export default function WeeklySchedule({ onClose }: Props) {
 
     setSaving(true);
     try {
-      // weekday fan-out on client (Mon–Fri current visible week)
-      if (repeat === "weekday") {
-        const mon = new Date(monday);
-        const promises: Promise<any>[] = [];
-        for (let i = 0; i < 5; i++) {
-          const s = new Date(mon);
-          s.setDate(mon.getDate() + i);
-          s.setHours(startDT.getHours(), startDT.getMinutes(), 0, 0);
-          const e = new Date(
-            s.getTime() + (endDT.getTime() - startDT.getTime())
-          );
-          promises.push(
-            apiCreateEvent({
-              category,
-              title: title.trim(),
-              start_at: s.toISOString(),
-              end_at: e.toISOString(),
-              notes: notes.trim() || null,
-              recurrence_rule: "none",
-              recurrence_until: null,
-            })
-          );
-        }
-        await Promise.all(promises);
-      } else {
-        await apiCreateEvent({
-          category,
-          title: title.trim(),
-          start_at: startDT.toISOString(),
-          end_at: endDT.toISOString(),
-          notes: notes.trim() || null,
-          recurrence_rule: repeat === "none" ? "none" : repeat, // (do not send "weekday" here)
-          recurrence_until: null,
-        });
-      }
+      await apiCreateEvent({
+        category,
+        title: title.trim(),
+        start_at: startDT.toISOString(),
+        end_at: endDT.toISOString(),
+        notes: notes.trim() || null,
+        // send rule as selected; backend (Event.listForSchedule) expands it
+        recurrence_rule: repeat, // "none" | "daily" | "weekday" | "weekly"
+        recurrence_until: null,
+      });
 
       clearForm();
-      setSheetOpen(false);
       Alert.alert("Added", "Your event has been added to your schedule.");
-      loadWeek(); // ensure UI == DB
+      loadWeek();
     } catch (e: any) {
       Alert.alert("Failed to create event", e?.message || "Please try again.");
     } finally {
       setSaving(false);
     }
   };
+
+  /* ---------------- Auto-plan workouts button ---------------- */
+  const handleAutoPlan = useCallback(async () => {
+    if (planning) return;
+    setPlanning(true);
+    try {
+      const { created_count } = await apiAutoPlanWorkouts(7);
+      await loadWeek();
+      Alert.alert(
+        "Workout suggestions",
+        created_count > 0
+          ? `Added ${created_count} workout${
+              created_count > 1 ? "s" : ""
+            } based on your schedule.`
+          : "No suitable free slots found in the next week."
+      );
+    } catch (e: any) {
+      Alert.alert("Suggestion failed", e?.message || "Please try again.");
+    } finally {
+      setPlanning(false);
+    }
+  }, [planning, loadWeek]);
 
   /* ---------------- Edit/Delete ---------------- */
   const openEditFor = (evt: LocalEvent) => {
@@ -295,7 +379,7 @@ export default function WeeklySchedule({ onClose }: Props) {
       );
       return;
     }
-    setEditId(Number(evt.dbId)); // REAL DB id
+    setEditId(Number(evt.dbId));
     setEditTitle(evt.title);
     setEditNotes(evt.notes || "");
     setEditCategory(evt.category);
@@ -396,16 +480,16 @@ export default function WeeklySchedule({ onClose }: Props) {
             </Text>
 
             <TouchableOpacity
-              onPress={onClose}
-              style={{ position: "absolute", right: 44, padding: 4 }}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Ionicons name="close-circle" size={22} color={GREEN} />
+              onPress={goNextWeek}
+              style={{ position: "absolute", right: 44 }}>
+              <Ionicons name="chevron-forward-circle" size={24} color={GREEN} />
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={goNextWeek}
-              style={{ position: "absolute", right: 12 }}>
-              <Ionicons name="chevron-forward-circle" size={24} color={GREEN} />
+              onPress={onClose}
+              style={{ position: "absolute", right: 12, padding: 4 }}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Ionicons name="close-circle" size={22} color={GREEN} />
             </TouchableOpacity>
           </View>
 
@@ -453,6 +537,39 @@ export default function WeeklySchedule({ onClose }: Props) {
                 </TouchableOpacity>
               );
             })}
+          </View>
+
+          {/* Month label */}
+          <View style={{ paddingHorizontal: 16, marginTop: 2 }}>
+            <Text
+              style={{ color: TEXT_MUTED, textAlign: "center", fontSize: 13 }}>
+              {monthYear(new Date(selectedDateKey + "T00:00:00"))}
+            </Text>
+          </View>
+
+          {/* Suggest/Auto-plan button */}
+          <View
+            style={{
+              paddingHorizontal: 16,
+              alignItems: "center",
+              marginVertical: 8,
+            }}>
+            <TouchableOpacity
+              disabled={planning}
+              onPress={handleAutoPlan}
+              style={{
+                paddingVertical: 8,
+                paddingHorizontal: 14,
+                borderRadius: 10,
+                borderWidth: 1,
+                borderColor: GREEN,
+                backgroundColor: "#E7F9EE",
+                opacity: planning ? 0.6 : 1,
+              }}>
+              <Text style={{ color: "#065F46", fontWeight: "700" }}>
+                {planning ? "Suggesting…" : "Suggest workout times"}
+              </Text>
+            </TouchableOpacity>
           </View>
 
           {/* Events list */}
@@ -533,7 +650,7 @@ export default function WeeklySchedule({ onClose }: Props) {
 
           {/* FAB */}
           <TouchableOpacity
-            onPress={() => setSheetOpen(true)}
+            onPress={() => setCreateOpen(true)}
             style={{
               position: "absolute",
               bottom: 28,
@@ -549,44 +666,40 @@ export default function WeeklySchedule({ onClose }: Props) {
             <Ionicons name="add" size={28} color="white" />
           </TouchableOpacity>
 
-          {/* Create sheet */}
-          {sheetOpen && (
-            <View
-              style={{
-                position: "absolute",
-                left: 0,
-                right: 0,
-                bottom: 0,
-                backgroundColor: "white",
-                borderTopLeftRadius: 20,
-                borderTopRightRadius: 20,
-                paddingTop: 10,
-                paddingBottom: 24,
-                paddingHorizontal: 16,
-                maxHeight: "88%",
-              }}>
-              {/* header */}
+          {/* Create Event - full screen modal */}
+          <Modal
+            visible={createOpen}
+            animationType="slide"
+            onRequestClose={() => setCreateOpen(false)}>
+            <SafeAreaView style={{ flex: 1, backgroundColor: "white" }}>
+              {/* Top bar */}
               <View
-                style={{ alignItems: "center", marginBottom: 6, marginTop: 4 }}>
+                style={{
+                  paddingHorizontal: 12,
+                  paddingTop: 6,
+                  paddingBottom: 8,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}>
                 <Text
                   style={{ fontSize: 18, fontWeight: "800", color: "black" }}>
                   Create Event
                 </Text>
                 <TouchableOpacity
-                  onPress={() => setSheetOpen(false)}
-                  style={{
-                    position: "absolute",
-                    right: 6,
-                    top: -2,
-                    padding: 6,
-                  }}>
-                  <Ionicons name="close-circle" size={20} color={GREEN} />
+                  onPress={() => setCreateOpen(false)}
+                  hitSlop={{ top: 10, left: 10, right: 10, bottom: 10 }}
+                  style={{ position: "absolute", right: 10 }}>
+                  <Ionicons name="close-circle" size={28} color={GREEN} />
                 </TouchableOpacity>
               </View>
 
               <ScrollView
-                style={{ maxHeight: 520 }}
-                keyboardShouldPersistTaps="handled">
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={{
+                  paddingHorizontal: 16,
+                  paddingBottom: 24,
+                }}>
                 {/* title */}
                 <TextInput
                   placeholder="Event name*"
@@ -634,7 +747,8 @@ export default function WeeklySchedule({ onClose }: Props) {
                   }}>
                   Category
                 </Text>
-                <View style={{ flexDirection: "row", gap: 10 }}>
+                <View
+                  style={{ flexDirection: "row", gap: 10, flexWrap: "wrap" }}>
                   {(["work", "workout", "meal", "other"] as Category[]).map(
                     (c) => {
                       const active = category === c;
@@ -664,7 +778,7 @@ export default function WeeklySchedule({ onClose }: Props) {
                   )}
                 </View>
 
-                {/* Start DateTime */}
+                {/* Start */}
                 <Text
                   style={{
                     marginTop: 14,
@@ -675,7 +789,7 @@ export default function WeeklySchedule({ onClose }: Props) {
                   Start
                 </Text>
                 <TouchableOpacity
-                  onPress={() => setShowStartPicker(true)}
+                  onPress={() => setShowStartWheel(true)}
                   style={{
                     borderWidth: 1,
                     borderColor: "#e5e7eb",
@@ -684,29 +798,11 @@ export default function WeeklySchedule({ onClose }: Props) {
                     paddingVertical: 12,
                   }}>
                   <Text style={{ color: "#065F46", fontWeight: "600" }}>
-                    {startDT.toLocaleString()}
+                    {fmtLong(startDT)}
                   </Text>
                 </TouchableOpacity>
-                {showStartPicker && (
-                  <DateTimePicker
-                    value={startDT}
-                    mode="datetime"
-                    display={Platform.OS === "ios" ? "inline" : "default"}
-                    onChange={(_, d) => {
-                      setShowStartPicker(false);
-                      if (d) {
-                        setStartDT(d);
-                        if (d >= endDT) {
-                          const e = new Date(d);
-                          e.setMinutes(e.getMinutes() + 60);
-                          setEndDT(e);
-                        }
-                      }
-                    }}
-                  />
-                )}
 
-                {/* End DateTime */}
+                {/* End */}
                 <Text
                   style={{
                     marginTop: 14,
@@ -717,7 +813,7 @@ export default function WeeklySchedule({ onClose }: Props) {
                   End
                 </Text>
                 <TouchableOpacity
-                  onPress={() => setShowEndPicker(true)}
+                  onPress={() => setShowEndWheel(true)}
                   style={{
                     borderWidth: 1,
                     borderColor: "#e5e7eb",
@@ -726,20 +822,9 @@ export default function WeeklySchedule({ onClose }: Props) {
                     paddingVertical: 12,
                   }}>
                   <Text style={{ color: "#065F46", fontWeight: "600" }}>
-                    {endDT.toLocaleString()}
+                    {fmtLong(endDT)}
                   </Text>
                 </TouchableOpacity>
-                {showEndPicker && (
-                  <DateTimePicker
-                    value={endDT}
-                    mode="datetime"
-                    display={Platform.OS === "ios" ? "inline" : "default"}
-                    onChange={(_, d) => {
-                      setShowEndPicker(false);
-                      if (d) setEndDT(d);
-                    }}
-                  />
-                )}
 
                 {/* Repeat */}
                 <Text
@@ -790,7 +875,10 @@ export default function WeeklySchedule({ onClose }: Props) {
                 {/* Create */}
                 <TouchableOpacity
                   disabled={saving}
-                  onPress={handleCreate}
+                  onPress={async () => {
+                    await handleCreate();
+                    setCreateOpen(false);
+                  }}
                   style={{
                     backgroundColor: LEMON,
                     paddingVertical: 14,
@@ -810,7 +898,7 @@ export default function WeeklySchedule({ onClose }: Props) {
 
                 {/* Cancel */}
                 <TouchableOpacity
-                  onPress={() => setSheetOpen(false)}
+                  onPress={() => setCreateOpen(false)}
                   style={{
                     alignItems: "center",
                     marginTop: 12,
@@ -819,8 +907,35 @@ export default function WeeklySchedule({ onClose }: Props) {
                   <Text style={{ color: "#EF4444" }}>Cancel</Text>
                 </TouchableOpacity>
               </ScrollView>
-            </View>
-          )}
+
+              {/* Wheel pickers (CREATE) */}
+              <WheelPickerSheet
+                visible={showStartWheel}
+                date={startDT}
+                onCancel={() => setShowStartWheel(false)}
+                onConfirm={(d) => {
+                  setShowStartWheel(false);
+                  setStartDT(d);
+                  if (d >= endDT) {
+                    const e = new Date(d.getTime() + 60 * 60 * 1000);
+                    setEndDT(e);
+                  }
+                  const key = ymd(d);
+                  setSelectedDateKey(key);
+                  setMonday(mondayOfWeek(key));
+                }}
+              />
+              <WheelPickerSheet
+                visible={showEndWheel}
+                date={endDT}
+                onCancel={() => setShowEndWheel(false)}
+                onConfirm={(d) => {
+                  setShowEndWheel(false);
+                  setEndDT(d);
+                }}
+              />
+            </SafeAreaView>
+          </Modal>
 
           {/* Edit sheet */}
           {editOpen && (
@@ -933,6 +1048,7 @@ export default function WeeklySchedule({ onClose }: Props) {
                   )}
                 </View>
 
+                {/* Start */}
                 <Text
                   style={{
                     marginTop: 14,
@@ -943,7 +1059,7 @@ export default function WeeklySchedule({ onClose }: Props) {
                   Start
                 </Text>
                 <TouchableOpacity
-                  onPress={() => setShowStartPicker(true)}
+                  onPress={() => setShowEditStartWheel(true)}
                   style={{
                     borderWidth: 1,
                     borderColor: "#e5e7eb",
@@ -952,28 +1068,11 @@ export default function WeeklySchedule({ onClose }: Props) {
                     paddingVertical: 12,
                   }}>
                   <Text style={{ color: "#065F46", fontWeight: "600" }}>
-                    {editStartDT.toLocaleString()}
+                    {fmtLong(editStartDT)}
                   </Text>
                 </TouchableOpacity>
-                {showStartPicker && (
-                  <DateTimePicker
-                    value={editStartDT}
-                    mode="datetime"
-                    display={Platform.OS === "ios" ? "inline" : "default"}
-                    onChange={(_, d) => {
-                      setShowStartPicker(false);
-                      if (d) {
-                        setEditStartDT(d);
-                        if (d >= editEndDT) {
-                          const e = new Date(d);
-                          e.setMinutes(e.getMinutes() + 60);
-                          setEditEndDT(e);
-                        }
-                      }
-                    }}
-                  />
-                )}
 
+                {/* End */}
                 <Text
                   style={{
                     marginTop: 14,
@@ -984,7 +1083,7 @@ export default function WeeklySchedule({ onClose }: Props) {
                   End
                 </Text>
                 <TouchableOpacity
-                  onPress={() => setShowEndPicker(true)}
+                  onPress={() => setShowEditEndWheel(true)}
                   style={{
                     borderWidth: 1,
                     borderColor: "#e5e7eb",
@@ -993,20 +1092,9 @@ export default function WeeklySchedule({ onClose }: Props) {
                     paddingVertical: 12,
                   }}>
                   <Text style={{ color: "#065F46", fontWeight: "600" }}>
-                    {editEndDT.toLocaleString()}
+                    {fmtLong(editEndDT)}
                   </Text>
                 </TouchableOpacity>
-                {showEndPicker && (
-                  <DateTimePicker
-                    value={editEndDT}
-                    mode="datetime"
-                    display={Platform.OS === "ios" ? "inline" : "default"}
-                    onChange={(_, d) => {
-                      setShowEndPicker(false);
-                      if (d) setEditEndDT(d);
-                    }}
-                  />
-                )}
 
                 <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
                   <TouchableOpacity
@@ -1044,6 +1132,33 @@ export default function WeeklySchedule({ onClose }: Props) {
                   <Text style={{ color: "#EF4444" }}>Cancel</Text>
                 </TouchableOpacity>
               </ScrollView>
+
+              {/* Wheel pickers (EDIT) */}
+              <WheelPickerSheet
+                visible={showEditStartWheel}
+                date={editStartDT}
+                onCancel={() => setShowEditStartWheel(false)}
+                onConfirm={(d) => {
+                  setShowEditStartWheel(false);
+                  setEditStartDT(d);
+                  if (d >= editEndDT) {
+                    const e = new Date(d.getTime() + 60 * 60 * 1000);
+                    setEditEndDT(e);
+                  }
+                  const key = ymd(d);
+                  setSelectedDateKey(key);
+                  setMonday(mondayOfWeek(key));
+                }}
+              />
+              <WheelPickerSheet
+                visible={showEditEndWheel}
+                date={editEndDT}
+                onCancel={() => setShowEditEndWheel(false)}
+                onConfirm={(d) => {
+                  setShowEditEndWheel(false);
+                  setEditEndDT(d);
+                }}
+              />
             </View>
           )}
         </View>
