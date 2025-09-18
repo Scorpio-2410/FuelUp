@@ -123,7 +123,7 @@ export default function ExerciseInstructions({
               </Text>
             </View>
           ))}
-          {/* Start Workout Button */}
+          {/* start workout button */}
         <TouchableOpacity
           style={{
             backgroundColor: "#4ade80",
@@ -134,7 +134,7 @@ export default function ExerciseInstructions({
             marginTop: 24,
           }}
           onPress={() => {
-            // TODO: replace with actual workout start logic
+            // replace with actual workout start logic
             console.log(`Starting ${exercise.name} workout...`);
           }}>
           <Text

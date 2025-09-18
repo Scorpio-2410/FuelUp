@@ -1,4 +1,5 @@
 import React from "react";
+import { useState } from "react";
 import { View, Text, Pressable } from "react-native";
 import ProfileField from "../User/ProfileField";
 
@@ -48,8 +49,12 @@ function Chip({
 
 export default function FitnessStep({ value, onChange }: Props) {
   return (
-    <View className="mt-2 mb-10">
+    <View className="mt-2 mb-12">
       {/* Days / week */}
+      <Text className="text-white text-lg font-semibold mb-3">General Info</Text>
+      <View className="h-1 w-16 bg-green-500 rounded-full mb-4" />
+      <View className="flex-row gap-3 mb-4">
+      <View className="flex-1">
       <ProfileField
         label="Days / week"
         textInputProps={{
@@ -59,8 +64,10 @@ export default function FitnessStep({ value, onChange }: Props) {
           onChangeText: (t) => onChange({ ...value, daysPerWeek: t }),
         }}
       />
+      </View>
 
       {/* Session length */}
+      <View className="flex-1">
       <ProfileField
         label="Session length (min)"
         textInputProps={{
@@ -70,8 +77,12 @@ export default function FitnessStep({ value, onChange }: Props) {
           onChangeText: (t) => onChange({ ...value, sessionLengthMin: t }),
         }}
       />
+      </View>
+      </View>
 
       {/* Training location */}
+      <Text className="text-white text-lg font-semibold mb-3">Training</Text>
+      <View className="h-1 w-16 bg-green-500 rounded-full mb-4" />
       <ProfileField
         label="Training location"
         textInputProps={{
@@ -112,12 +123,13 @@ export default function FitnessStep({ value, onChange }: Props) {
       />
 
       {/* Coaching style chips */}
-      <Text className="text-gray-300 mb-2">Coaching style</Text>
-      <View className="flex-row gap-2 mb-4">
+      <Text className="text-white text-lg font-semibold mt-6 mb-3">Coaching style</Text>
+      <View className="h-1 w-16 bg-green-500 rounded-full mb-4" />
+      <View className="flex-row gap-3 mb-6">
         {(["gentle", "balanced", "intense"] as const).map((k) => (
           <Chip
             key={k}
-            label={k}
+            label={k=== "gentle" ? "🧘 Gentle" : k === "balanced" ? "⚖️ Balanced" : "🔥 Intense"}
             active={(value.coachingStyle ?? "balanced") === k}
             onPress={() => onChange({ ...value, coachingStyle: k })}
           />
@@ -125,6 +137,10 @@ export default function FitnessStep({ value, onChange }: Props) {
       </View>
 
       {/* Height / Weight */}
+      <Text className="text-white text-lg font-semibold mb-3">Body Stats</Text>
+      <View className="h-1 w-16 bg-green-500 rounded-full mb-4" />
+      <View className="flex-row gap-3">
+      <View className="flex-1">
       <ProfileField
         label="Height (cm)"
         textInputProps={{
@@ -134,6 +150,8 @@ export default function FitnessStep({ value, onChange }: Props) {
           onChangeText: (t) => onChange({ ...value, heightCm: t }),
         }}
       />
+      </View>
+      <View className="flex-1">
       <ProfileField
         label="Weight (kg)"
         textInputProps={{
@@ -143,6 +161,8 @@ export default function FitnessStep({ value, onChange }: Props) {
           onChangeText: (t) => onChange({ ...value, weightKg: t }),
         }}
       />
+      </View>
+      </View>
 
       {/* No buttons here — the parent screen shows the single Continue CTA */}
     </View>
