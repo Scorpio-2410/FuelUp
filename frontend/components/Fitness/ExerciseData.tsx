@@ -1,6 +1,8 @@
+//Dummy Data for exercises, to be replaced with API calls
 import { useMemo } from "react";
 
 const fitnessImg = require("../../assets/images/fitness.png");
+const outdoorImg = require("../../assets/images/outdoor.jpg");
 
 // Temporary component to hold exercise data as placeholder for API
 export const useExerciseData = () => {
@@ -280,42 +282,42 @@ export const useExerciseData = () => {
 
   const exercisesHome = useMemo(
     () => [
-      { id: "h1", name: "HIIT Circuit", category: "HIIT", image: fitnessImg },
-      { id: "h2", name: "Park Run", category: "Running", image: fitnessImg },
+      { id: "h1", name: "HIIT Circuit", category: "HIIT", image: outdoorImg },
+      { id: "h2", name: "Park Run", category: "Running", image: outdoorImg },
       {
         id: "h3",
         name: "Football 5-a-side",
         category: "Sports",
-        image: fitnessImg,
+        image: outdoorImg,
       },
       {
         id: "h4",
         name: "Pull-ups",
         category: "Calisthenics",
-        image: fitnessImg,
+        image: outdoorImg,
       },
-      { id: "h5", name: "Yoga Flow", category: "Mobility", image: fitnessImg },
-      { id: "h6", name: "Core Blast", category: "Core", image: fitnessImg },
-      { id: "h7", name: "Tennis", category: "Sports", image: fitnessImg },
-      { id: "h8", name: "Basketball", category: "Sports", image: fitnessImg },
+      { id: "h5", name: "Yoga Flow", category: "Mobility", image: outdoorImg },
+      { id: "h6", name: "Core Blast", category: "Core", image: outdoorImg },
+      { id: "h7", name: "Tennis", category: "Sports", image: outdoorImg },
+      { id: "h8", name: "Basketball", category: "Sports", image: outdoorImg },
       {
         id: "h9",
         name: "Bodyweight Dips",
         category: "Calisthenics",
-        image: fitnessImg,
+        image: outdoorImg,
       },
-      { id: "h10", name: "Sprints", category: "Running", image: fitnessImg },
+      { id: "h10", name: "Sprints", category: "Running", image: outdoorImg },
       {
         id: "h11",
         name: "Jump Rope Circuit",
         category: "HIIT",
-        image: fitnessImg,
+        image: outdoorImg,
       },
       {
         id: "h12",
         name: "Resistance Band Workout",
         category: "Calisthenics",
-        image: fitnessImg,
+        image: outdoorImg,
       },
     ],
     []
