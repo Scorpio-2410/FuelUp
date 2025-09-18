@@ -9,9 +9,13 @@ interface Exercise {
 
 interface ExerciseGridProps {
   exercises: Exercise[];
+  onExercisePress: (exercise: Exercise) => void;
 }
 
-export default function ExerciseGrid({ exercises }: ExerciseGridProps) {
+export default function ExerciseGrid({
+  exercises,
+  onExercisePress,
+}: ExerciseGridProps) {
   return (
     <View style={{ paddingHorizontal: 24, marginTop: 16 }}>
       <View
@@ -29,6 +33,7 @@ export default function ExerciseGrid({ exercises }: ExerciseGridProps) {
                 borderRadius: 16,
                 overflow: "hidden",
               }}
+              onPress={() => onExercisePress(ex)}
             >
               <Image
                 source={ex.image}

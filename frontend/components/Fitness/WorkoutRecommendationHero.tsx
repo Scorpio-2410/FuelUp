@@ -1,5 +1,7 @@
-import { View, Text, TouchableOpacity } from "react-native";
+import { View, Text, TouchableOpacity, Image } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useExerciseData } from "./ExerciseData";
+import { useMemo } from "react";
 
 interface WorkoutRecommendationHeroProps {
   canGoGym: boolean;
@@ -8,6 +10,15 @@ interface WorkoutRecommendationHeroProps {
 export default function WorkoutRecommendationHero({
   canGoGym,
 }: WorkoutRecommendationHeroProps) {
+  const { exercisesGym, exercisesHome } = useExerciseData();
+
+  // Get a random exercise based on gym availability
+  const randomExercise = useMemo(() => {
+    const exercises = canGoGym ? exercisesGym : exercisesHome;
+    const randomIndex = Math.floor(Math.random() * exercises.length);
+    return exercises[randomIndex];
+  }, [canGoGym, exercisesGym, exercisesHome]);
+
   return (
     <View style={{ paddingHorizontal: 24, marginTop: 16, marginBottom: 16 }}>
       <View
@@ -60,7 +71,7 @@ export default function WorkoutRecommendationHero({
             style={{
               flexDirection: "row",
               alignItems: "center",
-              marginBottom: 8,
+              marginBottom: 12,
             }}
           >
             <Ionicons name="flash" size={24} color="#0a0a0a" />
@@ -76,16 +87,51 @@ export default function WorkoutRecommendationHero({
             </Text>
           </View>
 
-          <Text
+          {/* Exercise Image and Info */}
+          <View
             style={{
-              color: "#0a0a0a",
-              fontSize: 24,
-              fontWeight: "800",
-              marginBottom: 6,
+              flexDirection: "row",
+              alignItems: "center",
+              marginBottom: 16,
             }}
           >
-            {canGoGym ? "Upper Body Strength" : "HIIT Cardio Blast"}
-          </Text>
+            <Image
+              source={randomExercise?.image}
+              style={{
+                width: 80,
+                height: 80,
+                borderRadius: 12,
+                marginRight: 16,
+              }}
+              resizeMode="cover"
+            />
+            <View style={{ flex: 1 }}>
+              <Text
+                style={{
+                  color: "#0a0a0a",
+                  fontSize: 24,
+                  fontWeight: "800",
+                  marginBottom: 4,
+                }}
+              >
+                {randomExercise?.name || "Loading..."}
+              </Text>
+              <Text
+                style={{
+                  color: "rgba(10, 10, 10, 0.7)",
+                  fontSize: 12,
+                  fontWeight: "600",
+                  backgroundColor: "rgba(10, 10, 10, 0.1)",
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                  borderRadius: 8,
+                  alignSelf: "flex-start",
+                }}
+              >
+                {randomExercise?.category}
+              </Text>
+            </View>
+          </View>
 
           <Text
             style={{
@@ -95,9 +141,7 @@ export default function WorkoutRecommendationHero({
               lineHeight: 20,
             }}
           >
-            {canGoGym
-              ? "Focus on chest, back, and shoulders. Perfect for building upper body strength and muscle definition."
-              : "High-intensity interval training to boost your cardio and burn calories from home."}
+            Description for workout, implement API later
           </Text>
 
           <View

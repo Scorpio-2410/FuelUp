@@ -9,6 +9,7 @@ import CategoryFilter from "../../components/Fitness/CategoryFilter";
 import ExerciseGrid from "../../components/Fitness/ExerciseGrid";
 import ExercisePagination from "../../components/Fitness/ExercisePagination";
 import CalendarShortcut from "../../components/Fitness/CalendarShortcut";
+import WorkoutDetailPopup from "../../components/Fitness/WorkoutDetailPopup";
 import { useExerciseData } from "../../components/Fitness/ExerciseData";
 import { useMemo, useState } from "react";
 import TopSearchBar from "../../components/TopSearchBar";
@@ -19,6 +20,8 @@ export default function FitnessScreen() {
     tabName: "fitness",
   });
   const [modalVisible, setModalVisible] = useState(false);
+  const [workoutDetailVisible, setWorkoutDetailVisible] = useState(false);
+  const [selectedExercise, setSelectedExercise] = useState<any>(null);
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<string>("All");
   const [canGoGym, setCanGoGym] = useState<boolean>(true);
@@ -55,6 +58,12 @@ export default function FitnessScreen() {
   useMemo(() => {
     resetToFirstPage();
   }, [query, activeCategory, canGoGym]);
+
+  // Handle exercise selection
+  const handleExercisePress = (exercise: any) => {
+    setSelectedExercise(exercise);
+    setWorkoutDetailVisible(true);
+  };
 
   return (
     // <View style={{ flex: 1, backgroundColor: "#1a1a1a" }}>
@@ -138,7 +147,10 @@ export default function FitnessScreen() {
         />
 
         {/* Exercise grid */}
-        <ExerciseGrid exercises={currentExercises} />
+        <ExerciseGrid
+          exercises={currentExercises}
+          onExercisePress={handleExercisePress}
+        />
 
         {/* Pagination */}
         <View style={{ paddingHorizontal: 24 }}>
@@ -156,6 +168,16 @@ export default function FitnessScreen() {
       <WeeklySchedulePopUp
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
+      />
+
+      {/* Workout detail popup */}
+      <WorkoutDetailPopup
+        visible={workoutDetailVisible}
+        exercise={selectedExercise}
+        onClose={() => {
+          setWorkoutDetailVisible(false);
+          setSelectedExercise(null);
+        }}
       />
     </SafeAreaView>
   );
