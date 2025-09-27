@@ -43,6 +43,30 @@ class Exercise {
     return new Exercise(r.rows[0]);
   }
 
+  // List exercises for a user across all their fitness plans
+  static async listForUser(userId, { limit = 50, offset = 0 } = {}) {
+    const r = await pool.query(
+      `SELECT e.* FROM exercises e
+       JOIN fitness_plans fp ON e.fitness_plan_id = fp.id
+       WHERE fp.user_id = $1
+       ORDER BY e.created_at DESC
+       LIMIT $2 OFFSET $3`,
+      [userId, limit, offset]
+    );
+    return r.rows.map((row) => new Exercise(row));
+  }
+
+  // Get exercise by ID with user ownership check
+  static async getById(id, userId) {
+    const r = await pool.query(
+      `SELECT e.* FROM exercises e
+       JOIN fitness_plans fp ON e.fitness_plan_id = fp.id
+       WHERE e.id = $1 AND fp.user_id = $2`,
+      [id, userId]
+    );
+    return r.rows[0] ? new Exercise(r.rows[0]) : null;
+  }
+
   static async listByPlan(planId) {
     const r = await pool.query(
       `SELECT * FROM exercises WHERE fitness_plan_id=$1 ORDER BY id ASC`,
@@ -54,6 +78,24 @@ class Exercise {
   static async findById(id) {
     const r = await pool.query(`SELECT * FROM exercises WHERE id=$1`, [id]);
     return r.rows[0] ? new Exercise(r.rows[0]) : null;
+  }
+
+  // Static method to update exercise with user ownership check
+  static async update(id, userId, patch) {
+    // First check if the exercise belongs to the user
+    const exercise = await Exercise.getById(id, userId);
+    if (!exercise) return null;
+    
+    return await exercise.update(patch);
+  }
+
+  // Static method to remove exercise with user ownership check
+  static async remove(id, userId) {
+    const exercise = await Exercise.getById(id, userId);
+    if (!exercise) return false;
+    
+    await exercise.delete();
+    return true;
   }
 
   async update(patch) {
@@ -96,6 +138,24 @@ class Exercise {
   async delete() {
     await pool.query(`DELETE FROM exercises WHERE id=$1`, [this.id]);
     return true;
+  }
+
+  toJSON() {
+    return {
+      id: this.id,
+      fitnessPlanId: this.fitnessPlanId,
+      name: this.name,
+      muscleGroup: this.muscleGroup,
+      equipment: this.equipment,
+      difficulty: this.difficulty,
+      durationMin: this.durationMin,
+      sets: this.sets,
+      reps: this.reps,
+      restSeconds: this.restSeconds,
+      notes: this.notes,
+      createdAt: this.createdAt,
+      updatedAt: this.updatedAt,
+    };
   }
 }
 
