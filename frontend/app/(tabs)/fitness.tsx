@@ -13,6 +13,7 @@ import WorkoutDetailPopup from "../../components/Fitness/WorkoutDetailPopup";
 import { useExerciseData } from "../../components/Fitness/ExerciseData";
 import { useMemo, useState } from "react";
 import TopSearchBar from "../../components/TopSearchBar";
+import ExerciseInstructions from "@/components/Fitness/instructions";
 
 export default function FitnessScreen() {
   // Global refresh hook (no custom logic needed for fitness tab)
@@ -48,6 +49,9 @@ export default function FitnessScreen() {
     setCurrentPage(0);
   };
 
+  // exercise instructions 
+  const [instructionsVisible, setInstructionsVisible] = useState(false);
+  
   // Calculate pagination
   const totalPages = Math.ceil(filtered.length / EXERCISES_PER_PAGE);
   const startIndex = currentPage * EXERCISES_PER_PAGE;
@@ -164,6 +168,15 @@ export default function FitnessScreen() {
         </View>
       </ScrollView>
 
+        <ExerciseInstructions
+        visible={instructionsVisible}
+        exercise={selectedExercise}
+        onClose={() => {
+          setInstructionsVisible(false);
+          // setSelectedExercise(null);
+          setWorkoutDetailVisible(true);
+        }}/>
+
       {/* Weekly schedule modal */}
       <WeeklySchedulePopUp
         visible={modalVisible}
@@ -178,7 +191,11 @@ export default function FitnessScreen() {
           setWorkoutDetailVisible(false);
           setSelectedExercise(null);
         }}
-      />
+        onViewInstructions={(exercise) => {
+          setWorkoutDetailVisible(false); 
+          setInstructionsVisible(true);   
+          setSelectedExercise(exercise);
+        }}/>
     </SafeAreaView>
   );
 }

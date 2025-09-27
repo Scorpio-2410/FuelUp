@@ -27,7 +27,10 @@ export default function NutritionStep({
   submitLabel,
 }: Props) {
   return (
-    <View className="mt-2 mb-10">
+    <View className="mt-4 mb-16">
+    <Text className="text-white text-lg font-semibold mb-4">Nutrition Goals</Text>
+    <View className="h-1 w-16 bg-green-500 rounded-full mb-4" />
+    <View className="bg-[#1a1a1a] p-4 rounded-xl mb-6 border border-gray-800">
       <ProfileField
         label="Daily calorie target"
         textInputProps={{
@@ -37,8 +40,13 @@ export default function NutritionStep({
           onChangeText: (t) => onChange({ ...value, dailyCalorieTarget: t }),
         }}
       />
+      </View>
 
-      <Text className="text-white font-semibold mt-4 mb-2">Macros (g)</Text>
+      <Text className="text-white text-lg font-semibold mt-6 mb-3">Macros (g)</Text>
+      {/* <View className="flex-row gap-3 mb-3"> */}
+      <View className="h-1 w-16 bg-green-500 rounded-full mb-4" />
+      <View className="bg-[#1a1a1a] p-4 rounded-xl mb-6 border border-gray-800 flex-row justify-between">
+      <View className="flex-1 mr-2">
       <ProfileField
         label="Protein"
         textInputProps={{
@@ -48,6 +56,8 @@ export default function NutritionStep({
           onChangeText: (t) => onChange({ ...value, macrosProtein: t }),
         }}
       />
+      </View>
+      <View className="flex-1 mx-1">
       <ProfileField
         label="Carbs"
         textInputProps={{
@@ -57,6 +67,8 @@ export default function NutritionStep({
           onChangeText: (t) => onChange({ ...value, macrosCarbs: t }),
         }}
       />
+      </View>
+      <View className="flex-1 ml-2">
       <ProfileField
         label="Fat"
         textInputProps={{
@@ -66,7 +78,12 @@ export default function NutritionStep({
           onChangeText: (t) => onChange({ ...value, macrosFat: t }),
         }}
       />
+      </View>
+      </View>
 
+      <Text className="text-white text-xl font-semibold mt-6 mb-4">Preferences</Text>
+      <View className="h-1 w-16 bg-green-500 rounded-full mb-4" />
+      <View className="bg-[#1a1a1a] p-4 rounded-xl mb-6 border border-gray-800">
       <ProfileField
         label="Preferred cuisines (comma-separated)"
         textInputProps={{
@@ -84,7 +101,11 @@ export default function NutritionStep({
           onChangeText: (t) => onChange({ ...value, dietRestrictions: t }),
         }}
       />
+      </View>
 
+      <Text className="text-white text-xl font-semibold mb-2">Restrictions</Text>
+      <View className="h-1 w-16 bg-green-500 rounded-full mb-4" />
+      <View className="bg-[#1a1a1a] p-4 rounded-xl mb-6 border border-gray-800">
       <ProfileField
         label="Disliked foods"
         textInputProps={{
@@ -102,11 +123,12 @@ export default function NutritionStep({
           onChangeText: (t) => onChange({ ...value, allergies: t }),
         }}
       />
+      </View>
 
       <Pressable
         onPress={onSubmit}
-        className="rounded-xl p-3 my-8 bg-green-600">
-        <Text className="text-white text-center font-semibold">
+        className="rounded-2xl p-4 mt-10 bg-green-600 shadow-lg">
+        <Text className="text-white text-center font-semibold text-lg">
           {submitLabel || "Complete onboarding"}
         </Text>
       </Pressable>
