@@ -13,6 +13,7 @@ import WorkoutDetailPopup from "../../components/Fitness/WorkoutDetailPopup";
 import { useExerciseAPI } from "../../components/Fitness/useExerciseAPI";
 import { useMemo, useState, useEffect } from "react";
 import TopSearchBar from "../../components/TopSearchBar";
+import ExerciseInstructions from "@/components/Fitness/instructions";
 
 export default function FitnessScreen() {
   // API-based exercise data
@@ -59,6 +60,9 @@ export default function FitnessScreen() {
     setCurrentPage(0);
   };
 
+  // exercise instructions 
+  const [instructionsVisible, setInstructionsVisible] = useState(false);
+  
   // Calculate pagination
   const totalPages = Math.ceil(filtered.length / EXERCISES_PER_PAGE);
   const startIndex = currentPage * EXERCISES_PER_PAGE;
@@ -201,6 +205,15 @@ export default function FitnessScreen() {
         </View>
       </RefreshScroll>
 
+        <ExerciseInstructions
+        visible={instructionsVisible}
+        exercise={selectedExercise}
+        onClose={() => {
+          setInstructionsVisible(false);
+          // setSelectedExercise(null);
+          setWorkoutDetailVisible(true);
+        }}/>
+
       {/* Weekly schedule modal */}
       <WeeklySchedulePopUp
         visible={modalVisible}
@@ -215,7 +228,11 @@ export default function FitnessScreen() {
           setWorkoutDetailVisible(false);
           setSelectedExercise(null);
         }}
-      />
+        onViewInstructions={(exercise) => {
+          setWorkoutDetailVisible(false); 
+          setInstructionsVisible(true);   
+          setSelectedExercise(exercise);
+        }}/>
     </SafeAreaView>
   );
 }

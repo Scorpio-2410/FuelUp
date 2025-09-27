@@ -20,6 +20,7 @@ interface WorkoutDetailPopupProps {
   visible: boolean;
   exercise: Exercise | null;
   onClose: () => void;
+  onViewInstructions: (exercise: any) => void;
 }
 
 const { height: screenHeight } = Dimensions.get("window");
@@ -28,6 +29,7 @@ export default function WorkoutDetailPopup({
   visible,
   exercise,
   onClose,
+  onViewInstructions,
 }: WorkoutDetailPopupProps) {
   if (!exercise) return null;
 
@@ -113,6 +115,9 @@ export default function WorkoutDetailPopup({
                 height: 40,
                 justifyContent: "center",
                 alignItems: "center",
+              }}
+              onPress={() => {
+                onClose();
               }}
             >
               <Ionicons name="close" size={24} color="#ffffff" />
@@ -260,6 +265,34 @@ export default function WorkoutDetailPopup({
                 excellent way to improve your fitness.
               </Text>
             </View>
+
+              {/* view instructions  */}
+            <TouchableOpacity
+              style={{
+                backgroundColor: "#4ade80",
+                borderRadius: 16,
+                paddingVertical: 16,
+                alignItems: "center",
+                flexDirection: "row",
+                justifyContent: "center",
+                gap: 10,
+                marginBottom: 16,
+              }}
+              onPress={() => onViewInstructions(exercise)}
+            >
+              <Ionicons name="play" size={20} color="#0a0a0a" />
+              <Text
+                style={{
+                  color: "#0a0a0a",
+                  fontSize: 18,
+                  fontWeight: "700",
+                }}
+              >
+                View Instructions
+              </Text>
+            </TouchableOpacity>
+
+
 
             {/* Start Button */}
             <TouchableOpacity
