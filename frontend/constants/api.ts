@@ -21,11 +21,11 @@ const EP = {
   checkEmail: "/api/users/check-email",
 
   // fitness (profile + plans + exercises)
-  fitnessProfilesRoot: "/api/fitness-profiles",
-  fitnessPlans: "/api/fitness-plans",
-  fitnessPlansCurrent: "/api/fitness-plans/current",
-  fitnessPlansRecommend: "/api/fitness-plans/recommend",
-  exercises: "/api/exercises",
+  fitnessProfilesRoot: "/api/fitness/profile",
+  fitnessPlans: "/api/fitness/plans",
+  fitnessPlansCurrent: "/api/fitness/plans/current",
+  fitnessPlansRecommend: "/api/fitness/plans/recommend",
+  exercises: "/api/fitness/exercises",
 
   // nutrition
   nutritionProfile: "/api/nutrition/profile",
