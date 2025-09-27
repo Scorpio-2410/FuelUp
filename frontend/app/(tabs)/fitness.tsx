@@ -10,15 +10,30 @@ import ExerciseGrid from "../../components/Fitness/ExerciseGrid";
 import ExercisePagination from "../../components/Fitness/ExercisePagination";
 import CalendarShortcut from "../../components/Fitness/CalendarShortcut";
 import WorkoutDetailPopup from "../../components/Fitness/WorkoutDetailPopup";
-import { useExerciseData } from "../../components/Fitness/ExerciseData";
-import { useMemo, useState } from "react";
+import { useExerciseAPI } from "../../components/Fitness/useExerciseAPI";
+import { useMemo, useState, useEffect } from "react";
 import TopSearchBar from "../../components/TopSearchBar";
 
 export default function FitnessScreen() {
-  // Global refresh hook (no custom logic needed for fitness tab)
+  // API-based exercise data
+  const {
+    gymCategories,
+    homeCategories,
+    exercisesGym,
+    exercisesHome,
+    loading: exercisesLoading,
+    error: exercisesError,
+    refresh: refreshExercises,
+  } = useExerciseAPI();
+
+  // Global refresh hook with exercise refresh integration
   const { refreshing, handleRefresh } = useGlobalRefresh({
     tabName: "fitness",
+    onInternalRefresh: () => {
+      refreshExercises(); // Refresh exercises when pull-to-refresh is triggered
+    },
   });
+
   const [modalVisible, setModalVisible] = useState(false);
   const [workoutDetailVisible, setWorkoutDetailVisible] = useState(false);
   const [selectedExercise, setSelectedExercise] = useState<any>(null);
@@ -28,10 +43,6 @@ export default function FitnessScreen() {
   const [currentPage, setCurrentPage] = useState(0);
 
   const EXERCISES_PER_PAGE = 6;
-
-  // Get exercise data from temporary component (placeholder for API)
-  const { gymCategories, homeCategories, exercisesGym, exercisesHome } =
-    useExerciseData();
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -68,7 +79,9 @@ export default function FitnessScreen() {
   return (
     // <View style={{ flex: 1, backgroundColor: "#1a1a1a" }}>
     <SafeAreaView style={{ flex: 1, backgroundColor: "#1a1a1a" }}>
-      <ScrollView
+      <RefreshScroll
+        refreshing={refreshing}
+        onRefresh={handleRefresh}
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: 32 }}
         showsVerticalScrollIndicator={false}
@@ -127,6 +140,30 @@ export default function FitnessScreen() {
           </View>
         </View>
 
+        {/* Loading and Error States */}
+        {exercisesLoading && (
+          <View style={{ paddingHorizontal: 24, marginVertical: 16 }}>
+            <Text style={{ color: "#a1a1aa", textAlign: "center" }}>
+              Loading exercises...
+            </Text>
+          </View>
+        )}
+
+        {exercisesError && !exercisesLoading && (
+          <View style={{ paddingHorizontal: 24, marginVertical: 16 }}>
+            <Text
+              style={{ color: "#ef4444", textAlign: "center", marginBottom: 8 }}
+            >
+              Failed to load exercises: {exercisesError}
+            </Text>
+            <Text
+              style={{ color: "#a1a1aa", textAlign: "center", fontSize: 14 }}
+            >
+              Pull down to refresh or check your connection
+            </Text>
+          </View>
+        )}
+
         {/* Hero Section - Workout Recommendation */}
         <WorkoutRecommendationHero canGoGym={canGoGym} />
 
@@ -162,7 +199,7 @@ export default function FitnessScreen() {
             onPageChange={setCurrentPage}
           />
         </View>
-      </ScrollView>
+      </RefreshScroll>
 
       {/* Weekly schedule modal */}
       <WeeklySchedulePopUp

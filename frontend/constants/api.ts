@@ -237,6 +237,32 @@ export async function apiRecommendFitnessPlan() {
   });
   return asJson<{ plan: any }>(res);
 }
+// Get exercises with pagination and filtering
+export async function apiGetExercises(params?: {
+  limit?: number;
+  offset?: number;
+  muscleGroup?: string;
+}) {
+  const query = new URLSearchParams();
+  if (params?.limit) query.set('limit', params.limit.toString());
+  if (params?.offset) query.set('offset', params.offset.toString());
+  if (params?.muscleGroup) query.set('muscleGroup', params.muscleGroup);
+  
+  const url = `${BASE_URL}${EP.exercises}${query.toString() ? '?' + query.toString() : ''}`;
+  const res = await fetch(url, {
+    headers: await authHeaders(),
+  });
+  return asJson<{ success: boolean; exercises: any[]; pagination: any }>(res);
+}
+
+// Get specific exercise by ID
+export async function apiGetExercise(id: number) {
+  const res = await fetch(`${BASE_URL}${EP.exercises}/${id}`, {
+    headers: await authHeaders(),
+  });
+  return asJson<{ success: boolean; exercise: any }>(res);
+}
+
 export async function apiCreateExercise(payload: {
   name: string;
   muscleGroup?: string | null;
