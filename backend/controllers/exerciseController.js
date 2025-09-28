@@ -6,14 +6,17 @@ const ExerciseController = {
     try {
       const limit = Number(req.query.limit ?? 50);
       const offset = Number(req.query.offset ?? 0);
+      const categoryId = req.query.categoryId ? Number(req.query.categoryId) : null;
+      
       const exercises = await Exercise.listForUser(req.userId, {
         limit,
         offset,
+        categoryId,
       });
       res.json({ 
         success: true, 
         exercises: exercises.map(e => e.toJSON()), 
-        pagination: { limit, offset } 
+        pagination: { limit, offset, categoryId } 
       });
     } catch (e) {
       console.error("listExercises error:", e);
@@ -47,6 +50,7 @@ const ExerciseController = {
 
       const created = await Exercise.create(fitnessPlanId, {
         name: req.body.name,
+        categoryId: req.body.categoryId ?? null,
         muscleGroup: req.body.muscleGroup ?? null,
         equipment: req.body.equipment ?? null,
         difficulty: req.body.difficulty ?? null,
@@ -68,6 +72,7 @@ const ExerciseController = {
       const id = Number(req.params.id);
       const updated = await Exercise.update(id, req.userId, {
         name: req.body.name,
+        category_id: req.body.categoryId,
         muscle_group: req.body.muscleGroup,
         equipment: req.body.equipment,
         difficulty: req.body.difficulty,
