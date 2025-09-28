@@ -13,144 +13,68 @@ import {
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import QuestionSlider from "../components/TargetQuestions/QuestionSlider";
+import {
+  TargetQuestionsProvider,
+  useTargetQuestionsContext,
+} from "../contexts/TargetQuestionsContext";
+import DynamicQuestionRenderer from "../components/TargetQuestions/DynamicQuestionRenderer";
+import { apiGetMe } from "../constants/api";
 
-interface Question {
-  id: number;
-  question: string;
-  options: string[];
-  isSlider?: boolean;
-  sliderConfig?: {
-    emojis: string[];
-    feedbackTexts: string[];
-    minValue?: number;
-    maxValue?: number;
-  };
-}
+function QuestionSegmentContent() {
+  const {
+    questions,
+    currentQuestionIndex,
+    setCurrentQuestionIndex,
+    answers,
+    setAnswer,
+    loadQuestionsForUser,
+    saveAnswers,
+    loading,
+    error,
+  } = useTargetQuestionsContext();
 
-const randomDailyQuestions: Question[] = [
-  {
-    id: 1,
-    question: "How well are we sleeping?",
-    options: ["Poorly", "Not bad", "Well", "Excellent!"],
-  },
-  {
-    id: 2,
-    question: "How long do you want to exercise today?",
-    options: [
-      "Less than 30 minutes",
-      "30-60 minutes",
-      "60-90 minutes",
-      "More than 90 minutes",
-    ],
-  },
-  {
-    id: 3,
-    question: "What's is our stress level today?",
-    options: ["1", "2", "3", "4"],
-    isSlider: true,
-    sliderConfig: {
-      emojis: ["😵", "😰", "😐", "😌"],
-      feedbackTexts: [
-        "Overwhelmed!",
-        "Feeling stressed",
-        "Not so bad",
-        "Chill",
-      ],
-      minValue: 1,
-      maxValue: 4,
-    },
-  },
-  {
-    id: 4,
-    question: "Are you feeling any soreness from your last workout?",
-    options: ["Yes", "No"],
-  },
-  {
-    id: 5,
-    question: "How do you feel about your progress so far?",
-    options: ["Slow", "Just right", "Fast", "Amazing!"],
-  },
-  {
-    id: 6,
-    question: "Do have any food cravings today?",
-    options: ["Sweets", "Savoury", "None"],
-  },
-  {
-    id: 7,
-    question: "How would you rate your hydration today?",
-    options: ["Low", "Just right", "High"],
-  },
-];
-
-const mainQuestions: Question[] = [
-  //will be changed to adapt to the user's goals and preferences
-  {
-    id: 1,
-    question: "What's our workout for today?",
-    options: ["Strength", "Cardio", "Recovery", "Sorry, not today"],
-  },
-  {
-    id: 2,
-    question: "Plans for our meals?",
-    options: [
-      "Low-carb",
-      "High Protein",
-      "Balanced",
-      "Eating out",
-      "Something different",
-    ],
-  },
-  {
-    id: 3,
-    question: "How's our energy levels today?",
-    options: ["1", "2", "3", "4", "5"],
-    isSlider: true,
-    sliderConfig: {
-      emojis: ["💤", "🥲", "😄", "⚡️", "🔥"],
-      feedbackTexts: [
-        "Not up for it today...",
-        "So-so",
-        "Feeling good!",
-        "I'm raring to go!",
-        "Let's do this!!",
-      ],
-      minValue: 1,
-      maxValue: 5,
-    },
-  },
-];
-
-export default function QuestionSegment() {
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [sliderValue, setSliderValue] = useState(3);
-  const [answers, setAnswers] = useState<{ [key: number]: number }>({});
-  const [questions, setQuestions] = useState<Question[]>([]);
+  const [userId, setUserId] = useState<number | null>(null);
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  // Initialize questions with random daily questions
+  // Get current user and load questions
   useEffect(() => {
-    const generateQuestions = () => {
-      // Get 1-2 random questions from randomDailyQuestions
-      const shuffled = [...randomDailyQuestions].sort(
-        () => 0.5 - Math.random()
-      );
-      const randomCount = Math.floor(Math.random() * 2) + 1; // 1 or 2
-      const selectedRandomQuestions = shuffled.slice(0, randomCount);
+    const initializeQuestions = async () => {
+      try {
+        const { user } = await apiGetMe();
+        if (user && user.id) {
+          setUserId(user.id);
+          const result = await loadQuestionsForUser(user.id);
 
-      // Combine random questions with main questions
-      const allQuestions = [...selectedRandomQuestions, ...mainQuestions];
-
-      // Shuffle the combined array for variety
-      const finalQuestions = allQuestions.sort(() => 0.5 - Math.random());
-
-      setQuestions(finalQuestions);
+          // If user has already answered questions for their frequency period, redirect to homepage
+          if (result.alreadyAnswered) {
+            Alert.alert(
+              "Questions Complete! 🎉",
+              `You've already answered your questions for ${
+                result.timeframe || "today"
+              }. Great job staying on track!`,
+              [
+                {
+                  text: "Continue to Dashboard",
+                  onPress: () => router.replace("/homepage"),
+                },
+              ]
+            );
+            return;
+          }
+        } else {
+          throw new Error("No user ID found");
+        }
+      } catch (error) {
+        console.error("Failed to get current user:", error);
+        // Optionally redirect to login or show error
+      }
     };
 
-    generateQuestions();
-  }, []);
+    initializeQuestions();
+  }, [loadQuestionsForUser, router]);
 
   const currentQuestion = questions[currentQuestionIndex];
 
@@ -181,10 +105,7 @@ export default function QuestionSegment() {
 
   const handleOptionSelect = (optionIndex: number) => {
     setSelectedOption(optionIndex);
-    setAnswers((prev) => ({
-      ...prev,
-      [currentQuestion.id]: optionIndex,
-    }));
+    setAnswer(currentQuestion.id, optionIndex);
   };
 
   const handleSliderChange = (value: number) => {
@@ -193,32 +114,46 @@ export default function QuestionSegment() {
     const minValue = config?.minValue || 1;
     const optionIndex = value - minValue;
     setSelectedOption(optionIndex);
-    setAnswers((prev) => ({
-      ...prev,
-      [currentQuestion.id]: optionIndex,
-    }));
+    setAnswer(currentQuestion.id, optionIndex);
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
       const nextQuestion = questions[currentQuestionIndex + 1];
-      setSelectedOption(answers[nextQuestion.id] || null);
+      setSelectedOption(
+        answers[nextQuestion.id] !== undefined ? answers[nextQuestion.id] : null
+      );
       if (nextQuestion.isSlider) {
         const config = nextQuestion.sliderConfig;
         const minValue = config?.minValue || 1;
         const maxValue = config?.maxValue || 5;
         const defaultValue = Math.floor((minValue + maxValue) / 2);
+        const savedAnswer = answers[nextQuestion.id];
         setSliderValue(
-          (answers[nextQuestion.id] || defaultValue - minValue) + minValue
+          savedAnswer !== undefined ? savedAnswer + minValue : defaultValue
         );
       }
     } else {
-      // All questions completed, navigate to results or next section
-      Alert.alert(
-        "Got it! I'll adjust your goals for today and get you started! 😊"
-      );
-      router.push("/homepage");
+      // All questions completed, save responses and navigate
+      if (!userId) {
+        Alert.alert("Error", "User not authenticated. Please login again.");
+        return;
+      }
+
+      try {
+        await saveAnswers(userId);
+        Alert.alert(
+          "Got it! I'll adjust your goals for today and get you started! 😊"
+        );
+        router.push("/homepage");
+      } catch (error) {
+        console.error("Failed to save answers:", error);
+        Alert.alert(
+          "Error",
+          "Failed to save your responses. Please try again."
+        );
+      }
     }
   };
 
@@ -226,21 +161,24 @@ export default function QuestionSegment() {
     if (currentQuestionIndex > 0) {
       setCurrentQuestionIndex(currentQuestionIndex - 1);
       const prevQuestion = questions[currentQuestionIndex - 1];
-      setSelectedOption(answers[prevQuestion.id] || null);
+      setSelectedOption(
+        answers[prevQuestion.id] !== undefined ? answers[prevQuestion.id] : null
+      );
       if (prevQuestion.isSlider) {
         const config = prevQuestion.sliderConfig;
         const minValue = config?.minValue || 1;
         const maxValue = config?.maxValue || 5;
         const defaultValue = Math.floor((minValue + maxValue) / 2);
+        const savedAnswer = answers[prevQuestion.id];
         setSliderValue(
-          (answers[prevQuestion.id] || defaultValue - minValue) + minValue
+          savedAnswer !== undefined ? savedAnswer + minValue : defaultValue
         );
       }
     }
   };
 
-  // Don't render until questions are loaded
-  if (questions.length === 0) {
+  // Handle loading and error states
+  if (loading || questions.length === 0) {
     return (
       <View
         style={{
@@ -251,8 +189,56 @@ export default function QuestionSegment() {
         }}
       >
         <Text style={{ color: "white", fontSize: 18 }}>
-          Loading questions...
+          {loading
+            ? "Loading your personalized questions..."
+            : "Preparing questions..."}
         </Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: "#1a1a1a",
+          justifyContent: "center",
+          alignItems: "center",
+          paddingHorizontal: 20,
+        }}
+      >
+        <Text
+          style={{
+            color: "red",
+            fontSize: 18,
+            textAlign: "center",
+            marginBottom: 20,
+          }}
+        >
+          Failed to load questions
+        </Text>
+        <Text
+          style={{
+            color: "white",
+            fontSize: 14,
+            textAlign: "center",
+            marginBottom: 20,
+          }}
+        >
+          {error}
+        </Text>
+        <TouchableOpacity
+          style={{
+            backgroundColor: "#C8FE3B",
+            paddingVertical: 12,
+            paddingHorizontal: 24,
+            borderRadius: 12,
+          }}
+          onPress={() => userId && loadQuestionsForUser(userId)}
+        >
+          <Text style={{ color: "black", fontWeight: "600" }}>Retry</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -290,114 +276,14 @@ export default function QuestionSegment() {
           <View
             style={{ flex: 1, justifyContent: "center", marginTop: "auto" }}
           >
-            <Text
-              style={{
-                color: "white",
-                fontSize: 24,
-                fontWeight: "600",
-                textAlign: "center",
-                marginBottom: 100,
-                lineHeight: 32,
-                marginTop: 10,
-              }}
-            >
-              {currentQuestion.question}
-            </Text>
-
-            {/* Options Container */}
-            <View style={{ gap: 16, marginTop: 40 }}>
-              {currentQuestion.isSlider ? (
-                <QuestionSlider
-                  value={sliderValue}
-                  onValueChange={handleSliderChange}
-                  emojis={
-                    currentQuestion.sliderConfig?.emojis || [
-                      "💤",
-                      "🥲",
-                      "😄",
-                      "⚡️",
-                      "🔥",
-                    ]
-                  }
-                  feedbackTexts={
-                    currentQuestion.sliderConfig?.feedbackTexts || [
-                      "Not so good...",
-                      "So-so",
-                      "I'm good!",
-                      "I'm raring to go!",
-                      "Let's do this!!!",
-                    ]
-                  }
-                  minValue={currentQuestion.sliderConfig?.minValue || 1}
-                  maxValue={currentQuestion.sliderConfig?.maxValue || 5}
-                />
-              ) : (
-                currentQuestion.options.map((option, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={{
-                      padding: 20,
-                      borderRadius: 12,
-                      borderWidth: 2,
-                      alignItems: "center",
-                      flexDirection: "row",
-                      justifyContent: "center",
-                      borderColor:
-                        selectedOption === index ? "black" : "#3f3f46",
-                      backgroundColor:
-                        selectedOption === index ? "#C8FE3B" : "#262626",
-                    }}
-                    onPress={() => handleOptionSelect(index)}
-                  >
-                    {/* Icon based on question and option */}
-                    {currentQuestion.question ===
-                      "What's our workout for today?" && (
-                      <FontAwesome
-                        name={
-                          option === "Strength"
-                            ? "bolt"
-                            : option === "Cardio"
-                            ? "heartbeat"
-                            : option === "Recovery"
-                            ? "bed"
-                            : "times"
-                        }
-                        size={20}
-                        color={selectedOption === index ? "black" : "#a1a1aa"}
-                        style={{ marginRight: 12 }}
-                      />
-                    )}
-                    {currentQuestion.question === "Plans for our meals?" && (
-                      <FontAwesome
-                        name={
-                          option === "Low-carb"
-                            ? "leaf"
-                            : option === "High Protein"
-                            ? "check"
-                            : option === "Balanced"
-                            ? "balance-scale"
-                            : option === "Eating out"
-                            ? "cutlery"
-                            : "globe"
-                        }
-                        size={20}
-                        color={selectedOption === index ? "black" : "#a1a1aa"}
-                        style={{ marginRight: 12 }}
-                      />
-                    )}
-                    <Text
-                      style={{
-                        fontSize: 16,
-                        fontWeight: "500",
-                        color: selectedOption === index ? "black" : "white",
-                      }}
-                    >
-                      {option}
-                    </Text>
-                  </TouchableOpacity>
-                ))
-              )}
-            </View>
+            {/* Dynamic Question Renderer */}
+            <DynamicQuestionRenderer
+              question={currentQuestion}
+              selectedOption={selectedOption}
+              sliderValue={sliderValue}
+              onOptionSelect={handleOptionSelect}
+              onSliderChange={handleSliderChange}
+            />
           </View>
         </ScrollView>
 
@@ -426,5 +312,14 @@ export default function QuestionSegment() {
         </View>
       </KeyboardAvoidingView>
     </View>
+  );
+}
+
+// Main export component with provider
+export default function QuestionSegment() {
+  return (
+    <TargetQuestionsProvider>
+      <QuestionSegmentContent />
+    </TargetQuestionsProvider>
   );
 }
