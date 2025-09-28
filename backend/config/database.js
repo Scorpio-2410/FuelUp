@@ -268,26 +268,48 @@ const initializeDatabase = async () => {
       -- Add unique constraint on name if it doesn't exist
       DO $$ 
       BEGIN
-        BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint 
+          WHERE conname = 'exercise_categories_name_unique'
+        ) THEN
           ALTER TABLE exercise_categories ADD CONSTRAINT exercise_categories_name_unique UNIQUE (name);
-        EXCEPTION WHEN duplicate_object THEN
-          -- Constraint already exists, do nothing
-        END;
+        END IF;
       END $$;
 
       -- Insert default categories (using individual INSERTs to handle existing data)
-      -- Set type to appropriate values for the existing column, and populate new columns
+      -- GYM CATEGORIES
       INSERT INTO exercise_categories (name, type, description, is_gym_exercise) 
-      SELECT 'Gym Equipment', 'gym', 'Exercises that require gym equipment like machines, barbells, dumbbells', TRUE
-      WHERE NOT EXISTS (SELECT 1 FROM exercise_categories WHERE name = 'Gym Equipment');
+      SELECT 'Chest', 'gym', 'Chest muscle exercises typically done in the gym', TRUE
+      WHERE NOT EXISTS (SELECT 1 FROM exercise_categories WHERE name = 'Chest');
 
       INSERT INTO exercise_categories (name, type, description, is_gym_exercise) 
-      SELECT 'Bodyweight', 'non-gym', 'Exercises using only body weight, can be done anywhere', FALSE
-      WHERE NOT EXISTS (SELECT 1 FROM exercise_categories WHERE name = 'Bodyweight');
+      SELECT 'Back', 'gym', 'Back muscle exercises typically done in the gym', TRUE
+      WHERE NOT EXISTS (SELECT 1 FROM exercise_categories WHERE name = 'Back');
 
       INSERT INTO exercise_categories (name, type, description, is_gym_exercise) 
-      SELECT 'Cardio', 'non-gym', 'Cardiovascular exercises for endurance and heart health', FALSE
+      SELECT 'Legs', 'gym', 'Leg muscle exercises typically done in the gym', TRUE
+      WHERE NOT EXISTS (SELECT 1 FROM exercise_categories WHERE name = 'Legs');
+
+      INSERT INTO exercise_categories (name, type, description, is_gym_exercise) 
+      SELECT 'Arms', 'gym', 'Arm muscle exercises typically done in the gym', TRUE
+      WHERE NOT EXISTS (SELECT 1 FROM exercise_categories WHERE name = 'Arms');
+
+      INSERT INTO exercise_categories (name, type, description, is_gym_exercise) 
+      SELECT 'Shoulders', 'gym', 'Shoulder muscle exercises typically done in the gym', TRUE
+      WHERE NOT EXISTS (SELECT 1 FROM exercise_categories WHERE name = 'Shoulders');
+
+      INSERT INTO exercise_categories (name, type, description, is_gym_exercise) 
+      SELECT 'Core', 'gym', 'Core muscle exercises typically done in the gym', TRUE
+      WHERE NOT EXISTS (SELECT 1 FROM exercise_categories WHERE name = 'Core');
+
+      INSERT INTO exercise_categories (name, type, description, is_gym_exercise) 
+      SELECT 'Cardio', 'gym', 'Cardio exercises typically done in the gym', TRUE
       WHERE NOT EXISTS (SELECT 1 FROM exercise_categories WHERE name = 'Cardio');
+
+      -- NON-GYM CATEGORIES
+      INSERT INTO exercise_categories (name, type, description, is_gym_exercise) 
+      SELECT 'Calisthenics', 'non-gym', 'Bodyweight strength training exercises', FALSE
+      WHERE NOT EXISTS (SELECT 1 FROM exercise_categories WHERE name = 'Calisthenics');
 
       INSERT INTO exercise_categories (name, type, description, is_gym_exercise) 
       SELECT 'Flexibility', 'non-gym', 'Stretching and mobility exercises', FALSE
@@ -296,6 +318,14 @@ const initializeDatabase = async () => {
       INSERT INTO exercise_categories (name, type, description, is_gym_exercise) 
       SELECT 'Sports', 'non-gym', 'Sport-specific exercises and activities', FALSE
       WHERE NOT EXISTS (SELECT 1 FROM exercise_categories WHERE name = 'Sports');
+
+      INSERT INTO exercise_categories (name, type, description, is_gym_exercise) 
+      SELECT 'Running', 'non-gym', 'Running and jogging exercises', FALSE
+      WHERE NOT EXISTS (SELECT 1 FROM exercise_categories WHERE name = 'Running');
+
+      INSERT INTO exercise_categories (name, type, description, is_gym_exercise) 
+      SELECT 'Walking', 'non-gym', 'Walking-based exercises', FALSE
+      WHERE NOT EXISTS (SELECT 1 FROM exercise_categories WHERE name = 'Walking');
 
       CREATE TABLE IF NOT EXISTS exercises (
         id               INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
