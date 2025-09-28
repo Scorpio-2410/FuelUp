@@ -16,6 +16,7 @@ const nutritionRoutes = require("./routes/nutritionRoutes");
 const mealPlanRoutes = require("./routes/mealPlanRoutes");
 const mealRoutes = require("./routes/mealRoutes");
 const scheduleRoutes = require("./routes/scheduleRoutes");
+const targetQuestionRoutes = require("./routes/targetQuestionRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -46,6 +47,9 @@ app.use("/api/meals", mealPlanRoutes); // expects internal routes like /plans, /
 // Schedule namespace (matches frontend: /api/schedule and /api/schedule/events)
 app.use("/api/schedule", scheduleRoutes); // expects internal routes like / (GET/POST/PUT), /events, /events/:id
 
+// Target Questions namespace (for dynamic question system)
+app.use("/api/questions", targetQuestionRoutes); // expects internal routes like /, /user/:userId, /type/:type
+
 // ---------------- Root + health ----------------
 app.get("/", (req, res) => {
   res.json({
@@ -74,6 +78,14 @@ app.get("/", (req, res) => {
       schedule: {
         base: "/api/schedule",
         events: "/api/schedule/events",
+      },
+      questions: {
+        base: "/api/questions",
+        userQuestions: "/api/questions/user/:userId",
+        userResponses: "/api/questions/user/:userId/responses",
+        userHistory: "/api/questions/user/:userId/history",
+        userInsights: "/api/questions/user/:userId/insights",
+        byType: "/api/questions/type/:type",
       },
     },
   });

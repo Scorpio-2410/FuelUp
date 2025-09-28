@@ -361,6 +361,41 @@ const initializeDatabase = async () => {
       BEFORE UPDATE ON exercises
       FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
+      CREATE TABLE IF NOT EXISTS target_questions (
+        id          INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        type        VARCHAR(20) NOT NULL CHECK (type IN ('daily','weekly','monthly')),
+        text        TEXT NOT NULL,
+        priority    VARCHAR(20) NOT NULL DEFAULT 'medium' CHECK (priority IN ('high','medium','low')),
+        frequency   VARCHAR(20) NOT NULL DEFAULT 'mandatory' CHECK (frequency IN ('mandatory','rotational','optional','occasional','rare')),
+        options     JSONB NOT NULL DEFAULT '[]',
+        is_slider   BOOLEAN NOT NULL DEFAULT FALSE,
+        slider_config JSONB DEFAULT NULL,
+        category    VARCHAR(50) DEFAULT 'general',
+        influence_weight DECIMAL(3,2) DEFAULT 1.0 CHECK (influence_weight >= 0.1 AND influence_weight <= 5.0),
+        created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_target_questions_type ON target_questions(type);
+      CREATE INDEX IF NOT EXISTS idx_target_questions_priority ON target_questions(priority);
+      CREATE INDEX IF NOT EXISTS idx_target_questions_frequency ON target_questions(frequency);
+      DROP TRIGGER IF EXISTS trg_target_questions_updated_at ON target_questions;
+      CREATE TRIGGER trg_target_questions_updated_at
+      BEFORE UPDATE ON target_questions
+      FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+      CREATE TABLE IF NOT EXISTS user_question_responses (
+        id          INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        question_id INTEGER NOT NULL REFERENCES target_questions(id) ON DELETE CASCADE,
+        response_value INTEGER NOT NULL,
+        response_text VARCHAR(255),
+        asked_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_user_responses_user ON user_question_responses(user_id);
+      CREATE INDEX IF NOT EXISTS idx_user_responses_question ON user_question_responses(question_id);
+      CREATE INDEX IF NOT EXISTS idx_user_responses_asked_at ON user_question_responses(asked_at);
+
       CREATE TABLE IF NOT EXISTS password_reset_tokens (
         id          INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
         user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
