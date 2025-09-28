@@ -1,13 +1,23 @@
 // API-based exercise data hook - replaces static ExerciseData
 import { useState, useEffect, useCallback } from "react";
-import { apiGetExercises } from "../../constants/api";
+import { apiGetExercises, apiGetExerciseCategories } from "../../constants/api";
 
 const fitnessImg = require("../../assets/images/fitness.png");
+
+export interface ExerciseCategory {
+  id: number;
+  name: string;
+  type: string;
+  description?: string;
+  isGymExercise: boolean;
+}
 
 export interface Exercise {
   id: string;
   name: string;
   category: string;
+  categoryId?: number;
+  categoryInfo?: ExerciseCategory;
   muscleGroup?: string;
   equipment?: string;
   difficulty?: string;
@@ -21,37 +31,28 @@ export interface Exercise {
 
 export const useExerciseAPI = () => {
   const [exercises, setExercises] = useState<Exercise[]>([]);
+  const [categories, setCategories] = useState<ExerciseCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Categories based on muscle groups
+  // Dynamic categories based on API data
   const gymCategories = [
     "All",
-    "Chest",
-    "Back",
-    "Legs",
-    "Shoulders",
-    "Arms",
-    "Core",
-    "Cardio",
+    ...categories.filter((c) => c.isGymExercise).map((c) => c.name),
   ];
-
   const homeCategories = [
     "All",
-    "HIIT",
-    "Sports",
-    "Running",
-    "Calisthenics",
-    "Mobility",
-    "Core",
+    ...categories.filter((c) => !c.isGymExercise).map((c) => c.name),
   ];
 
   // Transform API exercise to match frontend format
   const transformExercise = (apiExercise: any): Exercise => ({
     id: apiExercise.id.toString(),
     name: apiExercise.name || "Unnamed Exercise",
-    category: apiExercise.muscleGroup || "Other",
+    category: apiExercise.category?.name || apiExercise.muscleGroup || "Other",
+    categoryId: apiExercise.categoryId,
+    categoryInfo: apiExercise.category,
     muscleGroup: apiExercise.muscleGroup,
     equipment: apiExercise.equipment,
     difficulty: apiExercise.difficulty,
@@ -62,6 +63,20 @@ export const useExerciseAPI = () => {
     notes: apiExercise.notes,
     image: fitnessImg, // Default image for all exercises
   });
+
+  // Load categories from API
+  const loadCategories = useCallback(async () => {
+    try {
+      const response = await apiGetExerciseCategories();
+      if (response.success && Array.isArray(response.categories)) {
+        setCategories(response.categories);
+      }
+    } catch (err: any) {
+      console.warn("Failed to load categories from API:", err.message);
+      // Use empty categories on error
+      setCategories([]);
+    }
+  }, []);
 
   // Load exercises from API
   const loadExercises = useCallback(async (showRefreshingState = false) => {
@@ -97,31 +112,32 @@ export const useExerciseAPI = () => {
 
   // Initial load
   useEffect(() => {
+    loadCategories();
     loadExercises();
-  }, [loadExercises]);
+  }, [loadCategories, loadExercises]);
 
-  // Filter exercises by gym/home context
-  // For now, we'll show all exercises for both contexts
-  // Later we can add equipment-based filtering
-  const exercisesGym = exercises;
-  const exercisesHome = exercises.filter(
-    (exercise) =>
-      // Filter for home exercises based on equipment or category
-      !exercise.equipment ||
-      exercise.equipment.toLowerCase().includes("bodyweight") ||
-      exercise.equipment.toLowerCase().includes("none") ||
-      exercise.category === "HIIT" ||
-      exercise.category === "Core" ||
-      exercise.category === "Calisthenics"
-  );
+  // Filter exercises by gym/home context based on category
+  const exercisesGym = exercises.filter((exercise) => {
+    // Show ONLY exercises that have gym categories (isGymExercise = true)
+    return exercise.categoryInfo && exercise.categoryInfo.isGymExercise;
+  });
+
+  const exercisesHome = exercises.filter((exercise) => {
+    // Show ONLY exercises that have non-gym categories (isGymExercise = false)
+    return exercise.categoryInfo && !exercise.categoryInfo.isGymExercise;
+  });
 
   // Refresh function for pull-to-refresh
-  const refresh = () => loadExercises(true);
+  const refresh = () => {
+    loadCategories();
+    loadExercises(true);
+  };
 
   return {
     // Categories
     gymCategories,
     homeCategories,
+    allCategories: categories,
 
     // Exercise data
     exercisesGym,
@@ -136,5 +152,6 @@ export const useExerciseAPI = () => {
     // Actions
     refresh,
     loadExercises,
+    loadCategories,
   };
 };

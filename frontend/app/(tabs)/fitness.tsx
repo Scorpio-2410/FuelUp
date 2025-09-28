@@ -22,6 +22,7 @@ export default function FitnessScreen() {
     homeCategories,
     exercisesGym,
     exercisesHome,
+    allCategories,
     loading: exercisesLoading,
     error: exercisesError,
     refresh: refreshExercises,
@@ -49,7 +50,11 @@ export default function FitnessScreen() {
     const q = query.trim().toLowerCase();
     const list = canGoGym ? exercisesGym : exercisesHome;
     return list.filter((e) => {
-      const byCat = activeCategory === "All" || e.category === activeCategory;
+      // Filter by category name from categoryInfo (the real categories from backend)
+      const categoryName = e.categoryInfo?.name;
+      const byCat =
+        activeCategory === "All" ||
+        (categoryName && categoryName === activeCategory);
       const byQuery = !q || e.name.toLowerCase().includes(q);
       return byCat && byQuery;
     });
@@ -60,9 +65,9 @@ export default function FitnessScreen() {
     setCurrentPage(0);
   };
 
-  // exercise instructions 
+  // exercise instructions
   const [instructionsVisible, setInstructionsVisible] = useState(false);
-  
+
   // Calculate pagination
   const totalPages = Math.ceil(filtered.length / EXERCISES_PER_PAGE);
   const startIndex = currentPage * EXERCISES_PER_PAGE;
@@ -83,13 +88,7 @@ export default function FitnessScreen() {
   return (
     // <View style={{ flex: 1, backgroundColor: "#1a1a1a" }}>
     <SafeAreaView style={{ flex: 1, backgroundColor: "#1a1a1a" }}>
-      <RefreshScroll
-        refreshing={refreshing}
-        onRefresh={handleRefresh}
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: 32 }}
-        showsVerticalScrollIndicator={false}
-      >
+      <RefreshScroll refreshing={refreshing} onRefresh={handleRefresh}>
         {/* Top search bar */}
         <TopSearchBar
           value={query}
@@ -194,7 +193,7 @@ export default function FitnessScreen() {
         />
 
         {/* Pagination */}
-        <View style={{ paddingHorizontal: 24 }}>
+        <View style={{ paddingHorizontal: 24, paddingBottom: 32 }}>
           <ExercisePagination
             currentPage={currentPage}
             totalPages={totalPages}
@@ -205,14 +204,15 @@ export default function FitnessScreen() {
         </View>
       </RefreshScroll>
 
-        <ExerciseInstructions
+      <ExerciseInstructions
         visible={instructionsVisible}
         exercise={selectedExercise}
         onClose={() => {
           setInstructionsVisible(false);
           // setSelectedExercise(null);
           setWorkoutDetailVisible(true);
-        }}/>
+        }}
+      />
 
       {/* Weekly schedule modal */}
       <WeeklySchedulePopUp
@@ -229,10 +229,11 @@ export default function FitnessScreen() {
           setSelectedExercise(null);
         }}
         onViewInstructions={(exercise) => {
-          setWorkoutDetailVisible(false); 
-          setInstructionsVisible(true);   
+          setWorkoutDetailVisible(false);
+          setInstructionsVisible(true);
           setSelectedExercise(exercise);
-        }}/>
+        }}
+      />
     </SafeAreaView>
   );
 }

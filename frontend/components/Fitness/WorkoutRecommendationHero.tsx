@@ -1,6 +1,6 @@
 import { View, Text, TouchableOpacity, Image } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useExerciseData } from "./ExerciseData";
+import { useExerciseAPI } from "./useExerciseAPI";
 import { useMemo } from "react";
 
 interface WorkoutRecommendationHeroProps {
@@ -10,11 +10,12 @@ interface WorkoutRecommendationHeroProps {
 export default function WorkoutRecommendationHero({
   canGoGym,
 }: WorkoutRecommendationHeroProps) {
-  const { exercisesGym, exercisesHome } = useExerciseData();
+  const { exercisesGym, exercisesHome, loading } = useExerciseAPI();
 
   // Get a random exercise based on gym availability
   const randomExercise = useMemo(() => {
     const exercises = canGoGym ? exercisesGym : exercisesHome;
+    if (!exercises || exercises.length === 0) return null;
     const randomIndex = Math.floor(Math.random() * exercises.length);
     return exercises[randomIndex];
   }, [canGoGym, exercisesGym, exercisesHome]);
@@ -114,22 +115,26 @@ export default function WorkoutRecommendationHero({
                   marginBottom: 4,
                 }}
               >
-                {randomExercise?.name || "Loading..."}
+                {loading
+                  ? "Loading..."
+                  : randomExercise?.name || "No exercises available"}
               </Text>
-              <Text
-                style={{
-                  color: "rgba(10, 10, 10, 0.7)",
-                  fontSize: 12,
-                  fontWeight: "600",
-                  backgroundColor: "rgba(10, 10, 10, 0.1)",
-                  paddingHorizontal: 8,
-                  paddingVertical: 4,
-                  borderRadius: 8,
-                  alignSelf: "flex-start",
-                }}
-              >
-                {randomExercise?.category}
-              </Text>
+              {randomExercise && (
+                <Text
+                  style={{
+                    color: "rgba(10, 10, 10, 0.7)",
+                    fontSize: 12,
+                    fontWeight: "600",
+                    backgroundColor: "rgba(10, 10, 10, 0.1)",
+                    paddingHorizontal: 8,
+                    paddingVertical: 4,
+                    borderRadius: 8,
+                    alignSelf: "flex-start",
+                  }}
+                >
+                  {randomExercise.categoryInfo?.name || randomExercise.category}
+                </Text>
+              )}
             </View>
           </View>
 
@@ -141,69 +146,103 @@ export default function WorkoutRecommendationHero({
               lineHeight: 20,
             }}
           >
-            Description for workout, implement API later
+            {loading
+              ? "Loading exercise details..."
+              : randomExercise?.notes ||
+                `A great ${
+                  canGoGym ? "gym" : "home"
+                } workout to help you stay fit and healthy!`}
           </Text>
 
+          {/* Exercise Details Row */}
           <View
             style={{
               flexDirection: "row",
-              justifyContent: "space-between",
               alignItems: "center",
+              marginBottom: 16,
             }}
           >
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <Ionicons name="time-outline" size={16} color="#0a0a0a" />
-              <Text
-                style={{
-                  color: "#0a0a0a",
-                  fontSize: 14,
-                  fontWeight: "600",
-                  marginLeft: 4,
-                }}
-              >
-                45 min
-              </Text>
-              <Ionicons
-                name="flame-outline"
-                size={16}
-                color="#0a0a0a"
-                style={{ marginLeft: 16 }}
-              />
-              <Text
-                style={{
-                  color: "#0a0a0a",
-                  fontSize: 14,
-                  fontWeight: "600",
-                  marginLeft: 4,
-                }}
-              >
-                ~320 kcal
-              </Text>
-            </View>
-
-            <TouchableOpacity
+            <Ionicons name="time-outline" size={16} color="#0a0a0a" />
+            <Text
               style={{
-                backgroundColor: "rgba(10, 10, 10, 0.15)",
-                paddingHorizontal: 16,
-                paddingVertical: 8,
-                borderRadius: 20,
-                flexDirection: "row",
-                alignItems: "center",
+                color: "#0a0a0a",
+                fontSize: 14,
+                fontWeight: "600",
+                marginLeft: 4,
               }}
             >
-              <Text
-                style={{
-                  color: "#0a0a0a",
-                  fontSize: 14,
-                  fontWeight: "700",
-                  marginRight: 4,
-                }}
-              >
-                Start Now
-              </Text>
-              <Ionicons name="play" size={14} color="#0a0a0a" />
-            </TouchableOpacity>
+              {randomExercise?.durationMin
+                ? `${randomExercise.durationMin} min`
+                : "45 min"}
+            </Text>
+            {randomExercise?.sets && randomExercise?.reps && (
+              <>
+                <Ionicons
+                  name="fitness-outline"
+                  size={16}
+                  color="#0a0a0a"
+                  style={{ marginLeft: 16 }}
+                />
+                <Text
+                  style={{
+                    color: "#0a0a0a",
+                    fontSize: 14,
+                    fontWeight: "600",
+                    marginLeft: 4,
+                  }}
+                >
+                  {randomExercise.sets}×{randomExercise.reps}
+                </Text>
+              </>
+            )}
+            <Ionicons
+              name="flame-outline"
+              size={16}
+              color="#0a0a0a"
+              style={{ marginLeft: 16 }}
+            />
+            <Text
+              style={{
+                color: "#0a0a0a",
+                fontSize: 14,
+                fontWeight: "600",
+                marginLeft: 4,
+              }}
+            >
+              ~320 kcal
+            </Text>
           </View>
+
+          {/* Start Now Button Row */}
+          <TouchableOpacity
+            style={{
+              backgroundColor: "rgba(10, 10, 10, 0.2)",
+              paddingHorizontal: 20,
+              paddingVertical: 12,
+              borderRadius: 25,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              alignSelf: "stretch",
+              marginTop: 4,
+            }}
+          >
+            <Ionicons
+              name="play"
+              size={16}
+              color="#0a0a0a"
+              style={{ marginRight: 8 }}
+            />
+            <Text
+              style={{
+                color: "#0a0a0a",
+                fontSize: 16,
+                fontWeight: "700",
+              }}
+            >
+              Start Now
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
     </View>
