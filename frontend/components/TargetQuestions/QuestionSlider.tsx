@@ -71,12 +71,12 @@ export default function QuestionSlider({
       }}
     >
       {/* Slider Labels */}
-      <View>
+      {/* <View>
         <Text style={{ color: "#a1a1aa", fontSize: 28, fontWeight: "500" }}>
           {" "}
           {value}{" "}
         </Text>
-      </View>
+      </View> */}
       <View
         style={{
           flexDirection: "row",

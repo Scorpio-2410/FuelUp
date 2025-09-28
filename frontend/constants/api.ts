@@ -21,11 +21,12 @@ const EP = {
   checkEmail: "/api/users/check-email",
 
   // fitness (profile + plans + exercises)
-  fitnessProfilesRoot: "/api/fitness-profiles",
-  fitnessPlans: "/api/fitness-plans",
-  fitnessPlansCurrent: "/api/fitness-plans/current",
-  fitnessPlansRecommend: "/api/fitness-plans/recommend",
-  exercises: "/api/exercises",
+  fitnessProfilesRoot: "/api/fitness/profile",
+  fitnessPlans: "/api/fitness/plans",
+  fitnessPlansCurrent: "/api/fitness/plans/current",
+  fitnessPlansRecommend: "/api/fitness/plans/recommend",
+  exercises: "/api/fitness/exercises",
+  exerciseCategories: "/api/fitness/categories",
 
   // nutrition
   nutritionProfile: "/api/nutrition/profile",
@@ -237,6 +238,50 @@ export async function apiRecommendFitnessPlan() {
   });
   return asJson<{ plan: any }>(res);
 }
+// Get exercises with pagination and filtering
+export async function apiGetExercises(params?: {
+  limit?: number;
+  offset?: number;
+  muscleGroup?: string;
+  categoryId?: number;
+}) {
+  const query = new URLSearchParams();
+  if (params?.limit) query.set('limit', params.limit.toString());
+  if (params?.offset) query.set('offset', params.offset.toString());
+  if (params?.muscleGroup) query.set('muscleGroup', params.muscleGroup);
+  if (params?.categoryId) query.set('categoryId', params.categoryId.toString());
+  
+  const url = `${BASE_URL}${EP.exercises}${query.toString() ? '?' + query.toString() : ''}`;
+  const res = await fetch(url, {
+    headers: await authHeaders(),
+  });
+  return asJson<{ success: boolean; exercises: any[]; pagination: any }>(res);
+}
+
+// Get exercise categories with optional gym/non-gym filtering
+export async function apiGetExerciseCategories(params?: {
+  isGymExercise?: boolean;
+}) {
+  const query = new URLSearchParams();
+  if (params?.isGymExercise !== undefined) {
+    query.set('isGymExercise', params.isGymExercise.toString());
+  }
+  
+  const url = `${BASE_URL}${EP.exerciseCategories}${query.toString() ? '?' + query.toString() : ''}`;
+  const res = await fetch(url, {
+    headers: await authHeaders(),
+  });
+  return asJson<{ success: boolean; categories: any[] }>(res);
+}
+
+// Get specific exercise by ID
+export async function apiGetExercise(id: number) {
+  const res = await fetch(`${BASE_URL}${EP.exercises}/${id}`, {
+    headers: await authHeaders(),
+  });
+  return asJson<{ success: boolean; exercise: any }>(res);
+}
+
 export async function apiCreateExercise(payload: {
   name: string;
   muscleGroup?: string | null;

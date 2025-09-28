@@ -11,6 +11,7 @@ const userRoutes = require("./routes/userRoutes");
 const fitnessProfileRoutes = require("./routes/fitnessProfileRoutes");
 const fitnessPlanRoutes = require("./routes/fitnessPlanRoutes");
 const exerciseRoutes = require("./routes/exerciseRoutes");
+const exerciseCategoryRoutes = require("./routes/exerciseCategoryRoutes");
 const nutritionRoutes = require("./routes/nutritionRoutes");
 const mealPlanRoutes = require("./routes/mealPlanRoutes");
 const mealRoutes = require("./routes/mealRoutes");
@@ -31,8 +32,9 @@ app.use("/api/users", userRoutes);
 
 // Fitness namespace (matches frontend: /api/fitness/**)
 app.use("/api/fitness", fitnessProfileRoutes); // expects internal routes like /profile
-app.use("/api/fitness", fitnessPlanRoutes); // expects internal routes like /plans, /plans/current, /plans/recommend
-app.use("/api/fitness", exerciseRoutes); // expects internal routes like /exercises, /exercises/:id
+app.use("/api/fitness/plans", fitnessPlanRoutes); // expects internal routes like /, /:id, /current, /recommend
+app.use("/api/fitness/exercises", exerciseRoutes); // expects internal routes like /, /:id
+app.use("/api/fitness/categories", exerciseCategoryRoutes); // expects internal routes like /, /:id
 
 // Nutrition (matches frontend: /api/nutrition/profile)
 app.use("/api/nutrition", nutritionRoutes); // expects internal routes like /profile
@@ -57,6 +59,7 @@ app.get("/", (req, res) => {
         plansCurrent: "/api/fitness/plans/current",
         plansRecommend: "/api/fitness/plans/recommend",
         exercises: "/api/fitness/exercises",
+        categories: "/api/fitness/categories",
       },
       nutrition: {
         profile: "/api/nutrition/profile",

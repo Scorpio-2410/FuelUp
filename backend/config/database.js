@@ -223,9 +223,114 @@ const initializeDatabase = async () => {
       BEFORE UPDATE ON fitness_plans
       FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
+      CREATE TABLE IF NOT EXISTS exercise_categories (
+        id               INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        name             VARCHAR(120) NOT NULL UNIQUE,
+        description      TEXT,
+        is_gym_exercise  BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      -- Add missing columns if they don't exist (for existing tables)
+      DO $$ 
+      BEGIN
+        BEGIN
+          ALTER TABLE exercise_categories ADD COLUMN description TEXT;
+        EXCEPTION WHEN duplicate_column THEN
+          -- Column already exists, do nothing
+        END;
+        
+        BEGIN
+          ALTER TABLE exercise_categories ADD COLUMN is_gym_exercise BOOLEAN NOT NULL DEFAULT FALSE;
+        EXCEPTION WHEN duplicate_column THEN
+          -- Column already exists, do nothing
+        END;
+
+        BEGIN
+          ALTER TABLE exercise_categories ADD COLUMN created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+        EXCEPTION WHEN duplicate_column THEN
+          -- Column already exists, do nothing
+        END;
+
+        BEGIN
+          ALTER TABLE exercise_categories ADD COLUMN updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+        EXCEPTION WHEN duplicate_column THEN
+          -- Column already exists, do nothing
+        END;
+      END $$;
+
+      DROP TRIGGER IF EXISTS trg_exercise_categories_updated_at ON exercise_categories;
+      CREATE TRIGGER trg_exercise_categories_updated_at
+      BEFORE UPDATE ON exercise_categories
+      FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+      -- Add unique constraint on name if it doesn't exist
+      DO $$ 
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint 
+          WHERE conname = 'exercise_categories_name_unique'
+        ) THEN
+          ALTER TABLE exercise_categories ADD CONSTRAINT exercise_categories_name_unique UNIQUE (name);
+        END IF;
+      END $$;
+
+      -- Insert default categories (using individual INSERTs to handle existing data)
+      -- GYM CATEGORIES
+      INSERT INTO exercise_categories (name, type, description, is_gym_exercise) 
+      SELECT 'Chest', 'gym', 'Chest muscle exercises typically done in the gym', TRUE
+      WHERE NOT EXISTS (SELECT 1 FROM exercise_categories WHERE name = 'Chest');
+
+      INSERT INTO exercise_categories (name, type, description, is_gym_exercise) 
+      SELECT 'Back', 'gym', 'Back muscle exercises typically done in the gym', TRUE
+      WHERE NOT EXISTS (SELECT 1 FROM exercise_categories WHERE name = 'Back');
+
+      INSERT INTO exercise_categories (name, type, description, is_gym_exercise) 
+      SELECT 'Legs', 'gym', 'Leg muscle exercises typically done in the gym', TRUE
+      WHERE NOT EXISTS (SELECT 1 FROM exercise_categories WHERE name = 'Legs');
+
+      INSERT INTO exercise_categories (name, type, description, is_gym_exercise) 
+      SELECT 'Arms', 'gym', 'Arm muscle exercises typically done in the gym', TRUE
+      WHERE NOT EXISTS (SELECT 1 FROM exercise_categories WHERE name = 'Arms');
+
+      INSERT INTO exercise_categories (name, type, description, is_gym_exercise) 
+      SELECT 'Shoulders', 'gym', 'Shoulder muscle exercises typically done in the gym', TRUE
+      WHERE NOT EXISTS (SELECT 1 FROM exercise_categories WHERE name = 'Shoulders');
+
+      INSERT INTO exercise_categories (name, type, description, is_gym_exercise) 
+      SELECT 'Core', 'gym', 'Core muscle exercises typically done in the gym', TRUE
+      WHERE NOT EXISTS (SELECT 1 FROM exercise_categories WHERE name = 'Core');
+
+      INSERT INTO exercise_categories (name, type, description, is_gym_exercise) 
+      SELECT 'Cardio', 'gym', 'Cardio exercises typically done in the gym', TRUE
+      WHERE NOT EXISTS (SELECT 1 FROM exercise_categories WHERE name = 'Cardio');
+
+      -- NON-GYM CATEGORIES
+      INSERT INTO exercise_categories (name, type, description, is_gym_exercise) 
+      SELECT 'Calisthenics', 'non-gym', 'Bodyweight strength training exercises', FALSE
+      WHERE NOT EXISTS (SELECT 1 FROM exercise_categories WHERE name = 'Calisthenics');
+
+      INSERT INTO exercise_categories (name, type, description, is_gym_exercise) 
+      SELECT 'Flexibility', 'non-gym', 'Stretching and mobility exercises', FALSE
+      WHERE NOT EXISTS (SELECT 1 FROM exercise_categories WHERE name = 'Flexibility');
+
+      INSERT INTO exercise_categories (name, type, description, is_gym_exercise) 
+      SELECT 'Sports', 'non-gym', 'Sport-specific exercises and activities', FALSE
+      WHERE NOT EXISTS (SELECT 1 FROM exercise_categories WHERE name = 'Sports');
+
+      INSERT INTO exercise_categories (name, type, description, is_gym_exercise) 
+      SELECT 'Running', 'non-gym', 'Running and jogging exercises', FALSE
+      WHERE NOT EXISTS (SELECT 1 FROM exercise_categories WHERE name = 'Running');
+
+      INSERT INTO exercise_categories (name, type, description, is_gym_exercise) 
+      SELECT 'Walking', 'non-gym', 'Walking-based exercises', FALSE
+      WHERE NOT EXISTS (SELECT 1 FROM exercise_categories WHERE name = 'Walking');
+
       CREATE TABLE IF NOT EXISTS exercises (
         id               INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
         fitness_plan_id  INTEGER NOT NULL REFERENCES fitness_plans(id) ON DELETE CASCADE,
+        category_id      INTEGER REFERENCES exercise_categories(id) ON DELETE SET NULL,
         name             VARCHAR(120) NOT NULL,
         muscle_group     VARCHAR(80),
         equipment        VARCHAR(120),
@@ -238,7 +343,19 @@ const initializeDatabase = async () => {
         created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+
+      -- Add missing category_id column to exercises table if it doesn't exist
+      DO $$ 
+      BEGIN
+        BEGIN
+          ALTER TABLE exercises ADD COLUMN category_id INTEGER REFERENCES exercise_categories(id) ON DELETE SET NULL;
+        EXCEPTION WHEN duplicate_column THEN
+          -- Column already exists, do nothing
+        END;
+      END $$;
+
       CREATE INDEX IF NOT EXISTS idx_exercises_plan ON exercises(fitness_plan_id);
+      CREATE INDEX IF NOT EXISTS idx_exercises_category ON exercises(category_id);
       DROP TRIGGER IF EXISTS trg_exercises_updated_at ON exercises;
       CREATE TRIGGER trg_exercises_updated_at
       BEFORE UPDATE ON exercises
