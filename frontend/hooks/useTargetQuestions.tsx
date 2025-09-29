@@ -1,5 +1,7 @@
+// hooks/useTargetQuestions.tsx
 import { useState, useCallback } from "react";
 import * as SecureStore from "expo-secure-store";
+import { BASE_URL as API_BASE_URL, K_TOKEN } from "@/constants/api";
 
 interface QuestionOption {
   text: string;
@@ -74,9 +76,6 @@ interface InsightsResponse {
   message: string;
 }
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:4000";
-const K_TOKEN = "fu_token"; // Using the same token key as your existing auth system
-
 export const useTargetQuestions = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -84,8 +83,8 @@ export const useTargetQuestions = () => {
   const getAuthToken = useCallback(async () => {
     try {
       return await SecureStore.getItemAsync(K_TOKEN);
-    } catch (error) {
-      console.error("Error getting auth token:", error);
+    } catch (err) {
+      console.error("Error getting auth token:", err);
       return null;
     }
   }, []);
@@ -105,13 +104,26 @@ export const useTargetQuestions = () => {
         headers,
       });
 
+      // Auto-clear token on 401 so app can route to login gracefully
+      if (response.status === 401) {
+        try {
+          await SecureStore.deleteItemAsync(K_TOKEN);
+        } catch {}
+        const err = new Error("Session expired. Please sign in again.");
+        // surface a consistent message to the UI
+        throw err;
+      }
+
       if (!response.ok) {
+        // Try to extract a useful error message from JSON
         const errorData = await response
           .json()
-          .catch(() => ({ message: "Network error" }));
-        throw new Error(
-          errorData.message || `HTTP error! status: ${response.status}`
-        );
+          .catch(() => ({ message: `HTTP error ${response.status}` }));
+        const msg =
+          errorData?.error ||
+          errorData?.message ||
+          `HTTP error ${response.status}`;
+        throw new Error(msg);
       }
 
       return response.json();
@@ -136,7 +148,7 @@ export const useTargetQuestions = () => {
         );
         return {
           questions: data.data,
-          alreadyAnswered: data.alreadyAnswered || false,
+          alreadyAnswered: data.alreadyAnswered ?? false,
           timeframe: data.timeframe,
         };
       } catch (err) {
@@ -196,11 +208,11 @@ export const useTargetQuestions = () => {
       try {
         const params = new URLSearchParams();
         if (options?.questionId)
-          params.append("questionId", options.questionId.toString());
-        if (options?.limit) params.append("limit", options.limit.toString());
-        if (options?.offset) params.append("offset", options.offset.toString());
+          params.append("questionId", String(options.questionId));
+        if (options?.limit) params.append("limit", String(options.limit));
+        if (options?.offset) params.append("offset", String(options.offset));
         if (options?.daysBack)
-          params.append("daysBack", options.daysBack.toString());
+          params.append("daysBack", String(options.daysBack));
 
         const queryString = params.toString() ? `?${params.toString()}` : "";
         const data: ResponsesResponse = await makeAuthenticatedRequest(
@@ -260,8 +272,8 @@ export const useTargetQuestions = () => {
         const params = new URLSearchParams();
         if (options?.priority) params.append("priority", options.priority);
         if (options?.frequency) params.append("frequency", options.frequency);
-        if (options?.limit) params.append("limit", options.limit.toString());
-        if (options?.offset) params.append("offset", options.offset.toString());
+        if (options?.limit) params.append("limit", String(options.limit));
+        if (options?.offset) params.append("offset", String(options.offset));
 
         const queryString = params.toString() ? `?${params.toString()}` : "";
         const data: QuestionsResponse = await makeAuthenticatedRequest(
@@ -298,8 +310,8 @@ export const useTargetQuestions = () => {
         if (options?.type) params.append("type", options.type);
         if (options?.priority) params.append("priority", options.priority);
         if (options?.frequency) params.append("frequency", options.frequency);
-        if (options?.limit) params.append("limit", options.limit.toString());
-        if (options?.offset) params.append("offset", options.offset.toString());
+        if (options?.limit) params.append("limit", String(options.limit));
+        if (options?.offset) params.append("offset", String(options.offset));
 
         const queryString = params.toString() ? `?${params.toString()}` : "";
         const data: QuestionsResponse = await makeAuthenticatedRequest(

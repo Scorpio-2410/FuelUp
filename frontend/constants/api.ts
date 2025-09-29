@@ -1,7 +1,14 @@
+// constants/api.ts
 import * as SecureStore from "expo-secure-store";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-export const BASE_URL = "http://localhost:4000";
+/**
+ * Single source of truth for the API base URL.
+ * Prefer setting EXPO_PUBLIC_API_URL in app config (.env or app.json/app.config.ts).
+ * Fallbacks to localhost (works on iOS simulator; for Android emulator use 10.0.2.2 or set the env).
+ */
+export const BASE_URL =
+  process.env.EXPO_PUBLIC_API_URL?.trim() || "http://localhost:4000";
 
 // small things in SecureStore (token); larger profile cache in AsyncStorage
 export const K_TOKEN = "fu_token";
@@ -45,16 +52,23 @@ const EP = {
   autoPlan: "/api/schedule/auto-plan",
 };
 
-function asJson<T = any>(res: Response): Promise<T> {
-  if (!res.ok) {
-    return res
-      .json()
-      .catch(() => ({}))
-      .then((j) => {
-        throw new Error(j?.error || j?.message || `HTTP ${res.status}`);
-      });
+class ApiError extends Error {
+  status: number;
+  payload?: any;
+  constructor(message: string, status: number, payload?: any) {
+    super(message);
+    this.status = status;
+    this.payload = payload;
   }
-  return res.json();
+}
+
+export async function storeToken(token: string) {
+  await SecureStore.setItemAsync(K_TOKEN, token);
+}
+
+export async function clearToken() {
+  await SecureStore.deleteItemAsync(K_TOKEN);
+  await AsyncStorage.removeItem(K_PROFILE);
 }
 
 async function authHeaders() {
@@ -65,42 +79,33 @@ async function authHeaders() {
   };
 }
 
-/* ---------------- token ---------------- */
-export async function storeToken(token: string) {
-  await SecureStore.setItemAsync(K_TOKEN, token);
-}
-export async function clearToken() {
-  await SecureStore.deleteItemAsync(K_TOKEN);
-  await AsyncStorage.removeItem(K_PROFILE);
+/**
+ * Central JSON helper with robust error-parsing.
+ * Also clears token automatically on 401 to prevent stale-token loops.
+ */
+async function asJson<T = any>(res: Response): Promise<T> {
+  const text = await res.text();
+  const data = text ? safeJson(text) : {};
+
+  if (!res.ok) {
+    // Auto-recover from invalid/expired tokens
+    if (res.status === 401) {
+      await clearToken();
+    }
+    throw new ApiError(
+      data?.error || data?.message || `HTTP ${res.status}`,
+      res.status,
+      data
+    );
+  }
+  return data as T;
 }
 
-/* -------------- profile cache (AsyncStorage) -------------- */
-export async function readProfileCache(): Promise<any | null> {
+function safeJson(text: string) {
   try {
-    const raw = await AsyncStorage.getItem(K_PROFILE);
-    return raw ? JSON.parse(raw) : null;
+    return JSON.parse(text);
   } catch {
-    return null;
-  }
-}
-export async function writeProfileCache(userObj: any) {
-  try {
-    const slim = {
-      id: userObj?.id,
-      username: userObj?.username,
-      email: userObj?.email,
-      avatarUri: userObj?.avatarUri,
-      dob: userObj?.dob,
-      gender: userObj?.gender,
-      notificationsEnabled: userObj?.notificationsEnabled,
-      followUpFrequency: userObj?.followUpFrequency,
-      ethnicity: userObj?.ethnicity,
-      createdAt: userObj?.createdAt,
-      updatedAt: userObj?.updatedAt,
-    };
-    await AsyncStorage.setItem(K_PROFILE, JSON.stringify(slim));
-  } catch {
-    // best-effort
+    return {};
   }
 }
 
@@ -117,6 +122,7 @@ export async function apiSignup(payload: {
   });
   return asJson<{ token: string; user: any }>(res);
 }
+
 export async function apiLogin(payload: {
   identifier: string;
   password: string;
@@ -128,12 +134,14 @@ export async function apiLogin(payload: {
   });
   return asJson<{ token: string; user: any }>(res);
 }
+
 export async function apiCheckUsername(username: string) {
   const res = await fetch(
     `${BASE_URL}${EP.checkUsername}?username=${encodeURIComponent(username)}`
   );
   return asJson<{ available: boolean; reason?: string }>(res);
 }
+
 export async function apiCheckEmail(email: string) {
   const res = await fetch(
     `${BASE_URL}${EP.checkEmail}?email=${encodeURIComponent(email)}`
@@ -150,6 +158,7 @@ export async function apiResetRequest(email: string) {
   });
   return asJson<{ ok: true }>(res);
 }
+
 export async function apiResetConfirm(payload: {
   email: string;
   code: string;
@@ -170,6 +179,7 @@ export async function apiGetMe() {
   });
   return asJson<{ user: any }>(res);
 }
+
 export async function apiUpdateMe(partial: Record<string, any>) {
   const res = await fetch(`${BASE_URL}${EP.mePut}`, {
     method: "PUT",
@@ -178,6 +188,7 @@ export async function apiUpdateMe(partial: Record<string, any>) {
   });
   return asJson<{ user: any; message: string }>(res);
 }
+
 export async function apiGetStats() {
   const res = await fetch(`${BASE_URL}${EP.stats}`, {
     headers: await authHeaders(),
@@ -192,6 +203,7 @@ export async function apiGetFitnessProfile() {
   });
   return asJson<{ success: boolean; profile: any | null }>(res);
 }
+
 export async function apiUpsertFitnessProfile(payload: {
   goal?: string | null;
   activityLevel?: string | null;
@@ -213,12 +225,14 @@ export async function apiUpsertFitnessProfile(payload: {
   });
   return asJson<{ success: boolean; profile: any }>(res);
 }
+
 export async function apiGetCurrentFitnessPlan() {
   const res = await fetch(`${BASE_URL}${EP.fitnessPlansCurrent}`, {
     headers: await authHeaders(),
   });
   return asJson<{ plan: any | null }>(res);
 }
+
 export async function apiCreateFitnessPlan(payload: {
   name: string;
   notes?: string | null;
@@ -230,6 +244,7 @@ export async function apiCreateFitnessPlan(payload: {
   });
   return asJson<{ plan: any }>(res);
 }
+
 export async function apiRecommendFitnessPlan() {
   const res = await fetch(`${BASE_URL}${EP.fitnessPlansRecommend}`, {
     method: "POST",
@@ -238,6 +253,7 @@ export async function apiRecommendFitnessPlan() {
   });
   return asJson<{ plan: any }>(res);
 }
+
 // Get exercises with pagination and filtering
 export async function apiGetExercises(params?: {
   limit?: number;
@@ -246,15 +262,15 @@ export async function apiGetExercises(params?: {
   categoryId?: number;
 }) {
   const query = new URLSearchParams();
-  if (params?.limit) query.set('limit', params.limit.toString());
-  if (params?.offset) query.set('offset', params.offset.toString());
-  if (params?.muscleGroup) query.set('muscleGroup', params.muscleGroup);
-  if (params?.categoryId) query.set('categoryId', params.categoryId.toString());
-  
-  const url = `${BASE_URL}${EP.exercises}${query.toString() ? '?' + query.toString() : ''}`;
-  const res = await fetch(url, {
-    headers: await authHeaders(),
-  });
+  if (params?.limit) query.set("limit", params.limit.toString());
+  if (params?.offset) query.set("offset", params.offset.toString());
+  if (params?.muscleGroup) query.set("muscleGroup", params.muscleGroup);
+  if (params?.categoryId) query.set("categoryId", params.categoryId.toString());
+
+  const url = `${BASE_URL}${EP.exercises}${
+    query.toString() ? "?" + query.toString() : ""
+  }`;
+  const res = await fetch(url, { headers: await authHeaders() });
   return asJson<{ success: boolean; exercises: any[]; pagination: any }>(res);
 }
 
@@ -264,13 +280,13 @@ export async function apiGetExerciseCategories(params?: {
 }) {
   const query = new URLSearchParams();
   if (params?.isGymExercise !== undefined) {
-    query.set('isGymExercise', params.isGymExercise.toString());
+    query.set("isGymExercise", String(params.isGymExercise));
   }
-  
-  const url = `${BASE_URL}${EP.exerciseCategories}${query.toString() ? '?' + query.toString() : ''}`;
-  const res = await fetch(url, {
-    headers: await authHeaders(),
-  });
+
+  const url = `${BASE_URL}${EP.exerciseCategories}${
+    query.toString() ? "?" + query.toString() : ""
+  }`;
+  const res = await fetch(url, { headers: await authHeaders() });
   return asJson<{ success: boolean; categories: any[] }>(res);
 }
 
@@ -308,6 +324,7 @@ export async function apiGetNutritionProfile() {
   });
   return asJson<{ profile: any | null }>(res);
 }
+
 export async function apiUpsertNutritionProfile(payload: {
   dailyCalorieTarget?: number | null;
   macros?: { protein_g?: number; carbs_g?: number; fat_g?: number } | null;
@@ -341,17 +358,20 @@ export async function apiCreateMeal(payload: {
   });
   return asJson<{ meal: any }>(res);
 }
+
 export async function apiGetDailyMealsTotals(date: string) {
   const url = `${BASE_URL}${EP.mealsDaily}?date=${encodeURIComponent(date)}`;
   const res = await fetch(url, { headers: await authHeaders() });
   return asJson<{ date: string; totals: any }>(res);
 }
+
 export async function apiGetCurrentMealPlan() {
   const res = await fetch(`${BASE_URL}${EP.mealPlansCurrent}`, {
     headers: await authHeaders(),
   });
   return asJson<{ plan: any | null }>(res);
 }
+
 export async function apiCreateMealPlan(payload: {
   name: string;
   notes?: string | null;
@@ -363,6 +383,7 @@ export async function apiCreateMealPlan(payload: {
   });
   return asJson<{ plan: any }>(res);
 }
+
 export async function apiRecommendMealPlan() {
   const res = await fetch(`${BASE_URL}${EP.mealPlansRecommend}`, {
     method: "POST",
@@ -373,7 +394,6 @@ export async function apiRecommendMealPlan() {
 }
 
 /* ---------------- schedule + events ---------------- */
-
 export async function apiGetSchedule() {
   const res = await fetch(`${BASE_URL}${EP.schedulesRoot}`, {
     headers: await authHeaders(),
@@ -470,4 +490,35 @@ export async function apiAutoPlanWorkouts(horizonDays: number = 7) {
   return asJson<{ success: boolean; created_count: number; events: any[] }>(
     res
   );
+}
+
+/* -------------- profile cache (AsyncStorage) -------------- */
+export async function readProfileCache(): Promise<any | null> {
+  try {
+    const raw = await AsyncStorage.getItem(K_PROFILE);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function writeProfileCache(userObj: any) {
+  try {
+    const slim = {
+      id: userObj?.id,
+      username: userObj?.username,
+      email: userObj?.email,
+      avatarUri: userObj?.avatarUri,
+      dob: userObj?.dob,
+      gender: userObj?.gender,
+      notificationsEnabled: userObj?.notificationsEnabled,
+      followUpFrequency: userObj?.followUpFrequency,
+      ethnicity: userObj?.ethnicity,
+      createdAt: userObj?.createdAt,
+      updatedAt: userObj?.updatedAt,
+    };
+    await AsyncStorage.setItem(K_PROFILE, JSON.stringify(slim));
+  } catch {
+    // best-effort
+  }
 }
