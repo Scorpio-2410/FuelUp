@@ -3,7 +3,6 @@ const { pool } = require("../config/database");
 class Exercise {
   constructor(row) {
     this.id = row.id;
-    this.fitnessPlanId = row.fitness_plan_id;
     this.categoryId = row.category_id;
 
     this.name = row.name;
@@ -31,15 +30,14 @@ class Exercise {
     }
   }
 
-  static async create(planId, data) {
+  static async create(data) {
     const r = await pool.query(
       `INSERT INTO exercises
-        (fitness_plan_id, category_id, name, muscle_group, equipment, difficulty,
+        (category_id, name, muscle_group, equipment, difficulty,
          duration_min, sets, reps, rest_seconds, notes)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
        RETURNING *`,
       [
-        planId,
         data.categoryId || null,
         data.name,
         data.muscleGroup || null,
@@ -55,20 +53,19 @@ class Exercise {
     return new Exercise(r.rows[0]);
   }
 
-  // List exercises for a user across all their fitness plans
-  static async listForUser(userId, { limit = 50, offset = 0, categoryId = null } = {}) {
+  // List all exercises (now globally accessible)
+  static async listAll({ limit = 50, offset = 0, categoryId = null } = {}) {
     let query = `
       SELECT e.*, 
              ec.name as category_name,
              ec.description as category_description,
              ec.is_gym_exercise as category_is_gym_exercise
       FROM exercises e
-      JOIN fitness_plans fp ON e.fitness_plan_id = fp.id
       LEFT JOIN exercise_categories ec ON e.category_id = ec.id
-      WHERE fp.user_id = $1`;
+      WHERE 1=1`;
     
-    const params = [userId];
-    let paramIndex = 2;
+    const params = [];
+    let paramIndex = 1;
 
     if (categoryId !== null) {
       query += ` AND e.category_id = $${paramIndex}`;
@@ -83,54 +80,39 @@ class Exercise {
     return r.rows.map((row) => new Exercise(row));
   }
 
-  // Get exercise by ID with user ownership check
-  static async getById(id, userId) {
+  // Get exercise by ID (now globally accessible)
+  static async getById(id) {
     const r = await pool.query(
       `SELECT e.*, 
              ec.name as category_name,
              ec.description as category_description,
              ec.is_gym_exercise as category_is_gym_exercise
        FROM exercises e
-       JOIN fitness_plans fp ON e.fitness_plan_id = fp.id
        LEFT JOIN exercise_categories ec ON e.category_id = ec.id
-       WHERE e.id = $1 AND fp.user_id = $2`,
-      [id, userId]
+       WHERE e.id = $1`,
+      [id]
     );
     return r.rows[0] ? new Exercise(r.rows[0]) : null;
   }
 
-  static async listByPlan(planId) {
-    const r = await pool.query(
-      `SELECT e.*, 
-             ec.name as category_name,
-             ec.description as category_description,
-             ec.is_gym_exercise as category_is_gym_exercise
-       FROM exercises e
-       LEFT JOIN exercise_categories ec ON e.category_id = ec.id
-       WHERE e.fitness_plan_id = $1 
-       ORDER BY e.id ASC`,
-      [planId]
-    );
-    return r.rows.map((row) => new Exercise(row));
-  }
+  // Note: listByPlan method removed since exercises are no longer tied to plans
 
   static async findById(id) {
     const r = await pool.query(`SELECT * FROM exercises WHERE id=$1`, [id]);
     return r.rows[0] ? new Exercise(r.rows[0]) : null;
   }
 
-  // Static method to update exercise with user ownership check
-  static async update(id, userId, patch) {
-    // First check if the exercise belongs to the user
-    const exercise = await Exercise.getById(id, userId);
+  // Static method to update exercise (no ownership check needed)
+  static async update(id, patch) {
+    const exercise = await Exercise.getById(id);
     if (!exercise) return null;
     
     return await exercise.update(patch);
   }
 
-  // Static method to remove exercise with user ownership check
-  static async remove(id, userId) {
-    const exercise = await Exercise.getById(id, userId);
+  // Static method to remove exercise (no ownership check needed)
+  static async remove(id) {
+    const exercise = await Exercise.getById(id);
     if (!exercise) return false;
     
     await exercise.delete();
@@ -183,7 +165,6 @@ class Exercise {
   toJSON() {
     return {
       id: this.id,
-      fitnessPlanId: this.fitnessPlanId,
       categoryId: this.categoryId,
       category: this.category,
       name: this.name,
