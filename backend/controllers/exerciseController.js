@@ -8,7 +8,7 @@ const ExerciseController = {
       const offset = Number(req.query.offset ?? 0);
       const categoryId = req.query.categoryId ? Number(req.query.categoryId) : null;
       
-      const exercises = await Exercise.listForUser(req.userId, {
+      const exercises = await Exercise.listAll({
         limit,
         offset,
         categoryId,
@@ -27,7 +27,7 @@ const ExerciseController = {
   async getExerciseById(req, res) {
     try {
       const id = Number(req.params.id);
-      const exercise = await Exercise.getById(id, req.userId);
+      const exercise = await Exercise.getById(id);
       if (!exercise)
         return res.status(404).json({ error: "Exercise not found" });
       res.json({ success: true, exercise: exercise.toJSON() });
@@ -39,16 +39,14 @@ const ExerciseController = {
 
   async createExercise(req, res) {
     try {
-      // For now, we'll require a fitness_plan_id in the request body
-      // Later we can add logic to create a default "Custom Exercises" plan
-      const fitnessPlanId = req.body.fitnessPlanId;
-      if (!fitnessPlanId) {
+      // Exercises are now global and don't require a fitness plan
+      if (!req.body.name) {
         return res.status(400).json({ 
-          error: "fitness_plan_id is required. Create a fitness plan first." 
+          error: "Exercise name is required." 
         });
       }
 
-      const created = await Exercise.create(fitnessPlanId, {
+      const created = await Exercise.create({
         name: req.body.name,
         categoryId: req.body.categoryId ?? null,
         muscleGroup: req.body.muscleGroup ?? null,
@@ -70,7 +68,7 @@ const ExerciseController = {
   async updateExercise(req, res) {
     try {
       const id = Number(req.params.id);
-      const updated = await Exercise.update(id, req.userId, {
+      const updated = await Exercise.update(id, {
         name: req.body.name,
         category_id: req.body.categoryId,
         muscle_group: req.body.muscleGroup,
@@ -94,7 +92,7 @@ const ExerciseController = {
   async deleteExercise(req, res) {
     try {
       const id = Number(req.params.id);
-      const ok = await Exercise.remove(id, req.userId);
+      const ok = await Exercise.remove(id);
       if (!ok) return res.status(404).json({ error: "Exercise not found" });
       res.json({ success: true });
     } catch (e) {

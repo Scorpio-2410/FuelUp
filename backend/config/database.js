@@ -329,7 +329,6 @@ const initializeDatabase = async () => {
 
       CREATE TABLE IF NOT EXISTS exercises (
         id               INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-        fitness_plan_id  INTEGER NOT NULL REFERENCES fitness_plans(id) ON DELETE CASCADE,
         category_id      INTEGER REFERENCES exercise_categories(id) ON DELETE SET NULL,
         name             VARCHAR(120) NOT NULL,
         muscle_group     VARCHAR(80),
@@ -354,7 +353,16 @@ const initializeDatabase = async () => {
         END;
       END $$;
 
-      CREATE INDEX IF NOT EXISTS idx_exercises_plan ON exercises(fitness_plan_id);
+      -- Drop fitness_plan_id column if it exists (exercises are now global)
+      DO $$ 
+      BEGIN
+        BEGIN
+          ALTER TABLE exercises DROP COLUMN IF EXISTS fitness_plan_id;
+        EXCEPTION WHEN others THEN
+          -- Column already dropped or doesn't exist, do nothing
+        END;
+      END $$;
+
       CREATE INDEX IF NOT EXISTS idx_exercises_category ON exercises(category_id);
       DROP TRIGGER IF EXISTS trg_exercises_updated_at ON exercises;
       CREATE TRIGGER trg_exercises_updated_at
