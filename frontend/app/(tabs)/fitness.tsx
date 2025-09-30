@@ -1,6 +1,7 @@
 // app/(tabs)/fitness.tsx
 import { useMemo, useState } from "react";
 import { View, Text } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import RefreshScroll from "../../components/RefreshScroll";
 import { useGlobalRefresh } from "../../components/useGlobalRefresh";
 import TopSearchBar from "../../components/TopSearchBar";
@@ -17,8 +18,6 @@ import TargetFilterBar, {
 
 export default function FitnessScreen() {
   const [query, setQuery] = useState("");
-
-  // DEFAULT TO FIRST OPTION = "abductors" (index 0)
   const [selectedTarget, setSelectedTarget] = useState<string>(
     MUSCLE_GROUPS[0]
   );
@@ -39,19 +38,21 @@ export default function FitnessScreen() {
   }, [query, list]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#0b0b0b" }}>
-      {/* Search */}
-      <TopSearchBar
-        value={query}
-        onChangeText={setQuery}
-        onClear={() => setQuery("")}
-      />
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: "#0b0b0b" }}
+      edges={["top"]}>
+      {/* Keep content snug under the notch/Dynamic Island without being too low */}
+      <View style={{ paddingTop: 4 }}>
+        <TopSearchBar
+          value={query}
+          onChangeText={setQuery}
+          onClear={() => setQuery("")}
+        />
 
-      {/* Horizontal chip selector */}
-      <TargetFilterBar value={selectedTarget} onChange={setSelectedTarget} />
+        <TargetFilterBar value={selectedTarget} onChange={setSelectedTarget} />
+      </View>
 
       <RefreshScroll refreshing={refreshing} onRefresh={handleRefresh}>
-        {/* Header */}
         <View style={{ paddingHorizontal: 24, marginBottom: 12, marginTop: 6 }}>
           <Text style={{ color: "#fff", fontSize: 22, fontWeight: "800" }}>
             Exercises
@@ -63,7 +64,6 @@ export default function FitnessScreen() {
 
         <CalendarShortcut onPress={() => {}} />
 
-        {/* States */}
         {loading ? (
           <View style={{ paddingHorizontal: 24, marginTop: 16 }}>
             <Text style={{ color: "#a1a1aa" }}>Loading exercises…</Text>
@@ -79,19 +79,17 @@ export default function FitnessScreen() {
           </View>
         ) : null}
 
-        {/* Grid */}
         <ExerciseGrid
           exercises={filtered}
           onExercisePress={(ex) => setSelected(ex)}
         />
       </RefreshScroll>
 
-      {/* Detail modal */}
       <ExerciseDetailModal
         visible={!!selected}
         exercise={selected}
         onClose={() => setSelected(null)}
       />
-    </View>
+    </SafeAreaView>
   );
 }
