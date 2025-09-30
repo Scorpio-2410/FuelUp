@@ -2,7 +2,7 @@
 import React, { useMemo } from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 
-const RAW_GROUPS = [
+export const MUSCLE_GROUPS = [
   "abductors",
   "abs",
   "adductors",
@@ -18,13 +18,10 @@ const RAW_GROUPS = [
   "pectorals",
   "quads",
   "serratus anterior",
-  "", // keep index parity from your list; filtered out below
   "traps",
   "triceps",
   "upper back",
-];
-
-export const MUSCLE_GROUPS = ["all", ...RAW_GROUPS.filter(Boolean)];
+] as const;
 
 type Props = {
   value: string; // one of MUSCLE_GROUPS

@@ -17,10 +17,13 @@ import TargetFilterBar, {
 
 export default function FitnessScreen() {
   const [query, setQuery] = useState("");
-  const [selectedTarget, setSelectedTarget] = useState<string>("all");
-  const apiTarget = selectedTarget === "all" ? undefined : selectedTarget;
+  // Default to "abs"
+  const [selectedTarget, setSelectedTarget] = useState<string>(
+    MUSCLE_GROUPS[1]
+  );
 
-  const { list, loading, error, refresh } = useExerciseAPI(apiTarget);
+  // Pass the selected target directly (no "all" option anymore)
+  const { list, loading, error, refresh } = useExerciseAPI(selectedTarget);
   const { refreshing, handleRefresh } = useGlobalRefresh({
     tabName: "fitness",
     onInternalRefresh: refresh,
@@ -44,7 +47,7 @@ export default function FitnessScreen() {
         onClear={() => setQuery("")}
       />
 
-      {/* Compact horizontal chip selector */}
+      {/* Horizontal chip selector (no "All") */}
       <TargetFilterBar value={selectedTarget} onChange={setSelectedTarget} />
 
       <RefreshScroll refreshing={refreshing} onRefresh={handleRefresh}>
@@ -54,10 +57,7 @@ export default function FitnessScreen() {
             Exercises
           </Text>
           <Text style={{ color: "#a1a1aa", marginTop: 4 }}>
-            {selectedTarget === "all"
-              ? "All targets."
-              : `Target: ${selectedTarget}.`}{" "}
-            Tap any exercise for GIF and instructions.
+            Target: {selectedTarget}. Tap any exercise for GIF and instructions.
           </Text>
         </View>
 

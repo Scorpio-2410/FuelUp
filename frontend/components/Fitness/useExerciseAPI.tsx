@@ -18,7 +18,10 @@ export function useExerciseAPI(target?: string) {
       setLoading(true);
       setError(null);
 
-      const res = await apiSearchExercises(target ? { target } : undefined);
+      // Ensure API gets lowercase target (ExerciseDB is case-sensitive)
+      const res = await apiSearchExercises(
+        target ? { target: target.toLowerCase() } : undefined
+      );
       const items = Array.isArray(res?.items) ? res.items : [];
 
       const mapped: ExerciseListItem[] = items.map((x: any) => ({

@@ -16,12 +16,14 @@ if (!KEY) {
 
 /**
  * GET /api/exercises
- * If ?target=<muscle> is provided, proxy: /exercises/target/{target}
- * Otherwise returns the full list from /exercises.
- * Returns: { items: [...] }
+ * If ?target=<muscle> is provided, proxy ExerciseDB /exercises/target/{target}
+ * Else returns the full list.
  */
 router.get("/", async (req, res) => {
-  const target = (req.query.target || "").trim();
+  // make target case-insensitive and trimmed
+  const target = String(req.query.target || "")
+    .trim()
+    .toLowerCase();
   const upstreamPath = target
     ? `/exercises/target/${encodeURIComponent(target)}`
     : `/exercises`;
@@ -42,18 +44,12 @@ router.get("/", async (req, res) => {
   }
 });
 
-/**
- * GET /api/exercises/:id/image?resolution=180
- * Must be declared BEFORE "/:id" or it will be shadowed.
- * Response: image/gif (binary)
- */
+/** IMAGE (must be before /:id) */
 router.get("/:id/image", async (req, res) => {
   const exerciseId = String(req.params.id || "").trim();
   const resolution = String(req.query.resolution || "180").trim();
-
-  if (!exerciseId) {
+  if (!exerciseId)
     return res.status(400).json({ error: "exerciseId required" });
-  }
 
   try {
     const resp = await axios({
@@ -78,11 +74,7 @@ router.get("/:id/image", async (req, res) => {
   }
 });
 
-/**
- * GET /api/exercises/:id
- * Correct upstream endpoint: /exercises/exercise/{id}
- * Returns: { item: {...} }
- */
+/** DETAIL */
 router.get("/:id", async (req, res) => {
   const id = String(req.params.id || "").trim();
   if (!id) return res.status(400).json({ error: "id required" });
@@ -98,7 +90,6 @@ router.get("/:id", async (req, res) => {
     const item = resp.data;
     if (!item || !item.id)
       return res.status(404).json({ error: "Exercise not found" });
-
     return res.json({ item });
   } catch (err) {
     const status = err?.response?.status || 500;
