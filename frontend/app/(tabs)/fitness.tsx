@@ -17,12 +17,12 @@ import TargetFilterBar, {
 
 export default function FitnessScreen() {
   const [query, setQuery] = useState("");
-  // Default to "abs"
+
+  // DEFAULT TO FIRST OPTION = "abductors" (index 0)
   const [selectedTarget, setSelectedTarget] = useState<string>(
-    MUSCLE_GROUPS[1]
+    MUSCLE_GROUPS[0]
   );
 
-  // Pass the selected target directly (no "all" option anymore)
   const { list, loading, error, refresh } = useExerciseAPI(selectedTarget);
   const { refreshing, handleRefresh } = useGlobalRefresh({
     tabName: "fitness",
@@ -47,7 +47,7 @@ export default function FitnessScreen() {
         onClear={() => setQuery("")}
       />
 
-      {/* Horizontal chip selector (no "All") */}
+      {/* Horizontal chip selector */}
       <TargetFilterBar value={selectedTarget} onChange={setSelectedTarget} />
 
       <RefreshScroll refreshing={refreshing} onRefresh={handleRefresh}>
