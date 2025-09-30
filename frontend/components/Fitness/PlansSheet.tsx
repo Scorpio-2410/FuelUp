@@ -1,5 +1,4 @@
-// components/Fitness/PlansSheet.tsx
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Modal,
   View,
@@ -7,8 +6,10 @@ import {
   TouchableOpacity,
   Dimensions,
   ScrollView,
-  Image,
+  TextInput,
+  ActivityIndicator,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import {
   apiListPlans,
@@ -16,8 +17,9 @@ import {
   apiDeletePlan,
   apiListPlanExercises,
   apiRemoveExerciseFromPlan,
-  getExerciseImageUri,
+  apiUpdatePlan,
 } from "../../constants/api";
+import ExerciseDetailModal from "./ExerciseDetailModal";
 
 const W = Dimensions.get("window").width;
 
@@ -26,210 +28,430 @@ type Props = {
   onClose: () => void;
 };
 
+type Plan = {
+  id: number;
+  name: string;
+  status: string;
+  notes?: string | null;
+};
+
 export default function PlansSheet({ visible, onClose }: Props) {
-  const [plans, setPlans] = useState<any[]>([]);
-  const [current, setCurrent] = useState(0);
-  const [exercises, setExercises] = useState<Record<string, any[]>>({});
+  const insets = useSafeAreaInsets();
+
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [exByPlan, setExByPlan] = useState<Record<string, any[]>>({});
+  const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  async function load() {
-    const { plans: p } = await apiListPlans();
-    setPlans(p || []);
-    // prefetch exercises
-    const map: Record<string, any[]> = {};
-    for (const pl of p || []) {
-      const r = await apiListPlanExercises(pl.id);
-      map[pl.id] = r?.items || [];
-    }
-    setExercises(map);
-  }
+  // edit modal
+  const [editing, setEditing] = useState<Plan | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+
+  // exercise detail
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailItem, setDetailItem] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+
+  const hasRoom = useMemo(() => (plans?.length || 0) < 3, [plans]);
 
   useEffect(() => {
-    if (visible) load();
+    if (!visible) return;
+    load();
   }, [visible]);
 
-  async function addPlan() {
-    if ((plans || []).length >= 3) return;
-    setBusy(true);
-    await apiCreatePlan({ name: `Plan ${plans.length + 1}` });
-    await load();
-    setBusy(false);
+  async function load() {
+    setLoading(true);
+    try {
+      const { plans: p } = await apiListPlans();
+      setPlans(p || []);
+      // fetch exercises for each plan
+      const map: Record<string, any[]> = {};
+      for (const pl of p || []) {
+        const resp = await apiListPlanExercises(pl.id);
+        const list = (resp as any)?.items ?? (resp as any)?.exercises ?? [];
+        map[pl.id] = Array.isArray(list) ? list : [];
+      }
+      setExByPlan(map);
+    } finally {
+      setLoading(false);
+    }
   }
 
-  async function removePlan(id: string) {
+  async function createPlan() {
+    if (!hasRoom || busy) return;
     setBusy(true);
-    await apiDeletePlan(id);
-    await load();
-    setBusy(false);
+    try {
+      const { plan } = await apiCreatePlan({
+        name: `Plan ${plans.length + 1}`,
+      });
+      await load();
+      setEditing(plan);
+      setEditName(plan.name || "");
+      setEditNotes(plan.notes || "");
+    } finally {
+      setBusy(false);
+    }
   }
 
-  async function removeExercise(planId: string, externalId: string) {
+  async function deletePlan(id: number) {
+    if (busy) return;
     setBusy(true);
-    await apiRemoveExerciseFromPlan(planId, externalId);
-    await load();
-    setBusy(false);
+    try {
+      await apiDeletePlan(id);
+      await load();
+    } finally {
+      setBusy(false);
+    }
   }
 
-  const activePlan = useMemo(() => plans[current], [plans, current]);
+  async function saveEdit() {
+    if (!editing) return;
+    setBusy(true);
+    try {
+      await apiUpdatePlan(editing.id, { name: editName, notes: editNotes });
+      setEditing(null);
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function openEdit(pl: Plan) {
+    setEditing(pl);
+    setEditName(pl.name || "");
+    setEditNotes(pl.notes || "");
+  }
+
+  async function removeExercise(planId: number, rowId: number) {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await apiRemoveExerciseFromPlan(planId, rowId);
+      setExByPlan((prev) => {
+        const list = (prev[planId] || []).filter((x: any) => x.id !== rowId);
+        return { ...prev, [planId]: list };
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function openExerciseDetail(exRow: any) {
+    setDetailItem({ id: String(exRow.externalId), name: exRow.name });
+    setDetailOpen(true);
+  }
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)" }}>
+    <Modal visible={visible} animationType="slide" transparent={false}>
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: "#0a0a0a",
+          paddingTop: Math.max(insets.top, 10),
+          paddingBottom: Math.max(insets.bottom, 10),
+        }}>
+        {/* Header */}
         <View
           style={{
-            marginTop: 56,
-            flex: 1,
-            backgroundColor: "#0b0b0b",
-            borderTopLeftRadius: 20,
-            borderTopRightRadius: 20,
-            overflow: "hidden",
+            paddingHorizontal: 16,
+            paddingVertical: 12,
+            borderBottomWidth: 1,
+            borderBottomColor: "#1f2937",
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 8,
           }}>
-          {/* Top bar */}
-          <View
+          <TouchableOpacity onPress={onClose} style={{ padding: 6 }}>
+            <Ionicons name="close" size={24} color="#fff" />
+          </TouchableOpacity>
+          <Text
+            style={{ color: "#fff", fontWeight: "800", fontSize: 18, flex: 1 }}>
+            My Plans
+          </Text>
+
+          <TouchableOpacity
+            onPress={createPlan}
+            disabled={!hasRoom || busy}
             style={{
-              flexDirection: "row",
-              alignItems: "center",
-              padding: 16,
-              borderBottomWidth: 1,
-              borderBottomColor: "#1f2937",
+              paddingHorizontal: 10,
+              paddingVertical: 6,
+              borderRadius: 10,
+              backgroundColor: hasRoom ? "#16a34a" : "#334155",
+              marginRight: 6,
             }}>
-            <Text
-              style={{
-                color: "#fff",
-                fontSize: 18,
-                fontWeight: "800",
-                flex: 1,
-              }}>
-              My Plans
-            </Text>
+            <Ionicons name="add" size={18} color="#fff" />
+          </TouchableOpacity>
 
-            {/* Add / Remove plan */}
+          {plans.length > 0 && (
             <TouchableOpacity
-              onPress={addPlan}
-              disabled={busy || plans.length >= 3}
+              onPress={() => deletePlan(plans[0].id)}
+              disabled={busy}
               style={{
-                backgroundColor: plans.length >= 3 ? "#111827" : "#22c55e",
-                paddingHorizontal: 12,
-                paddingVertical: 8,
-                borderRadius: 12,
-                marginRight: 8,
+                paddingHorizontal: 10,
+                paddingVertical: 6,
+                borderRadius: 10,
+                backgroundColor: "#1f2937",
               }}>
-              <Ionicons
-                name="add"
-                color={plans.length >= 3 ? "#6b7280" : "#052e16"}
-                size={18}
-              />
+              <Ionicons name="trash" size={18} color="#94a3b8" />
             </TouchableOpacity>
+          )}
+        </View>
 
-            {activePlan && (
-              <TouchableOpacity
-                onPress={() => removePlan(activePlan.id)}
-                disabled={busy || plans.length <= 1}
-                style={{
-                  backgroundColor: plans.length <= 1 ? "#111827" : "#ef4444",
-                  paddingHorizontal: 12,
-                  paddingVertical: 8,
-                  borderRadius: 12,
-                }}>
-                <Ionicons
-                  name="trash"
-                  color={plans.length <= 1 ? "#6b7280" : "#0b0b0b"}
-                  size={18}
-                />
-              </TouchableOpacity>
-            )}
-
-            <TouchableOpacity onPress={onClose} style={{ marginLeft: 10 }}>
-              <Ionicons name="close" size={22} color="#e5e7eb" />
-            </TouchableOpacity>
+        {loading ? (
+          <View
+            style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+            <ActivityIndicator />
           </View>
-
-          {/* Pager */}
+        ) : (
           <ScrollView
-            horizontal
-            pagingEnabled
-            onMomentumScrollEnd={(e) => {
-              const idx = Math.round(e.nativeEvent.contentOffset.x / W);
-              setCurrent(idx);
-            }}
-            showsHorizontalScrollIndicator={false}>
-            {(plans.length
-              ? plans
-              : [{ id: "placeholder", name: "Create your first plan" }]
-            ).map((p, i) => (
-              <View key={p.id || i} style={{ width: W, padding: 16 }}>
-                <Text
+            contentContainerStyle={{
+              padding: 14,
+              paddingBottom: Math.max(insets.bottom + 20, 40),
+            }}>
+            {plans.map((pl) => {
+              const list = exByPlan[pl.id] || [];
+              return (
+                <View
+                  key={pl.id}
                   style={{
-                    color: "#fff",
-                    fontWeight: "800",
-                    fontSize: 16,
-                    marginBottom: 10,
+                    marginBottom: 18,
+                    backgroundColor: "#0b1220",
+                    borderRadius: 14,
+                    borderWidth: 1,
+                    borderColor: "#111827",
                   }}>
-                  {p.name}
-                </Text>
-
-                {(exercises[p.id] || []).map((ex) => (
+                  {/* plan row header */}
                   <View
-                    key={ex.externalId}
                     style={{
                       flexDirection: "row",
                       alignItems: "center",
-                      backgroundColor: "#171717",
-                      borderRadius: 12,
-                      padding: 10,
-                      marginBottom: 8,
-                      borderWidth: 1,
-                      borderColor: "#262626",
+                      paddingHorizontal: 12,
+                      paddingVertical: 10,
+                      gap: 10,
                     }}>
-                    <Image
-                      source={{
-                        uri: getExerciseImageUri(ex.externalId, "180"),
-                      }}
+                    <Text
                       style={{
-                        width: 56,
-                        height: 56,
-                        borderRadius: 10,
-                        marginRight: 10,
-                        backgroundColor: "#0a0a0a",
-                      }}
-                    />
-                    <View style={{ flex: 1 }}>
-                      <Text
-                        style={{ color: "#fff", fontWeight: "700" }}
-                        numberOfLines={1}>
-                        {ex.name}
-                      </Text>
-                      {!!ex.bodyPart && (
-                        <Text style={{ color: "#9CA3AF", fontSize: 12 }}>
-                          {ex.bodyPart}
-                        </Text>
-                      )}
-                    </View>
+                        color: "#fff",
+                        fontWeight: "700",
+                        fontSize: 16,
+                        flex: 1,
+                      }}>
+                      {pl.name}
+                    </Text>
+
                     <TouchableOpacity
-                      onPress={() => removeExercise(p.id, ex.externalId)}
+                      onPress={() => openEdit(pl)}
+                      style={{
+                        paddingHorizontal: 10,
+                        paddingVertical: 6,
+                        borderRadius: 10,
+                        backgroundColor: "#111827",
+                      }}>
+                      <Ionicons
+                        name="create-outline"
+                        size={18}
+                        color="#93c5fd"
+                      />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() => deletePlan(pl.id)}
                       disabled={busy}
                       style={{
                         paddingHorizontal: 10,
                         paddingVertical: 6,
                         borderRadius: 10,
-                        backgroundColor: "#ef4444",
+                        backgroundColor: "#111827",
+                        marginLeft: 6,
                       }}>
-                      <Ionicons name="remove" size={16} color="#0b0b0b" />
+                      <Ionicons name="trash" size={18} color="#fca5a5" />
                     </TouchableOpacity>
                   </View>
-                ))}
 
-                {(!exercises[p.id] || exercises[p.id].length === 0) && (
-                  <Text style={{ color: "#9CA3AF" }}>
-                    No exercises yet. Add from an exercise detail with the green
-                    “Plan” button.
-                  </Text>
-                )}
-              </View>
-            ))}
+                  {!!pl.notes && (
+                    <Text
+                      style={{
+                        color: "#94a3b8",
+                        paddingHorizontal: 12,
+                        paddingTop: 0,
+                        paddingBottom: 8,
+                      }}>
+                      {pl.notes}
+                    </Text>
+                  )}
+
+                  {/* exercises */}
+                  <View style={{ gap: 10, padding: 12 }}>
+                    {list.map((row: any) => (
+                      <View
+                        key={row.id}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          backgroundColor: "#0f172a",
+                          borderRadius: 12,
+                          padding: 12,
+                        }}>
+                        {/* No image here to avoid 422 issues */}
+                        <TouchableOpacity
+                          style={{ flex: 1 }}
+                          onPress={() => openExerciseDetail(row)}>
+                          <Text
+                            style={{
+                              color: "#fff",
+                              fontWeight: "600",
+                              flexShrink: 1,
+                            }}>
+                            {row.name}
+                          </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          onPress={() => removeExercise(pl.id, row.id)}
+                          disabled={busy}
+                          style={{
+                            paddingHorizontal: 10,
+                            paddingVertical: 6,
+                            borderRadius: 10,
+                            backgroundColor: "#991b1b",
+                            marginLeft: 10,
+                          }}>
+                          <Ionicons name="remove" size={18} color="#fff" />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+
+                    {list.length === 0 && (
+                      <Text style={{ color: "#9ca3af" }}>
+                        No exercises yet. Add from the Fitness → Exercises page.
+                      </Text>
+                    )}
+                  </View>
+                </View>
+              );
+            })}
           </ScrollView>
-        </View>
+        )}
       </View>
+
+      {/* Edit plan modal (name + notes) */}
+      <Modal
+        visible={!!editing}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setEditing(null)}>
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.6)",
+            alignItems: "center",
+            justifyContent: "center",
+            paddingTop: insets.top + 18,
+            paddingBottom: insets.bottom + 18,
+            paddingHorizontal: 18,
+          }}>
+          <View
+            style={{
+              width: Math.min(W - 32, 520),
+              backgroundColor: "#0b1220",
+              borderRadius: 16,
+              borderWidth: 1,
+              borderColor: "#1f2937",
+              padding: 16,
+            }}>
+            <Text
+              style={{
+                color: "#fff",
+                fontWeight: "800",
+                fontSize: 16,
+                marginBottom: 10,
+              }}>
+              Edit Plan
+            </Text>
+
+            <Text style={{ color: "#94a3b8", marginBottom: 6 }}>Name</Text>
+            <TextInput
+              value={editName}
+              onChangeText={setEditName}
+              placeholder="Plan name"
+              placeholderTextColor="#6b7280"
+              style={{
+                color: "#fff",
+                backgroundColor: "#0f172a",
+                borderWidth: 1,
+                borderColor: "#1f2937",
+                borderRadius: 10,
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+                marginBottom: 12,
+              }}
+            />
+
+            <Text style={{ color: "#94a3b8", marginBottom: 6 }}>Notes</Text>
+            <TextInput
+              value={editNotes}
+              onChangeText={setEditNotes}
+              placeholder="Add a note about this plan"
+              placeholderTextColor="#6b7280"
+              multiline
+              style={{
+                color: "#fff",
+                backgroundColor: "#0f172a",
+                borderWidth: 1,
+                borderColor: "#1f2937",
+                borderRadius: 10,
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+                minHeight: 90,
+              }}
+            />
+
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "flex-end",
+                gap: 10,
+                marginTop: 14,
+              }}>
+              <TouchableOpacity
+                onPress={() => setEditing(null)}
+                style={{
+                  paddingHorizontal: 12,
+                  paddingVertical: 10,
+                  borderRadius: 10,
+                  backgroundColor: "#111827",
+                }}>
+                <Text style={{ color: "#cbd5e1" }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={saveEdit}
+                disabled={busy}
+                style={{
+                  paddingHorizontal: 12,
+                  paddingVertical: 10,
+                  borderRadius: 10,
+                  backgroundColor: "#16a34a",
+                }}>
+                <Text style={{ color: "#fff", fontWeight: "700" }}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Exercise detail modal (shows image there) */}
+      <ExerciseDetailModal
+        visible={detailOpen}
+        exercise={
+          detailItem
+            ? ({ id: detailItem.id, name: detailItem.name } as any)
+            : null
+        }
+        onClose={() => setDetailOpen(false)}
+      />
     </Modal>
   );
 }

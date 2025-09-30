@@ -1,4 +1,3 @@
-// components/Fitness/ExerciseDetailModal.tsx
 import { useEffect, useState } from "react";
 import {
   Modal,
@@ -8,18 +7,18 @@ import {
   ScrollView,
   ActivityIndicator,
   Image,
-  Platform,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import {
   apiGetExerciseDetail,
   getExerciseImageUri,
   apiListPlans,
+  apiListPlanExercises,
   apiAddExerciseToPlan,
 } from "../../constants/api";
 import type { ExerciseListItem } from "./useExerciseAPI";
 import PlanPickerModal from "./PlanPickerModal";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const fallback = require("../../assets/images/fitness.png");
 
@@ -34,8 +33,6 @@ export default function ExerciseDetailModal({
   exercise,
   onClose,
 }: Props) {
-  const insets = useSafeAreaInsets();
-
   const [loading, setLoading] = useState(false);
   const [gifUri, setGifUri] = useState<string | null>(null);
   const [detail, setDetail] = useState<any | null>(null);
@@ -43,6 +40,7 @@ export default function ExerciseDetailModal({
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [plans, setPlans] = useState<any[]>([]);
+  const [exByPlan, setExByPlan] = useState<Record<string | number, any[]>>({});
   const [adding, setAdding] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -50,7 +48,7 @@ export default function ExerciseDetailModal({
     if (!visible || !exercise) return;
 
     let mounted = true;
-    const run = async () => {
+    (async () => {
       try {
         setLoading(true);
         setError(null);
@@ -67,9 +65,8 @@ export default function ExerciseDetailModal({
       } finally {
         if (mounted) setLoading(false);
       }
-    };
+    })();
 
-    run();
     return () => {
       mounted = false;
     };
@@ -78,7 +75,15 @@ export default function ExerciseDetailModal({
   async function openPicker() {
     try {
       const res = await apiListPlans();
-      setPlans(Array.isArray(res?.plans) ? res.plans : []);
+      const p = Array.isArray(res?.plans) ? res.plans : [];
+      const map: Record<string | number, any[]> = {};
+      for (const pl of p) {
+        const r = await apiListPlanExercises(pl.id);
+        const list = (r as any)?.items ?? (r as any)?.exercises ?? [];
+        map[pl.id] = Array.isArray(list) ? list : [];
+      }
+      setPlans(p);
+      setExByPlan(map);
       setPickerOpen(true);
     } catch {
       setToast("Failed to load plans");
@@ -90,7 +95,12 @@ export default function ExerciseDetailModal({
     if (!exercise) return;
     try {
       setAdding(true);
-      await apiAddExerciseToPlan(planId, exercise.id, exercise.name);
+      await apiAddExerciseToPlan(planId, exercise.id, exercise.name, {
+        gifUrl: detail?.gifUrl || null,
+        bodyPart: detail?.bodyPart || null,
+        target: detail?.target || null,
+        equipment: detail?.equipment || null,
+      });
       setPickerOpen(false);
       setToast("Added to plan");
     } catch {
@@ -105,62 +115,57 @@ export default function ExerciseDetailModal({
 
   return (
     <Modal visible={visible} animationType="slide" transparent={false}>
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: "#000",
-          paddingTop: insets.top + (Platform.OS === "ios" ? 4 : 0), // ⬅ keep UI clear of notch/Dynamic Island
-          paddingBottom: insets.bottom,
-        }}>
+      {/* Safe area prevents overlap with notch & home indicator without pushing too low */}
+      <SafeAreaView
+        style={{ flex: 1, backgroundColor: "#000" }}
+        edges={["top", "bottom"]}>
         {/* Header */}
         <View
           style={{
             flexDirection: "row",
             alignItems: "center",
             paddingHorizontal: 16,
-            paddingVertical: 10,
+            paddingVertical: 8, // tighter
             borderBottomWidth: 1,
             borderBottomColor: "#222",
           }}>
-          <TouchableOpacity onPress={onClose} style={{ marginRight: 12 }}>
+          <TouchableOpacity
+            onPress={onClose}
+            style={{ marginRight: 10, padding: 6 }}>
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
 
           <Text
+            numberOfLines={1}
             style={{
               color: "white",
               fontSize: 20,
               fontWeight: "700",
               flex: 1,
-            }}
-            numberOfLines={1}>
+            }}>
             {exercise.name}
           </Text>
 
-          {/* Add to plan */}
           <TouchableOpacity
             onPress={openPicker}
             disabled={adding}
             style={{
-              paddingHorizontal: 10,
-              paddingVertical: 6,
+              paddingHorizontal: 12,
+              paddingVertical: 7,
               borderRadius: 10,
               backgroundColor: "#15803d",
               flexDirection: "row",
               alignItems: "center",
+              marginLeft: 8,
             }}>
             <Ionicons name="add" size={18} color="#fff" />
-            <Text style={{ color: "#fff", marginLeft: 2, fontWeight: "700" }}>
+            <Text style={{ color: "#fff", marginLeft: 4, fontWeight: "700" }}>
               Plan
             </Text>
           </TouchableOpacity>
         </View>
 
-        <ScrollView
-          contentContainerStyle={{
-            padding: 16,
-            paddingBottom: 40 + insets.bottom, // extra bottom space
-          }}>
+        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 24 }}>
           {/* GIF / image */}
           <View
             style={{
@@ -256,12 +261,14 @@ export default function ExerciseDetailModal({
             <Text style={{ color: "#22c55e", marginTop: 8 }}>{toast}</Text>
           )}
         </ScrollView>
-      </View>
+      </SafeAreaView>
 
-      {/* plan picker */}
+      {/* Plan picker (filters out duplicates) */}
       <PlanPickerModal
         visible={pickerOpen}
         plans={plans}
+        exByPlan={exByPlan}
+        exerciseExternalId={exercise?.id}
         onClose={() => setPickerOpen(false)}
         onPick={handleAddToPlan}
       />

@@ -1,101 +1,108 @@
-// components/Fitness/PlanPickerModal.tsx
-import React from "react";
-import {
-  Modal,
-  View,
-  Text,
-  TouchableOpacity,
-  FlatList,
-  SafeAreaView,
-} from "react-native";
+import React, { useMemo } from "react";
+import { Modal, View, Text, TouchableOpacity, ScrollView } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+type Plan = { id: number; name: string };
 
 type Props = {
   visible: boolean;
-  plans: Array<{ id: string; name: string }>;
-  onClose: () => void;
+  plans: Plan[];
+  // map of planId -> exercises[]
+  exByPlan?: Record<string | number, any[]>;
+  // the exercise being added
+  exerciseExternalId?: string | number;
   onPick: (planId: string) => void;
+  onClose: () => void;
 };
 
 export default function PlanPickerModal({
   visible,
   plans,
-  onClose,
+  exByPlan = {},
+  exerciseExternalId,
   onPick,
+  onClose,
 }: Props) {
+  const filteredPlans = useMemo(() => {
+    if (!exerciseExternalId) return plans;
+    const ext = String(exerciseExternalId);
+    return (plans || []).filter((p) => {
+      const list = exByPlan[p.id] || [];
+      return !list.some((row: any) => String(row.externalId) === ext);
+    });
+  }, [plans, exByPlan, exerciseExternalId]);
+
   return (
-    <Modal visible={visible} animationType="slide" transparent>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}>
       <View
         style={{
           flex: 1,
           backgroundColor: "rgba(0,0,0,0.6)",
-          justifyContent: "flex-end",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 18,
         }}>
-        <SafeAreaView
+        <View
           style={{
-            backgroundColor: "#0a0a0a",
-            paddingHorizontal: 18,
-            paddingTop: 12,
-            paddingBottom: 18,
-            borderTopLeftRadius: 16,
-            borderTopRightRadius: 16,
+            width: "92%",
+            maxWidth: 520,
+            backgroundColor: "#0b1220",
+            borderRadius: 16,
+            borderWidth: 1,
+            borderColor: "#1f2937",
+            padding: 14,
           }}>
           <View
             style={{
-              alignSelf: "center",
-              width: 44,
-              height: 5,
-              backgroundColor: "#27272a",
-              borderRadius: 3,
-              marginBottom: 10,
-            }}
-          />
-          <Text
-            style={{
-              color: "#fff",
-              fontSize: 18,
-              fontWeight: "800",
+              flexDirection: "row",
+              alignItems: "center",
               marginBottom: 10,
             }}>
-            Add to plan
-          </Text>
+            <Text
+              style={{
+                color: "#fff",
+                fontWeight: "800",
+                fontSize: 16,
+                flex: 1,
+              }}>
+              Add to plan
+            </Text>
+            <TouchableOpacity onPress={onClose} style={{ padding: 6 }}>
+              <Ionicons name="close" size={20} color="#94a3b8" />
+            </TouchableOpacity>
+          </View>
 
-          <FlatList
-            data={plans}
-            keyExtractor={(x) => String(x.id)}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                onPress={() => onPick(String(item.id))}
-                style={{
-                  backgroundColor: "#171717",
-                  padding: 12,
-                  borderRadius: 12,
-                  marginBottom: 8,
-                  borderWidth: 1,
-                  borderColor: "#262626",
-                }}>
-                <Text style={{ color: "#fff", fontWeight: "700" }}>
-                  {item.name}
-                </Text>
-              </TouchableOpacity>
-            )}
-            ListEmptyComponent={
-              <Text style={{ color: "#9CA3AF" }}>
-                You don’t have any plans yet. Create one from the Fitness tab.
+          <ScrollView style={{ maxHeight: 380 }}>
+            {filteredPlans.length === 0 ? (
+              <Text style={{ color: "#9ca3af" }}>
+                No eligible plans (exercise already exists in your plans).
               </Text>
-            }
-          />
-
-          <TouchableOpacity
-            onPress={onClose}
-            style={{
-              marginTop: 10,
-              alignSelf: "center",
-              paddingVertical: 10,
-              paddingHorizontal: 20,
-            }}>
-            <Text style={{ color: "#9CA3AF", fontWeight: "700" }}>Close</Text>
-          </TouchableOpacity>
-        </SafeAreaView>
+            ) : (
+              filteredPlans.map((p) => (
+                <TouchableOpacity
+                  key={p.id}
+                  onPress={() => onPick(String(p.id))}
+                  style={{
+                    paddingVertical: 12,
+                    paddingHorizontal: 10,
+                    borderRadius: 10,
+                    backgroundColor: "#0f172a",
+                    borderWidth: 1,
+                    borderColor: "#1f2937",
+                    marginBottom: 10,
+                  }}>
+                  <Text style={{ color: "#fff", fontWeight: "700" }}>
+                    {p.name}
+                  </Text>
+                </TouchableOpacity>
+              ))
+            )}
+          </ScrollView>
+        </View>
       </View>
     </Modal>
   );
