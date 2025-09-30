@@ -32,17 +32,11 @@ app.use("/api/users", userRoutes);
 
 // Fitness namespace (matches frontend: /api/fitness/**)
 app.use("/api/fitness", fitnessProfileRoutes); // expects internal routes like /profile
-app.use("/api/fitness/plans", fitnessPlanRoutes); // expects internal routes like /, /:id, /current, /recommend
-app.use("/api/fitness/exercises", exerciseRoutes); // expects internal routes like /, /:id
 
 app.use("/api/exercises", require("./routes/exerciseSearchRoutes"));
 
 // Nutrition (matches frontend: /api/nutrition/profile)
 app.use("/api/nutrition", nutritionRoutes); // expects internal routes like /profile
-
-// Meals namespace (matches frontend: /api/meals, /api/meals/plans, /api/meals/daily)
-app.use("/api/meals", mealRoutes); // expects internal routes like / (CRUD), /daily
-app.use("/api/meals", mealPlanRoutes); // expects internal routes like /plans, /plans/current, /plans/recommend
 
 // Schedule namespace (matches frontend: /api/schedule and /api/schedule/events)
 app.use("/api/schedule", scheduleRoutes); // expects internal routes like / (GET/POST/PUT), /events, /events/:id
