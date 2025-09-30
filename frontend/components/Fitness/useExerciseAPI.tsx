@@ -8,7 +8,7 @@ export type ExerciseListItem = {
   bodyPart?: string; // category label in grid
 };
 
-export function useExerciseAPI() {
+export function useExerciseAPI(target?: string) {
   const [list, setList] = useState<ExerciseListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -18,8 +18,7 @@ export function useExerciseAPI() {
       setLoading(true);
       setError(null);
 
-      // backend proxy returns first page (we don’t pass params)
-      const res = await apiSearchExercises(); // { items: [...] }
+      const res = await apiSearchExercises(target ? { target } : undefined);
       const items = Array.isArray(res?.items) ? res.items : [];
 
       const mapped: ExerciseListItem[] = items.map((x: any) => ({
@@ -34,7 +33,7 @@ export function useExerciseAPI() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [target]);
 
   useEffect(() => {
     load();

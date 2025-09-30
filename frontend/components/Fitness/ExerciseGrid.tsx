@@ -1,4 +1,4 @@
-// frontend/components/Fitness/ExerciseGrid.tsx
+// components/Fitness/ExerciseGrid.tsx
 import React from "react";
 import { View, Text, TouchableOpacity, Image } from "react-native";
 import { getExerciseImageUri } from "@/constants/api";
@@ -40,7 +40,6 @@ export default function ExerciseGrid({
                 activeOpacity={0.85}>
                 <Image
                   source={{ uri }}
-                  // fallback (shows while loading / if error)
                   defaultSource={require("../../assets/images/fitness.png")}
                   style={{
                     width: "100%",

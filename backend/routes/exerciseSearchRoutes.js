@@ -14,15 +14,26 @@ if (!KEY) {
   );
 }
 
-/** List (first page passthrough) */
-router.get("/", async (_req, res) => {
+/**
+ * GET /api/exercises
+ * If ?target=<muscle> is provided, proxy: /exercises/target/{target}
+ * Otherwise returns the full list from /exercises.
+ * Returns: { items: [...] }
+ */
+router.get("/", async (req, res) => {
+  const target = (req.query.target || "").trim();
+  const upstreamPath = target
+    ? `/exercises/target/${encodeURIComponent(target)}`
+    : `/exercises`;
+
   try {
     const resp = await axios({
       method: "GET",
-      url: `${BASE}/exercises`,
+      url: `${BASE}${upstreamPath}`,
       headers: { "x-rapidapi-key": KEY, "x-rapidapi-host": HOST },
       timeout: 20000,
     });
+
     const items = Array.isArray(resp.data) ? resp.data : [];
     return res.json({ items });
   } catch (err) {
@@ -32,14 +43,17 @@ router.get("/", async (_req, res) => {
 });
 
 /**
- * MUST be before "/:id"
  * GET /api/exercises/:id/image?resolution=180
+ * Must be declared BEFORE "/:id" or it will be shadowed.
+ * Response: image/gif (binary)
  */
 router.get("/:id/image", async (req, res) => {
   const exerciseId = String(req.params.id || "").trim();
   const resolution = String(req.query.resolution || "180").trim();
-  if (!exerciseId)
+
+  if (!exerciseId) {
     return res.status(400).json({ error: "exerciseId required" });
+  }
 
   try {
     const resp = await axios({
@@ -66,7 +80,7 @@ router.get("/:id/image", async (req, res) => {
 
 /**
  * GET /api/exercises/:id
- * Use the correct ExerciseDB endpoint: /exercises/exercise/{id}
+ * Correct upstream endpoint: /exercises/exercise/{id}
  * Returns: { item: {...} }
  */
 router.get("/:id", async (req, res) => {
@@ -84,6 +98,7 @@ router.get("/:id", async (req, res) => {
     const item = resp.data;
     if (!item || !item.id)
       return res.status(404).json({ error: "Exercise not found" });
+
     return res.json({ item });
   } catch (err) {
     const status = err?.response?.status || 500;

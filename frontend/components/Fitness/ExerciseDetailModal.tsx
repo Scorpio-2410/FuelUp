@@ -37,7 +37,7 @@ export default function ExerciseDetailModal({
 
     let mounted = true;
 
-    // set GIF immediately from the selected card id (180px)
+    // Always show the GIF immediately (180 px)
     setGifUri(getExerciseImageUri(exercise.id, "180"));
 
     const run = async () => {
@@ -46,9 +46,10 @@ export default function ExerciseDetailModal({
         setError(null);
         setDetail(null);
 
-        // full payload (instructions, equipment, etc.) by id
+        // Pull full exercise payload (instructions, equipment, etc.)
         const { item } = await apiGetExerciseDetail(exercise.id);
         if (!mounted) return;
+
         setDetail(item || {});
       } catch (e: any) {
         if (mounted) setError(e?.message ?? "Failed to load exercise");
@@ -65,11 +66,9 @@ export default function ExerciseDetailModal({
 
   if (!exercise) return null;
 
-  // fall back to list values if detail failed
   const bodyPart = detail?.bodyPart ?? exercise.bodyPart;
   const target = detail?.target;
   const equipment = detail?.equipment;
-
   const instructions: string[] = Array.isArray(detail?.instructions)
     ? detail.instructions
     : [];
@@ -163,7 +162,11 @@ export default function ExerciseDetailModal({
               {instructions.map((step: string, idx: number) => (
                 <View
                   key={idx}
-                  style={{ flexDirection: "row", gap: 10, marginBottom: 10 }}>
+                  style={{
+                    flexDirection: "row",
+                    gap: 10,
+                    marginBottom: 10,
+                  }}>
                   <View
                     style={{
                       width: 24,

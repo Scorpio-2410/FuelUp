@@ -11,15 +11,21 @@ import {
   ExerciseListItem,
 } from "../../components/Fitness/useExerciseAPI";
 import ExerciseDetailModal from "../../components/Fitness/ExerciseDetailModal";
+import TargetFilterBar, {
+  MUSCLE_GROUPS,
+} from "../../components/Fitness/TargetFilterBar";
 
 export default function FitnessScreen() {
-  const { list, loading, error, refresh } = useExerciseAPI();
+  const [query, setQuery] = useState("");
+  const [selectedTarget, setSelectedTarget] = useState<string>("all");
+  const apiTarget = selectedTarget === "all" ? undefined : selectedTarget;
+
+  const { list, loading, error, refresh } = useExerciseAPI(apiTarget);
   const { refreshing, handleRefresh } = useGlobalRefresh({
     tabName: "fitness",
     onInternalRefresh: refresh,
   });
 
-  const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<ExerciseListItem | null>(null);
 
   const filtered = useMemo(() => {
@@ -30,25 +36,34 @@ export default function FitnessScreen() {
   }, [query, list]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#1a1a1a" }}>
+    <View style={{ flex: 1, backgroundColor: "#0b0b0b" }}>
+      {/* Search */}
       <TopSearchBar
         value={query}
         onChangeText={setQuery}
         onClear={() => setQuery("")}
       />
 
+      {/* Compact horizontal chip selector */}
+      <TargetFilterBar value={selectedTarget} onChange={setSelectedTarget} />
+
       <RefreshScroll refreshing={refreshing} onRefresh={handleRefresh}>
-        <View style={{ paddingHorizontal: 24, marginBottom: 12 }}>
-          <Text style={{ color: "#fff", fontSize: 22, fontWeight: "700" }}>
+        {/* Header */}
+        <View style={{ paddingHorizontal: 24, marginBottom: 12, marginTop: 6 }}>
+          <Text style={{ color: "#fff", fontSize: 22, fontWeight: "800" }}>
             Exercises
           </Text>
           <Text style={{ color: "#a1a1aa", marginTop: 4 }}>
-            Tap any exercise to see the demo GIF and instructions.
+            {selectedTarget === "all"
+              ? "All targets."
+              : `Target: ${selectedTarget}.`}{" "}
+            Tap any exercise for GIF and instructions.
           </Text>
         </View>
 
         <CalendarShortcut onPress={() => {}} />
 
+        {/* States */}
         {loading ? (
           <View style={{ paddingHorizontal: 24, marginTop: 16 }}>
             <Text style={{ color: "#a1a1aa" }}>Loading exercises…</Text>
@@ -64,12 +79,14 @@ export default function FitnessScreen() {
           </View>
         ) : null}
 
+        {/* Grid */}
         <ExerciseGrid
           exercises={filtered}
           onExercisePress={(ex) => setSelected(ex)}
         />
       </RefreshScroll>
 
+      {/* Detail modal */}
       <ExerciseDetailModal
         visible={!!selected}
         exercise={selected}
