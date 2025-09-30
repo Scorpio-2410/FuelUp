@@ -1,3 +1,4 @@
+// models/fitnessPlan.js
 const { pool } = require("../config/database");
 
 class FitnessPlan {
@@ -22,7 +23,7 @@ class FitnessPlan {
        RETURNING *`,
       [
         userId,
-        fitnessProfileId,
+        fitnessProfileId || null,
         data.name,
         data.status || null,
         data.startDate || null,
@@ -43,7 +44,7 @@ class FitnessPlan {
     const vals = [userId];
     let i = 2;
     if (status) {
-      where.push("status=$" + i);
+      where.push(`status=$${i}`);
       vals.push(status);
       i++;
     }
@@ -57,11 +58,17 @@ class FitnessPlan {
   }
 
   async update(patch) {
-    const allowed = ["name", "status", "start_date", "end_date", "notes"];
+    const allowed = [
+      "name",
+      "status",
+      "start_date",
+      "end_date",
+      "notes",
+      "fitness_profile_id",
+    ];
     const sets = [];
     const vals = [];
     let i = 1;
-
     for (const col of allowed) {
       if (Object.prototype.hasOwnProperty.call(patch, col)) {
         sets.push(`${col}=$${i}`);
@@ -70,12 +77,10 @@ class FitnessPlan {
       }
     }
     if (!sets.length) throw new Error("No valid fields to update");
-
     vals.push(this.id);
     const r = await pool.query(
-      `UPDATE fitness_plans SET ${sets.join(
-        ", "
-      )}, updated_at=NOW() WHERE id=$${i} RETURNING *`,
+      `UPDATE fitness_plans SET ${sets.join(", ")}, updated_at=NOW()
+       WHERE id=$${i} RETURNING *`,
       vals
     );
     Object.assign(this, new FitnessPlan(r.rows[0]));
@@ -85,6 +90,21 @@ class FitnessPlan {
   async delete() {
     await pool.query(`DELETE FROM fitness_plans WHERE id=$1`, [this.id]);
     return true;
+  }
+
+  toJSON() {
+    return {
+      id: this.id,
+      userId: this.userId,
+      fitnessProfileId: this.fitnessProfileId,
+      name: this.name,
+      status: this.status,
+      startDate: this.startDate,
+      endDate: this.endDate,
+      notes: this.notes,
+      createdAt: this.createdAt,
+      updatedAt: this.updatedAt,
+    };
   }
 }
 

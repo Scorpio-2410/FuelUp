@@ -1,239 +1,144 @@
-import { View, Text, SafeAreaView, ScrollView, Switch } from "react-native";
-import RefreshScroll from "../../components/RefreshScroll";
-import { Ionicons } from "@expo/vector-icons";
-import { useGlobalRefresh } from "../../components/useGlobalRefresh";
-import WeeklySchedulePopUp from "../../components/Fitness/WeeklySchedulePopUp";
-import WorkoutRecommendationHero from "../../components/Fitness/WorkoutRecommendationHero";
-import UserStats from "../../components/Fitness/UserStats";
-import CategoryFilter from "../../components/Fitness/CategoryFilter";
-import ExerciseGrid from "../../components/Fitness/ExerciseGrid";
-import ExercisePagination from "../../components/Fitness/ExercisePagination";
-import CalendarShortcut from "../../components/Fitness/CalendarShortcut";
-import WorkoutDetailPopup from "../../components/Fitness/WorkoutDetailPopup";
-import { useExerciseAPI } from "../../components/Fitness/useExerciseAPI";
+// app/(tabs)/fitness.tsx  (replace the "calendar shortcut" area with 2 icon buttons)
 import { useMemo, useState, useEffect } from "react";
+import { View, Text, TouchableOpacity } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import RefreshScroll from "../../components/RefreshScroll";
+import { useGlobalRefresh } from "../../components/useGlobalRefresh";
 import TopSearchBar from "../../components/TopSearchBar";
-import ExerciseInstructions from "@/components/Fitness/instructions";
+import ExerciseGrid from "../../components/Fitness/ExerciseGrid";
+import {
+  useExerciseAPI,
+  ExerciseListItem,
+} from "../../components/Fitness/useExerciseAPI";
+import ExerciseDetailModal from "../../components/Fitness/ExerciseDetailModal";
+import TargetFilterBar, {
+  MUSCLE_GROUPS,
+} from "../../components/Fitness/TargetFilterBar";
+import PlansSheet from "../../components/Fitness/PlansSheet";
+
+function useDebounced<T>(value: T, delay = 300) {
+  const [v, setV] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setV(value), delay);
+    return () => clearTimeout(t);
+  }, [value, delay]);
+  return v;
+}
 
 export default function FitnessScreen() {
-  // API-based exercise data
-  const {
-    gymCategories,
-    homeCategories,
-    exercisesGym,
-    exercisesHome,
-    allCategories,
-    loading: exercisesLoading,
-    error: exercisesError,
-    refresh: refreshExercises,
-  } = useExerciseAPI();
+  const [query, setQuery] = useState("");
+  const [selectedTarget, setSelectedTarget] = useState<string>(
+    MUSCLE_GROUPS[0]
+  );
+  const [plansOpen, setPlansOpen] = useState(false);
 
-  // Global refresh hook with exercise refresh integration
+  const debouncedQuery = useDebounced(query.trim().toLowerCase(), 300);
+  const { list, loading, error, refresh } = useExerciseAPI(
+    debouncedQuery ? undefined : selectedTarget,
+    debouncedQuery || undefined
+  );
+
   const { refreshing, handleRefresh } = useGlobalRefresh({
     tabName: "fitness",
-    onInternalRefresh: () => {
-      refreshExercises(); // Refresh exercises when pull-to-refresh is triggered
-    },
+    onInternalRefresh: refresh,
   });
 
-  const [modalVisible, setModalVisible] = useState(false);
-  const [workoutDetailVisible, setWorkoutDetailVisible] = useState(false);
-  const [selectedExercise, setSelectedExercise] = useState<any>(null);
-  const [query, setQuery] = useState("");
-  const [activeCategory, setActiveCategory] = useState<string>("All");
-  const [canGoGym, setCanGoGym] = useState<boolean>(true);
-  const [currentPage, setCurrentPage] = useState(0);
-
-  const EXERCISES_PER_PAGE = 6;
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const list = canGoGym ? exercisesGym : exercisesHome;
-    return list.filter((e) => {
-      // Filter by category name from categoryInfo (the real categories from backend)
-      const categoryName = e.categoryInfo?.name;
-      const byCat =
-        activeCategory === "All" ||
-        (categoryName && categoryName === activeCategory);
-      const byQuery = !q || e.name.toLowerCase().includes(q);
-      return byCat && byQuery;
-    });
-  }, [query, activeCategory, canGoGym, exercisesGym, exercisesHome]);
-
-  // Reset to first page when filters change
-  const resetToFirstPage = () => {
-    setCurrentPage(0);
-  };
-
-  // exercise instructions
-  const [instructionsVisible, setInstructionsVisible] = useState(false);
-
-  // Calculate pagination
-  const totalPages = Math.ceil(filtered.length / EXERCISES_PER_PAGE);
-  const startIndex = currentPage * EXERCISES_PER_PAGE;
-  const endIndex = startIndex + EXERCISES_PER_PAGE;
-  const currentExercises = filtered.slice(startIndex, endIndex);
-
-  // Reset page when filters change
-  useMemo(() => {
-    resetToFirstPage();
-  }, [query, activeCategory, canGoGym]);
-
-  // Handle exercise selection
-  const handleExercisePress = (exercise: any) => {
-    setSelectedExercise(exercise);
-    setWorkoutDetailVisible(true);
-  };
+  const [selected, setSelected] = useState<ExerciseListItem | null>(null);
+  const data = list;
 
   return (
-    // <View style={{ flex: 1, backgroundColor: "#1a1a1a" }}>
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#1a1a1a" }}>
-      <RefreshScroll refreshing={refreshing} onRefresh={handleRefresh}>
-        {/* Top search bar */}
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: "#0b0b0b" }}
+      edges={["top"]}>
+      <View style={{ paddingTop: 4 }}>
         <TopSearchBar
           value={query}
           onChangeText={setQuery}
           onClear={() => setQuery("")}
         />
 
-        <View style={{ paddingHorizontal: 24, marginBottom: 12 }}>
-          <Text
-            style={{
-              color: "#ffffff",
-              fontSize: 22,
-              fontWeight: "700",
-              marginBottom: 6,
-            }}
-          >
-            Exercises
-          </Text>
-          <Text style={{ color: "#a1a1aa", fontSize: 16, fontWeight: "400" }}>
-            {canGoGym
-              ? "Here's some curated workouts for you."
-              : "Since you can't go to the gym, here are some alternatives."}
-          </Text>
-        </View>
+        {!debouncedQuery && (
+          <TargetFilterBar
+            value={selectedTarget}
+            onChange={setSelectedTarget}
+          />
+        )}
+      </View>
 
-        {/* Gym/Home toggle */}
-        <View
+      {/* Header actions row */}
+      <View
+        style={{
+          flexDirection: "row",
+          paddingHorizontal: 24,
+          marginTop: 10,
+          marginBottom: 4,
+          gap: 10,
+        }}>
+        {/* Calendar (schedule) – green */}
+        <TouchableOpacity
+          onPress={() => {
+            // navigate to calendar tab/screen if you have one; placeholder:
+          }}
+          activeOpacity={0.9}
           style={{
-            paddingHorizontal: 24,
-            marginTop: 8,
-            marginBottom: 8,
+            flex: 1,
+            backgroundColor: "#22c55e",
+            borderRadius: 18,
+            paddingVertical: 12,
+            paddingHorizontal: 14,
             flexDirection: "row",
             alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <Text style={{ color: "#ffffff", fontSize: 16, fontWeight: "600" }}>
-            Can go gym?
+            justifyContent: "center",
+          }}>
+          <Text style={{ color: "#052e16", fontWeight: "800", marginRight: 8 }}>
+            Schedule
           </Text>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <Text style={{ color: canGoGym ? "#4ade80" : "#a1a1aa" }}>
-              {canGoGym ? "Yes" : "No"}
-            </Text>
-            <Switch
-              value={canGoGym}
-              onValueChange={(v) => {
-                setCanGoGym(v);
-                setActiveCategory("All");
-                setCurrentPage(0);
-              }}
-            />
-          </View>
+          <Ionicons name="calendar" size={18} color="#052e16" />
+        </TouchableOpacity>
+
+        {/* Plans – weights icon */}
+        <TouchableOpacity
+          onPress={() => setPlansOpen(true)}
+          activeOpacity={0.9}
+          style={{
+            width: 56,
+            backgroundColor: "#171717",
+            borderRadius: 18,
+            alignItems: "center",
+            justifyContent: "center",
+            borderWidth: 1,
+            borderColor: "#262626",
+          }}>
+          <Ionicons name="barbell" size={22} color="#e5e7eb" />
+        </TouchableOpacity>
+      </View>
+
+      <RefreshScroll refreshing={refreshing} onRefresh={handleRefresh}>
+        <View style={{ paddingHorizontal: 24, marginBottom: 12, marginTop: 6 }}>
+          <Text style={{ color: "#fff", fontSize: 22, fontWeight: "800" }}>
+            Exercises
+          </Text>
+          <Text style={{ color: "#a1a1aa", marginTop: 4 }}>
+            {debouncedQuery
+              ? `Results for “${debouncedQuery}”.`
+              : `Target: ${selectedTarget}. Tap any exercise for GIF and instructions.`}
+          </Text>
         </View>
 
-        {/* Loading and Error States */}
-        {exercisesLoading && (
-          <View style={{ paddingHorizontal: 24, marginVertical: 16 }}>
-            <Text style={{ color: "#a1a1aa", textAlign: "center" }}>
-              Loading exercises...
-            </Text>
-          </View>
-        )}
-
-        {exercisesError && !exercisesLoading && (
-          <View style={{ paddingHorizontal: 24, marginVertical: 16 }}>
-            <Text
-              style={{ color: "#ef4444", textAlign: "center", marginBottom: 8 }}
-            >
-              Failed to load exercises: {exercisesError}
-            </Text>
-            <Text
-              style={{ color: "#a1a1aa", textAlign: "center", fontSize: 14 }}
-            >
-              Pull down to refresh or check your connection
-            </Text>
-          </View>
-        )}
-
-        {/* Hero Section - Workout Recommendation */}
-        <WorkoutRecommendationHero canGoGym={canGoGym} />
-
-        {/* User stats */}
-        <UserStats />
-
-        {/* Calendar shortcut */}
-        <CalendarShortcut onPress={() => setModalVisible(true)} />
-
-        {/* Categories */}
-        <CategoryFilter
-          categories={canGoGym ? gymCategories : homeCategories}
-          activeCategory={activeCategory}
-          onCategoryChange={(c) => {
-            setActiveCategory(c);
-            setCurrentPage(0);
-          }}
-        />
-
-        {/* Exercise grid */}
         <ExerciseGrid
-          exercises={currentExercises}
-          onExercisePress={handleExercisePress}
+          exercises={data}
+          onExercisePress={(ex) => setSelected(ex)}
         />
-
-        {/* Pagination */}
-        <View style={{ paddingHorizontal: 24, paddingBottom: 32 }}>
-          <ExercisePagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            totalExercises={filtered.length}
-            exercisesPerPage={EXERCISES_PER_PAGE}
-            onPageChange={setCurrentPage}
-          />
-        </View>
       </RefreshScroll>
 
-      <ExerciseInstructions
-        visible={instructionsVisible}
-        exercise={selectedExercise}
-        onClose={() => {
-          setInstructionsVisible(false);
-          // setSelectedExercise(null);
-          setWorkoutDetailVisible(true);
-        }}
+      <ExerciseDetailModal
+        visible={!!selected}
+        exercise={selected}
+        onClose={() => setSelected(null)}
       />
 
-      {/* Weekly schedule modal */}
-      <WeeklySchedulePopUp
-        visible={modalVisible}
-        onClose={() => setModalVisible(false)}
-      />
-
-      {/* Workout detail popup */}
-      <WorkoutDetailPopup
-        visible={workoutDetailVisible}
-        exercise={selectedExercise}
-        onClose={() => {
-          setWorkoutDetailVisible(false);
-          setSelectedExercise(null);
-        }}
-        onViewInstructions={(exercise) => {
-          setWorkoutDetailVisible(false);
-          setInstructionsVisible(true);
-          setSelectedExercise(exercise);
-        }}
-      />
+      <PlansSheet visible={plansOpen} onClose={() => setPlansOpen(false)} />
     </SafeAreaView>
   );
 }
