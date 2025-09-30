@@ -11,7 +11,6 @@ const userRoutes = require("./routes/userRoutes");
 const fitnessProfileRoutes = require("./routes/fitnessProfileRoutes");
 const fitnessPlanRoutes = require("./routes/fitnessPlanRoutes");
 const exerciseRoutes = require("./routes/exerciseRoutes");
-const exerciseCategoryRoutes = require("./routes/exerciseCategoryRoutes");
 const nutritionRoutes = require("./routes/nutritionRoutes");
 const mealPlanRoutes = require("./routes/mealPlanRoutes");
 const mealRoutes = require("./routes/mealRoutes");
@@ -35,7 +34,8 @@ app.use("/api/users", userRoutes);
 app.use("/api/fitness", fitnessProfileRoutes); // expects internal routes like /profile
 app.use("/api/fitness/plans", fitnessPlanRoutes); // expects internal routes like /, /:id, /current, /recommend
 app.use("/api/fitness/exercises", exerciseRoutes); // expects internal routes like /, /:id
-app.use("/api/fitness/categories", exerciseCategoryRoutes); // expects internal routes like /, /:id
+
+app.use("/api/exercises", require("./routes/exerciseSearchRoutes"));
 
 // Nutrition (matches frontend: /api/nutrition/profile)
 app.use("/api/nutrition", nutritionRoutes); // expects internal routes like /profile
