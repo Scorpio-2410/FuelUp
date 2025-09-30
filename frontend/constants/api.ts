@@ -63,13 +63,13 @@ const EP = {
   checkUsername: "/api/users/check-username",
   checkEmail: "/api/users/check-email",
 
-  // ExerciseDB proxy (server.js mounts at /api/exercises)
+  // ExerciseDB proxy
   exercises: "/api/exercises",
   exerciseDetail: "/api/exercises",
   exerciseImage: (id: string | number, res = "180") =>
     `/api/exercises/${id}/image?resolution=${encodeURIComponent(res)}`,
 
-  // Fitness plans (server.js mounts at /api/fitness/plans and /api/fitness/plans/:id/exercises)
+  // Fitness plans
   plansRoot: "/api/fitness/plans",
   planOne: (id: string | number) => `/api/fitness/plans/${id}`,
   planExercises: (planId: string | number) =>
@@ -79,6 +79,7 @@ const EP = {
   nutritionProfile: "/api/nutrition/profile",
   schedulesRoot: "/api/schedule",
   events: "/api/schedule/events",
+  eventsAutoPlan: "/api/schedule/auto-plan",
 };
 
 /* -------------------- helpers -------------------- */
@@ -173,7 +174,6 @@ export async function apiSearchExercises(params?: {
   limit?: number;
   offset?: number;
 }) {
-  // backend/routes/exerciseSearchRoutes.js supports ?q= and/or ?target=
   const qs = new URLSearchParams();
   if (params?.q) qs.set("q", params.q.toLowerCase());
   if (params?.target) qs.set("target", params.target.toLowerCase());
@@ -202,13 +202,11 @@ export async function apiListPlans() {
   return asJson<{ success: boolean; plans: any[]; pagination?: any }>(res);
 }
 
+// payload trimmed to fields that actually exist on the table now
 export async function apiCreatePlan(payload: {
   name: string;
   status?: "active" | "draft" | "archived";
-  startDate?: string | null;
-  endDate?: string | null;
   notes?: string | null;
-  fitnessProfileId?: number | null;
 }) {
   const res = await fetch(`${BASE_URL}${EP.plansRoot}`, {
     method: "POST",
@@ -223,10 +221,7 @@ export async function apiUpdatePlan(
   patch: Partial<{
     name: string;
     status: "active" | "draft" | "archived";
-    startDate: string | null;
-    endDate: string | null;
     notes: string | null;
-    fitnessProfileId: number | null;
   }>
 ) {
   const res = await fetch(`${BASE_URL}${EP.planOne(id)}`, {
@@ -249,7 +244,14 @@ export async function apiListPlanExercises(planId: string | number) {
   const res = await fetch(`${BASE_URL}${EP.planExercises(planId)}`, {
     headers: await authHeaders(),
   });
-  return asJson<{ success: boolean; items: any[] }>(res);
+  // backend may return {items:[...]} or {exercises:[...]} — normalize here
+  const json = await asJson<any>(res);
+  const items = Array.isArray(json?.items)
+    ? json.items
+    : Array.isArray(json?.exercises)
+    ? json.exercises
+    : [];
+  return { success: true, items };
 }
 
 export async function apiAddExerciseToPlan(
@@ -306,6 +308,60 @@ export async function apiListEvents(params?: { from?: string; to?: string }) {
   const url = `${BASE_URL}${EP.events}${q.toString() ? `?${q}` : ""}`;
   const res = await fetch(url, { headers: await authHeaders() });
   return asJson<{ success: boolean; events: any[] }>(res);
+}
+
+// MISSING BEFORE — now added:
+export async function apiCreateEvent(payload: {
+  category: "meal" | "workout" | "work" | "other";
+  title: string;
+  start_at: string; // ISO
+  end_at?: string | null; // ISO or null
+  notes?: string | null;
+  recurrence_rule?: "none" | "daily" | "weekly" | "weekday";
+  recurrence_until?: string | null; // ISO or null
+}) {
+  const res = await fetch(`${BASE_URL}${EP.events}`, {
+    method: "POST",
+    headers: await authHeaders(),
+    body: JSON.stringify(payload),
+  });
+  return asJson<{ success: boolean; event: any }>(res);
+}
+
+export async function apiUpdateEvent(
+  id: number | string,
+  patch: Partial<{
+    category: "meal" | "workout" | "work" | "other";
+    title: string;
+    start_at: string;
+    end_at: string | null;
+    notes: string | null;
+  }>
+) {
+  const res = await fetch(`${BASE_URL}${EP.events}/${id}`, {
+    method: "PUT",
+    headers: await authHeaders(),
+    body: JSON.stringify(patch),
+  });
+  return asJson<{ success: boolean; event: any }>(res);
+}
+
+export async function apiDeleteEvent(id: number | string) {
+  const res = await fetch(`${BASE_URL}${EP.events}/${id}`, {
+    method: "DELETE",
+    headers: await authHeaders(),
+  });
+  return asJson<{ success: boolean }>(res);
+}
+
+// Suggest workouts into free slots; defaults to 7 days if not provided
+export async function apiAutoPlanWorkouts(days = 7) {
+  const res = await fetch(`${BASE_URL}${EP.eventsAutoPlan}`, {
+    method: "POST",
+    headers: await authHeaders(),
+    body: JSON.stringify({ days }),
+  });
+  return asJson<{ success: boolean; created_count: number }>(res);
 }
 
 /* -------------------- profile cache helpers -------------------- */

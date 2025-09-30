@@ -1,4 +1,4 @@
-// app/(tabs)/fitness.tsx  (replace the "calendar shortcut" area with 2 icon buttons)
+// app/(tabs)/fitness.tsx
 import { useMemo, useState, useEffect } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -16,6 +16,7 @@ import TargetFilterBar, {
   MUSCLE_GROUPS,
 } from "../../components/Fitness/TargetFilterBar";
 import PlansSheet from "../../components/Fitness/PlansSheet";
+import WeeklySchedulePopUp from "../../components/Fitness/WeeklySchedulePopUp";
 
 function useDebounced<T>(value: T, delay = 300) {
   const [v, setV] = useState(value);
@@ -32,6 +33,7 @@ export default function FitnessScreen() {
     MUSCLE_GROUPS[0]
   );
   const [plansOpen, setPlansOpen] = useState(false);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
 
   const debouncedQuery = useDebounced(query.trim().toLowerCase(), 300);
   const { list, loading, error, refresh } = useExerciseAPI(
@@ -77,9 +79,7 @@ export default function FitnessScreen() {
         }}>
         {/* Calendar (schedule) – green */}
         <TouchableOpacity
-          onPress={() => {
-            // navigate to calendar tab/screen if you have one; placeholder:
-          }}
+          onPress={() => setScheduleOpen(true)}
           activeOpacity={0.9}
           style={{
             flex: 1,
@@ -132,13 +132,21 @@ export default function FitnessScreen() {
         />
       </RefreshScroll>
 
+      {/* Exercise details modal */}
       <ExerciseDetailModal
         visible={!!selected}
         exercise={selected}
         onClose={() => setSelected(null)}
       />
 
+      {/* Plans sheet */}
       <PlansSheet visible={plansOpen} onClose={() => setPlansOpen(false)} />
+
+      {/* Weekly schedule modal */}
+      <WeeklySchedulePopUp
+        visible={scheduleOpen}
+        onClose={() => setScheduleOpen(false)}
+      />
     </SafeAreaView>
   );
 }

@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   Image,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import {
   apiGetExerciseDetail,
@@ -33,6 +33,8 @@ export default function ExerciseDetailModal({
   exercise,
   onClose,
 }: Props) {
+  const insets = useSafeAreaInsets();
+
   const [loading, setLoading] = useState(false);
   const [gifUri, setGifUri] = useState<string | null>(null);
   const [detail, setDetail] = useState<any | null>(null);
@@ -115,17 +117,21 @@ export default function ExerciseDetailModal({
 
   return (
     <Modal visible={visible} animationType="slide" transparent={false}>
-      {/* Safe area prevents overlap with notch & home indicator without pushing too low */}
-      <SafeAreaView
-        style={{ flex: 1, backgroundColor: "#000" }}
-        edges={["top", "bottom"]}>
+      {/* We control exact offsets with safe-area insets */}
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: "#000",
+          paddingTop: insets.top + 6, // ⬅️ extra gap under the HUD
+          paddingBottom: insets.bottom, // safe bottom
+        }}>
         {/* Header */}
         <View
           style={{
             flexDirection: "row",
             alignItems: "center",
             paddingHorizontal: 16,
-            paddingVertical: 8, // tighter
+            paddingVertical: 8,
             borderBottomWidth: 1,
             borderBottomColor: "#222",
           }}>
@@ -165,7 +171,12 @@ export default function ExerciseDetailModal({
           </TouchableOpacity>
         </View>
 
-        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 24 }}>
+        {/* Scrollable content; extra bottom pad so last items clear the home bar */}
+        <ScrollView
+          contentContainerStyle={{
+            padding: 16,
+            paddingBottom: 24 + insets.bottom,
+          }}>
           {/* GIF / image */}
           <View
             style={{
@@ -261,7 +272,7 @@ export default function ExerciseDetailModal({
             <Text style={{ color: "#22c55e", marginTop: 8 }}>{toast}</Text>
           )}
         </ScrollView>
-      </SafeAreaView>
+      </View>
 
       {/* Plan picker (filters out duplicates) */}
       <PlanPickerModal

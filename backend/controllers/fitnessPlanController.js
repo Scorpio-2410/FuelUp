@@ -1,4 +1,3 @@
-// controllers/fitnessPlanController.js
 const { pool } = require("../config/database");
 const FitnessPlan = require("../models/fitnessPlan");
 
@@ -6,17 +5,11 @@ class FitnessPlanController {
   static async createPlan(req, res) {
     try {
       const userId = req.userId;
-      const {
-        name,
-        status = "active",
-        startDate,
-        endDate,
-        notes,
-        fitnessProfileId,
-      } = req.body;
+      const { name, status = "active", notes } = req.body;
 
-      if (!name)
+      if (!name) {
         return res.status(400).json({ error: "Plan name is required" });
+      }
 
       // max 3 non-archived
       const { rows } = await pool.query(
@@ -29,11 +22,10 @@ class FitnessPlanController {
           .json({ error: "You can only have up to 3 active/draft plans" });
       }
 
-      const plan = await FitnessPlan.create(userId, fitnessProfileId || null, {
+      // Only name, status, notes now
+      const plan = await FitnessPlan.create(userId, {
         name,
         status,
-        startDate,
-        endDate,
         notes,
       });
 
@@ -81,18 +73,17 @@ class FitnessPlanController {
       if (!plan || plan.userId !== req.userId)
         return res.status(404).json({ error: "Plan not found" });
 
+      // Only allow updating name, status, notes
       const patch = {};
       const map = {
         name: "name",
         status: "status",
-        startDate: "start_date",
-        endDate: "end_date",
         notes: "notes",
-        fitnessProfileId: "fitness_profile_id",
       };
       for (const [k, col] of Object.entries(map)) {
-        if (Object.prototype.hasOwnProperty.call(req.body, k))
+        if (Object.prototype.hasOwnProperty.call(req.body, k)) {
           patch[col] = req.body[k];
+        }
       }
 
       const updated = await plan.update(patch);
