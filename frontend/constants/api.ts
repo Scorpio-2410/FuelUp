@@ -6,6 +6,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 /* -------------------- BASE URL -------------------- */
 const envUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
+
 function getExpoHost(): string | null {
   const cfg: any = (Constants as any).expoConfig ?? {};
   const manifest: any =
@@ -19,12 +20,15 @@ function getExpoHost(): string | null {
   const host = noProto.split(":")[0].trim();
   return host || null;
 }
+
 function makeUrlFromHost(host: string) {
   return `http://${host}:4000`;
 }
+
 function getAutoBaseUrl(): string | null {
   const host = getExpoHost();
   if (!host) return null;
+
   if (Platform.OS === "android") {
     if (host === "localhost" || host === "127.0.0.1")
       return "http://10.0.2.2:4000";
@@ -34,6 +38,7 @@ function getAutoBaseUrl(): string | null {
     return "http://localhost:4000";
   return makeUrlFromHost(host);
 }
+
 export const BASE_URL =
   envUrl ||
   getAutoBaseUrl() ||
@@ -58,11 +63,17 @@ const EP = {
   checkUsername: "/api/users/check-username",
   checkEmail: "/api/users/check-email",
 
-  // ExerciseDB proxy
+  // ExerciseDB proxy (server.js mounts at /api/exercises)
   exercises: "/api/exercises",
   exerciseDetail: "/api/exercises",
   exerciseImage: (id: string | number, res = "180") =>
     `/api/exercises/${id}/image?resolution=${encodeURIComponent(res)}`,
+
+  // Fitness plans (server.js mounts at /api/fitness/plans and /api/fitness/plans/:id/exercises)
+  plansRoot: "/api/fitness/plans",
+  planOne: (id: string | number) => `/api/fitness/plans/${id}`,
+  planExercises: (planId: string | number) =>
+    `/api/fitness/plans/${planId}/exercises`,
 
   // Nutrition / Schedule
   nutritionProfile: "/api/nutrition/profile",
@@ -80,6 +91,7 @@ class ApiError extends Error {
     this.payload = payload;
   }
 }
+
 export async function storeToken(token: string) {
   await SecureStore.setItemAsync(K_TOKEN, token);
 }
@@ -161,13 +173,13 @@ export async function apiSearchExercises(params?: {
   limit?: number;
   offset?: number;
 }) {
+  // backend/routes/exerciseSearchRoutes.js supports ?q= and/or ?target=
   const qs = new URLSearchParams();
   if (params?.q) qs.set("q", params.q.toLowerCase());
   if (params?.target) qs.set("target", params.target.toLowerCase());
   if (typeof params?.limit === "number") qs.set("limit", String(params.limit));
   if (typeof params?.offset === "number")
     qs.set("offset", String(params.offset));
-
   const url = `${BASE_URL}${EP.exercises}${qs.toString() ? `?${qs}` : ""}`;
   const res = await fetch(url, { headers: await authHeaders() });
   return asJson<{ items: any[]; pagination?: any }>(res);
@@ -180,6 +192,98 @@ export async function apiGetExerciseDetail(id: string | number) {
 }
 export function getExerciseImageUri(id: string | number, res = "180") {
   return `${BASE_URL}${EP.exerciseImage(id, res)}`;
+}
+
+/* -------------------- Fitness plan APIs -------------------- */
+export async function apiListPlans() {
+  const res = await fetch(`${BASE_URL}${EP.plansRoot}`, {
+    headers: await authHeaders(),
+  });
+  return asJson<{ success: boolean; plans: any[]; pagination?: any }>(res);
+}
+
+export async function apiCreatePlan(payload: {
+  name: string;
+  status?: "active" | "draft" | "archived";
+  startDate?: string | null;
+  endDate?: string | null;
+  notes?: string | null;
+  fitnessProfileId?: number | null;
+}) {
+  const res = await fetch(`${BASE_URL}${EP.plansRoot}`, {
+    method: "POST",
+    headers: await authHeaders(),
+    body: JSON.stringify(payload),
+  });
+  return asJson<{ success: boolean; plan: any }>(res);
+}
+
+export async function apiUpdatePlan(
+  id: string | number,
+  patch: Partial<{
+    name: string;
+    status: "active" | "draft" | "archived";
+    startDate: string | null;
+    endDate: string | null;
+    notes: string | null;
+    fitnessProfileId: number | null;
+  }>
+) {
+  const res = await fetch(`${BASE_URL}${EP.planOne(id)}`, {
+    method: "PUT",
+    headers: await authHeaders(),
+    body: JSON.stringify(patch),
+  });
+  return asJson<{ success: boolean; plan: any }>(res);
+}
+
+export async function apiDeletePlan(id: string | number) {
+  const res = await fetch(`${BASE_URL}${EP.planOne(id)}`, {
+    method: "DELETE",
+    headers: await authHeaders(),
+  });
+  return asJson<{ success: boolean }>(res);
+}
+
+export async function apiListPlanExercises(planId: string | number) {
+  const res = await fetch(`${BASE_URL}${EP.planExercises(planId)}`, {
+    headers: await authHeaders(),
+  });
+  return asJson<{ success: boolean; items: any[] }>(res);
+}
+
+export async function apiAddExerciseToPlan(
+  planId: string | number,
+  externalId: string | number,
+  name: string,
+  meta?: {
+    gifUrl?: string | null;
+    bodyPart?: string | null;
+    target?: string | null;
+    equipment?: string | null;
+  }
+) {
+  const res = await fetch(`${BASE_URL}${EP.planExercises(planId)}`, {
+    method: "POST",
+    headers: await authHeaders(),
+    body: JSON.stringify({
+      externalId: String(externalId),
+      name,
+      ...(meta || {}),
+    }),
+  });
+  return asJson<{ success: boolean; item: any }>(res);
+}
+
+export async function apiRemoveExerciseFromPlan(
+  planId: string | number,
+  itemId: string | number
+) {
+  const res = await fetch(`${BASE_URL}${EP.planExercises(planId)}/${itemId}`, {
+    method: "DELETE",
+    headers: await authHeaders(),
+  });
+  return asJson<{ success: boolean }>(res);
 }
 
 /* -------------------- nutrition + schedule -------------------- */

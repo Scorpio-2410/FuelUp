@@ -8,11 +8,18 @@ import {
   ScrollView,
   ActivityIndicator,
   Image,
-  SafeAreaView,
+  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { apiGetExerciseDetail, getExerciseImageUri } from "../../constants/api";
+import {
+  apiGetExerciseDetail,
+  getExerciseImageUri,
+  apiListPlans,
+  apiAddExerciseToPlan,
+} from "../../constants/api";
 import type { ExerciseListItem } from "./useExerciseAPI";
+import PlanPickerModal from "./PlanPickerModal";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const fallback = require("../../assets/images/fitness.png");
 
@@ -27,30 +34,34 @@ export default function ExerciseDetailModal({
   exercise,
   onClose,
 }: Props) {
+  const insets = useSafeAreaInsets();
+
   const [loading, setLoading] = useState(false);
   const [gifUri, setGifUri] = useState<string | null>(null);
   const [detail, setDetail] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [plans, setPlans] = useState<any[]>([]);
+  const [adding, setAdding] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+
   useEffect(() => {
     if (!visible || !exercise) return;
 
     let mounted = true;
-
-    // Always show the GIF immediately (180 px)
-    setGifUri(getExerciseImageUri(exercise.id, "180"));
-
     const run = async () => {
       try {
         setLoading(true);
         setError(null);
+        setGifUri(null);
         setDetail(null);
 
-        // Pull full exercise payload (instructions, equipment, etc.)
         const { item } = await apiGetExerciseDetail(exercise.id);
         if (!mounted) return;
 
         setDetail(item || {});
+        setGifUri(getExerciseImageUri(exercise.id, "180"));
       } catch (e: any) {
         if (mounted) setError(e?.message ?? "Failed to load exercise");
       } finally {
@@ -64,37 +75,92 @@ export default function ExerciseDetailModal({
     };
   }, [visible, exercise]);
 
-  if (!exercise) return null;
+  async function openPicker() {
+    try {
+      const res = await apiListPlans();
+      setPlans(Array.isArray(res?.plans) ? res.plans : []);
+      setPickerOpen(true);
+    } catch {
+      setToast("Failed to load plans");
+      setTimeout(() => setToast(null), 2000);
+    }
+  }
 
-  const bodyPart = detail?.bodyPart ?? exercise.bodyPart;
-  const target = detail?.target;
-  const equipment = detail?.equipment;
-  const instructions: string[] = Array.isArray(detail?.instructions)
-    ? detail.instructions
-    : [];
+  async function handleAddToPlan(planId: string) {
+    if (!exercise) return;
+    try {
+      setAdding(true);
+      await apiAddExerciseToPlan(planId, exercise.id, exercise.name);
+      setPickerOpen(false);
+      setToast("Added to plan");
+    } catch {
+      setToast("Failed to add");
+    } finally {
+      setAdding(false);
+      setTimeout(() => setToast(null), 1500);
+    }
+  }
+
+  if (!exercise) return null;
 
   return (
     <Modal visible={visible} animationType="slide" transparent={false}>
-      <SafeAreaView style={{ flex: 1, backgroundColor: "#000" }}>
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: "#000",
+          paddingTop: insets.top + (Platform.OS === "ios" ? 4 : 0), // ⬅ keep UI clear of notch/Dynamic Island
+          paddingBottom: insets.bottom,
+        }}>
         {/* Header */}
         <View
           style={{
             flexDirection: "row",
             alignItems: "center",
             paddingHorizontal: 16,
-            paddingVertical: 12,
+            paddingVertical: 10,
             borderBottomWidth: 1,
             borderBottomColor: "#222",
           }}>
           <TouchableOpacity onPress={onClose} style={{ marginRight: 12 }}>
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
-          <Text style={{ color: "white", fontSize: 20, fontWeight: "700" }}>
+
+          <Text
+            style={{
+              color: "white",
+              fontSize: 20,
+              fontWeight: "700",
+              flex: 1,
+            }}
+            numberOfLines={1}>
             {exercise.name}
           </Text>
+
+          {/* Add to plan */}
+          <TouchableOpacity
+            onPress={openPicker}
+            disabled={adding}
+            style={{
+              paddingHorizontal: 10,
+              paddingVertical: 6,
+              borderRadius: 10,
+              backgroundColor: "#15803d",
+              flexDirection: "row",
+              alignItems: "center",
+            }}>
+            <Ionicons name="add" size={18} color="#fff" />
+            <Text style={{ color: "#fff", marginLeft: 2, fontWeight: "700" }}>
+              Plan
+            </Text>
+          </TouchableOpacity>
         </View>
 
-        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+        <ScrollView
+          contentContainerStyle={{
+            padding: 16,
+            paddingBottom: 40 + insets.bottom, // extra bottom space
+          }}>
           {/* GIF / image */}
           <View
             style={{
@@ -130,25 +196,28 @@ export default function ExerciseDetailModal({
           ) : null}
 
           <View style={{ gap: 6, marginBottom: 16 }}>
-            {!!bodyPart && (
+            {!!detail?.bodyPart && (
               <Text style={{ color: "#9CA3AF" }}>
-                Body part: <Text style={{ color: "#fff" }}>{bodyPart}</Text>
+                Body part:{" "}
+                <Text style={{ color: "#fff" }}>{detail.bodyPart}</Text>
               </Text>
             )}
-            {!!target && (
+            {!!detail?.target && (
               <Text style={{ color: "#9CA3AF" }}>
-                Target: <Text style={{ color: "#fff" }}>{target}</Text>
+                Target: <Text style={{ color: "#fff" }}>{detail.target}</Text>
               </Text>
             )}
-            {!!equipment && (
+            {!!detail?.equipment && (
               <Text style={{ color: "#9CA3AF" }}>
-                Equipment: <Text style={{ color: "#fff" }}>{equipment}</Text>
+                Equipment:{" "}
+                <Text style={{ color: "#fff" }}>{detail.equipment}</Text>
               </Text>
             )}
           </View>
 
           {/* Instructions */}
-          {instructions.length > 0 && (
+          {Array.isArray(detail?.instructions) &&
+          detail.instructions.length > 0 ? (
             <>
               <Text
                 style={{
@@ -159,14 +228,10 @@ export default function ExerciseDetailModal({
                 }}>
                 Instructions
               </Text>
-              {instructions.map((step: string, idx: number) => (
+              {detail.instructions.map((step: string, idx: number) => (
                 <View
                   key={idx}
-                  style={{
-                    flexDirection: "row",
-                    gap: 10,
-                    marginBottom: 10,
-                  }}>
+                  style={{ flexDirection: "row", gap: 10, marginBottom: 10 }}>
                   <View
                     style={{
                       width: 24,
@@ -185,9 +250,21 @@ export default function ExerciseDetailModal({
                 </View>
               ))}
             </>
+          ) : null}
+
+          {!!toast && (
+            <Text style={{ color: "#22c55e", marginTop: 8 }}>{toast}</Text>
           )}
         </ScrollView>
-      </SafeAreaView>
+      </View>
+
+      {/* plan picker */}
+      <PlanPickerModal
+        visible={pickerOpen}
+        plans={plans}
+        onClose={() => setPickerOpen(false)}
+        onPick={handleAddToPlan}
+      />
     </Modal>
   );
 }

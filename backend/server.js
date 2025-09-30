@@ -6,7 +6,7 @@ require("dotenv").config();
 const { testConnection, initializeDatabase } = require("./config/database");
 const { verifySmtp } = require("./utils/mailer");
 
-// Route groups
+/* ---------------- Route groups ---------------- */
 const userRoutes = require("./routes/userRoutes");
 const fitnessProfileRoutes = require("./routes/fitnessProfileRoutes");
 const fitnessPlanRoutes = require("./routes/fitnessPlanRoutes");
@@ -19,8 +19,8 @@ const targetQuestionRoutes = require("./routes/targetQuestionRoutes");
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-/* Middleware */
-app.use(cors()); // configure origins if you need to restrict
+/* ---------------- Middleware ---------------- */
+app.use(cors()); // configure origins if needed
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -31,11 +31,12 @@ app.use("/api/users", userRoutes);
 
 // Fitness namespace
 app.use("/api/fitness", fitnessProfileRoutes); // /api/fitness/profile (GET/PUT)
-app.use("/api/fitness/plans", fitnessPlanRoutes); // plans CRUD
-app.use("/api/fitness/plans/:id/exercises", planExerciseRoutes); // add/remove/list selected exercises for a plan
+app.use("/api/fitness/plans", fitnessPlanRoutes); // CRUD plans
+// ✅ Mount plan-exercise routes at the parameterized path so req.params.id is available
+app.use("/api/fitness/plans/:id/exercises", planExerciseRoutes); // list/add/remove exercises for a plan
 
 // ExerciseDB proxy (public catalog; no caching)
-app.use("/api/exercises", exerciseSearchRoutes); // /search, /:externalId, /image
+app.use("/api/exercises", exerciseSearchRoutes); // GET / (search via q/target), GET /:id, GET /:id/image
 
 // Nutrition
 app.use("/api/nutrition", nutritionRoutes); // /api/nutrition/profile
@@ -59,8 +60,8 @@ app.get("/", (req, res) => {
         planExercises: "/api/fitness/plans/:id/exercises",
       },
       exercises: {
-        search: "/api/exercises/search?q=&bodyPart=&equipment=&limit=&offset=",
-        detail: "/api/exercises/:externalId",
+        search: "/api/exercises?q=&target=&limit=&offset=",
+        detail: "/api/exercises/:id",
         image: "/api/exercises/:id/image?resolution=180",
       },
       nutrition: {
@@ -90,12 +91,11 @@ app.get("/health", (req, res) => {
   });
 });
 
-/* 404 */
+/* ---------------- 404 + error handling ---------------- */
 app.use("*", (req, res) =>
   res.status(404).json({ error: "Endpoint not found", path: req.originalUrl })
 );
 
-/* Global error handler */
 app.use((error, req, res, next) => {
   console.error("Global error handler:", error);
   res.status(500).json({
@@ -107,7 +107,7 @@ app.use((error, req, res, next) => {
   });
 });
 
-/* Bootstrap */
+/* ---------------- Bootstrap ---------------- */
 const startServer = async () => {
   try {
     await testConnection();
