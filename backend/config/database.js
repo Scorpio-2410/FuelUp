@@ -51,6 +51,7 @@ const initializeDatabase = async () => {
         created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+
       DROP TRIGGER IF EXISTS trg_users_updated_at ON users;
       CREATE TRIGGER trg_users_updated_at
       BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION set_updated_at();
@@ -65,6 +66,7 @@ const initializeDatabase = async () => {
         preferences JSONB,
         updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+
       DROP TRIGGER IF EXISTS trg_schedules_updated_at ON schedules;
       CREATE TRIGGER trg_schedules_updated_at
       BEFORE UPDATE ON schedules FOR EACH ROW EXECUTE FUNCTION set_updated_at();
@@ -83,6 +85,7 @@ const initializeDatabase = async () => {
         created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+
       CREATE INDEX IF NOT EXISTS idx_events_schedule_time ON events (schedule_id, start_at);
 
       -- normalize checks (idempotent)
@@ -112,6 +115,7 @@ const initializeDatabase = async () => {
         allergies             TEXT,
         updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+
       DROP TRIGGER IF EXISTS trg_nutrition_profiles_updated_at ON nutrition_profiles;
       CREATE TRIGGER trg_nutrition_profiles_updated_at
       BEFORE UPDATE ON nutrition_profiles FOR EACH ROW EXECUTE FUNCTION set_updated_at();
@@ -128,7 +132,9 @@ const initializeDatabase = async () => {
         created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+
       CREATE INDEX IF NOT EXISTS idx_meal_plans_user ON meal_plans(user_id);
+
       DROP TRIGGER IF EXISTS trg_meal_plans_updated_at ON meal_plans;
       CREATE TRIGGER trg_meal_plans_updated_at
       BEFORE UPDATE ON meal_plans FOR EACH ROW EXECUTE FUNCTION set_updated_at();
@@ -148,14 +154,16 @@ const initializeDatabase = async () => {
         created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+
       CREATE INDEX IF NOT EXISTS idx_meals_user_time ON meals (user_id, logged_at);
       CREATE INDEX IF NOT EXISTS idx_meals_plan      ON meals (meal_plan_id);
+
       DROP TRIGGER IF EXISTS trg_meals_updated_at ON meals;
       CREATE TRIGGER trg_meals_updated_at
       BEFORE UPDATE ON meals FOR EACH ROW EXECUTE FUNCTION set_updated_at();
     `);
 
-    /* =========== FITNESS PROFILES & PLANS =========== */
+    /* =========== FITNESS PROFILES & (simplified) PLANS =========== */
     await client.query(`
       CREATE TABLE IF NOT EXISTS fitness_profiles (
         id                       INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -174,24 +182,53 @@ const initializeDatabase = async () => {
         coaching_style           VARCHAR(50),
         updated_at               TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+
       DROP TRIGGER IF EXISTS trg_fitness_profiles_updated_at ON fitness_profiles;
       CREATE TRIGGER trg_fitness_profiles_updated_at
       BEFORE UPDATE ON fitness_profiles FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
+      -- New simplified fitness_plans schema (NO start_date, end_date, fitness_profile_id)
       CREATE TABLE IF NOT EXISTS fitness_plans (
-        id                 INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-        user_id            INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        fitness_profile_id INTEGER REFERENCES fitness_profiles(id) ON DELETE CASCADE,
-        name               VARCHAR(120) NOT NULL,
-        status             VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active','archived','draft')),
-        start_date         DATE,
-        end_date           DATE,
-        notes              TEXT,
-        created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        id         INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        name       VARCHAR(120) NOT NULL,
+        status     VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active','archived','draft')),
+        notes      TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
-      CREATE INDEX IF NOT EXISTS idx_fitness_plans_user    ON fitness_plans(user_id);
-      CREATE INDEX IF NOT EXISTS idx_fitness_plans_profile ON fitness_plans(fitness_profile_id);
+
+      CREATE INDEX IF NOT EXISTS idx_fitness_plans_user ON fitness_plans(user_id);
+
+      -- Backward-compatible cleanup for older DBs: drop removed columns safely
+      DO $$
+      BEGIN
+        BEGIN
+          ALTER TABLE fitness_plans DROP COLUMN IF EXISTS fitness_profile_id;
+        EXCEPTION WHEN undefined_column THEN NULL;
+        END;
+        BEGIN
+          ALTER TABLE fitness_plans DROP COLUMN IF EXISTS start_date;
+        EXCEPTION WHEN undefined_column THEN NULL;
+        END;
+        BEGIN
+          ALTER TABLE fitness_plans DROP COLUMN IF EXISTS end_date;
+        EXCEPTION WHEN undefined_column THEN NULL;
+        END;
+      END $$;
+
+      -- Also drop the old index if it exists
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM pg_class c
+          JOIN pg_namespace n ON n.oid = c.relnamespace
+          WHERE c.relkind = 'i' AND c.relname = 'idx_fitness_plans_profile'
+        ) THEN
+          EXECUTE 'DROP INDEX idx_fitness_plans_profile';
+        END IF;
+      END $$;
+
       DROP TRIGGER IF EXISTS trg_fitness_plans_updated_at ON fitness_plans;
       CREATE TRIGGER trg_fitness_plans_updated_at
       BEFORE UPDATE ON fitness_plans FOR EACH ROW EXECUTE FUNCTION set_updated_at();
@@ -207,6 +244,7 @@ const initializeDatabase = async () => {
         created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+
       DROP TRIGGER IF EXISTS trg_exercise_categories_updated_at ON exercise_categories;
       CREATE TRIGGER trg_exercise_categories_updated_at
       BEFORE UPDATE ON exercise_categories FOR EACH ROW EXECUTE FUNCTION set_updated_at();
@@ -226,13 +264,15 @@ const initializeDatabase = async () => {
         created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+
       CREATE INDEX IF NOT EXISTS idx_exercises_category ON exercises(category_id);
+
       DROP TRIGGER IF EXISTS trg_exercises_updated_at ON exercises;
       CREATE TRIGGER trg_exercises_updated_at
       BEFORE UPDATE ON exercises FOR EACH ROW EXECUTE FUNCTION set_updated_at();
     `);
 
-    /* =========== FITNESS PLAN EXERCISES (THE MISSING TABLE) =========== */
+    /* =========== FITNESS PLAN EXERCISES =========== */
     await client.query(`
       CREATE TABLE IF NOT EXISTS fitness_plan_exercises (
         id          INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -248,6 +288,7 @@ const initializeDatabase = async () => {
         CONSTRAINT fitness_plan_exercises_plan_id_source_external_id_key
           UNIQUE (plan_id, source, external_id)
       );
+
       CREATE INDEX IF NOT EXISTS idx_plan_exercises_plan ON fitness_plan_exercises(plan_id);
     `);
 
@@ -268,17 +309,19 @@ const initializeDatabase = async () => {
         created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+
       CREATE INDEX IF NOT EXISTS idx_target_questions_type ON target_questions(type);
 
       CREATE TABLE IF NOT EXISTS user_question_responses (
-        id            INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-        user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        question_id   INTEGER NOT NULL REFERENCES target_questions(id) ON DELETE CASCADE,
+        id             INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        user_id        INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        question_id    INTEGER NOT NULL REFERENCES target_questions(id) ON DELETE CASCADE,
         response_value INTEGER NOT NULL,
-        response_text VARCHAR(255),
-        asked_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        response_text  VARCHAR(255),
+        asked_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+
       CREATE INDEX IF NOT EXISTS idx_user_responses_user ON user_question_responses(user_id);
 
       CREATE TABLE IF NOT EXISTS password_reset_tokens (
@@ -289,6 +332,7 @@ const initializeDatabase = async () => {
         used       BOOLEAN NOT NULL DEFAULT FALSE,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+
       CREATE INDEX IF NOT EXISTS idx_prt_user   ON password_reset_tokens(user_id);
       CREATE INDEX IF NOT EXISTS idx_prt_expire ON password_reset_tokens(expires_at);
     `);
