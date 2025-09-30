@@ -6,9 +6,12 @@ require("dotenv").config();
 const { testConnection, initializeDatabase } = require("./config/database");
 const { verifySmtp } = require("./utils/mailer");
 
-// Route groups (files you already have)
+// Route groups
 const userRoutes = require("./routes/userRoutes");
 const fitnessProfileRoutes = require("./routes/fitnessProfileRoutes");
+const fitnessPlanRoutes = require("./routes/fitnessPlanRoutes");
+const planExerciseRoutes = require("./routes/planExerciseRoutes"); // exercises saved to a plan
+const exerciseSearchRoutes = require("./routes/exerciseSearchRoutes"); // ExerciseDB proxy
 const nutritionRoutes = require("./routes/nutritionRoutes");
 const scheduleRoutes = require("./routes/scheduleRoutes");
 const targetQuestionRoutes = require("./routes/targetQuestionRoutes");
@@ -16,35 +19,34 @@ const targetQuestionRoutes = require("./routes/targetQuestionRoutes");
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// Middleware
-app.use(cors()); // configure origins if needed
+/* Middleware */
+app.use(cors()); // configure origins if you need to restrict
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-// ---------------- API routes ----------------
+/* ---------------- API routes ---------------- */
 
 // Users
 app.use("/api/users", userRoutes);
 
-// Fitness namespace (matches frontend: /api/fitness/**)
-app.use("/api/fitness", fitnessProfileRoutes); // expects internal routes like /profile
-app.use("/api/fitness/plans", require("./routes/fitnessPlanRoutes"));
-app.use(
-  "/api/fitness/plans/:id/exercises",
-  require("./routes/planExerciseRoutes")
-);
-app.use("/api/exercises", require("./routes/exerciseSearchRoutes"));
+// Fitness namespace
+app.use("/api/fitness", fitnessProfileRoutes); // /api/fitness/profile (GET/PUT)
+app.use("/api/fitness/plans", fitnessPlanRoutes); // plans CRUD
+app.use("/api/fitness/plans/:id/exercises", planExerciseRoutes); // add/remove/list selected exercises for a plan
 
-// Nutrition (matches frontend: /api/nutrition/profile)
-app.use("/api/nutrition", nutritionRoutes); // expects internal routes like /profile
+// ExerciseDB proxy (public catalog; no caching)
+app.use("/api/exercises", exerciseSearchRoutes); // /search, /:externalId, /image
 
-// Schedule namespace (matches frontend: /api/schedule and /api/schedule/events)
-app.use("/api/schedule", scheduleRoutes); // expects internal routes like / (GET/POST/PUT), /events, /events/:id
+// Nutrition
+app.use("/api/nutrition", nutritionRoutes); // /api/nutrition/profile
 
-// Target Questions namespace (for dynamic question system)
-app.use("/api/questions", targetQuestionRoutes); // expects internal routes like /, /user/:userId, /type/:type
+// Schedule
+app.use("/api/schedule", scheduleRoutes); // /, /events, /events/:id
 
-// ---------------- Root + health ----------------
+// Target Questions
+app.use("/api/questions", targetQuestionRoutes);
+
+/* ---------------- Root + health ---------------- */
 app.get("/", (req, res) => {
   res.json({
     message: "FuelUp Backend API",
@@ -54,20 +56,15 @@ app.get("/", (req, res) => {
       fitness: {
         profile: "/api/fitness/profile",
         plans: "/api/fitness/plans",
-        plansCurrent: "/api/fitness/plans/current",
-        plansRecommend: "/api/fitness/plans/recommend",
-        exercises: "/api/fitness/exercises",
-        categories: "/api/fitness/categories",
+        planExercises: "/api/fitness/plans/:id/exercises",
+      },
+      exercises: {
+        search: "/api/exercises/search?q=&bodyPart=&equipment=&limit=&offset=",
+        detail: "/api/exercises/:externalId",
+        image: "/api/exercises/:id/image?resolution=180",
       },
       nutrition: {
         profile: "/api/nutrition/profile",
-      },
-      meals: {
-        base: "/api/meals",
-        daily: "/api/meals/daily",
-        plans: "/api/meals/plans",
-        plansCurrent: "/api/meals/plans/current",
-        plansRecommend: "/api/meals/plans/recommend",
       },
       schedule: {
         base: "/api/schedule",
@@ -93,12 +90,12 @@ app.get("/health", (req, res) => {
   });
 });
 
-// 404
+/* 404 */
 app.use("*", (req, res) =>
   res.status(404).json({ error: "Endpoint not found", path: req.originalUrl })
 );
 
-// Global error handler
+/* Global error handler */
 app.use((error, req, res, next) => {
   console.error("Global error handler:", error);
   res.status(500).json({
@@ -110,12 +107,12 @@ app.use((error, req, res, next) => {
   });
 });
 
-// Bootstrap
+/* Bootstrap */
 const startServer = async () => {
   try {
     await testConnection();
-    await initializeDatabase(); // creates/ensures unified schema + triggers
-    await verifySmtp(); // logs SMTP status; non-fatal
+    await initializeDatabase();
+    await verifySmtp(); // non-fatal if it fails
     app.listen(PORT, () =>
       console.log(`Server running at http://localhost:${PORT}`)
     );
