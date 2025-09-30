@@ -156,16 +156,19 @@ export async function apiUpdateMe(partial: Record<string, any>) {
 
 /* -------------------- ExerciseDB proxy calls -------------------- */
 export async function apiSearchExercises(params?: {
+  q?: string;
   target?: string;
   limit?: number;
   offset?: number;
 }) {
-  const q = new URLSearchParams();
-  if (params?.target) q.set("target", params.target);
-  if (params?.limit) q.set("limit", String(params.limit));
-  if (params?.offset) q.set("offset", String(params.offset));
+  const qs = new URLSearchParams();
+  if (params?.q) qs.set("q", params.q.toLowerCase());
+  if (params?.target) qs.set("target", params.target.toLowerCase());
+  if (typeof params?.limit === "number") qs.set("limit", String(params.limit));
+  if (typeof params?.offset === "number")
+    qs.set("offset", String(params.offset));
 
-  const url = `${BASE_URL}${EP.exercises}${q.toString() ? `?${q}` : ""}`;
+  const url = `${BASE_URL}${EP.exercises}${qs.toString() ? `?${qs}` : ""}`;
   const res = await fetch(url, { headers: await authHeaders() });
   return asJson<{ items: any[]; pagination?: any }>(res);
 }

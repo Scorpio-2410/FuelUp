@@ -16,17 +16,23 @@ if (!KEY) {
 
 /**
  * GET /api/exercises
- * If ?target=<muscle> is provided, proxy ExerciseDB /exercises/target/{target}
- * Else returns the full list.
+ * Supports:
+ *  - ?q=<name>          -> /exercises/name/{q}  (case-insensitive)
+ *  - ?target=<muscle>   -> /exercises/target/{target}
+ *  - default            -> /exercises
  */
 router.get("/", async (req, res) => {
-  // make target case-insensitive and trimmed
+  const q = String(req.query.q || "")
+    .trim()
+    .toLowerCase();
   const target = String(req.query.target || "")
     .trim()
     .toLowerCase();
-  const upstreamPath = target
-    ? `/exercises/target/${encodeURIComponent(target)}`
-    : `/exercises`;
+
+  let upstreamPath = "/exercises";
+  if (q) upstreamPath = `/exercises/name/${encodeURIComponent(q)}`;
+  else if (target)
+    upstreamPath = `/exercises/target/${encodeURIComponent(target)}`;
 
   try {
     const resp = await axios({
@@ -39,7 +45,10 @@ router.get("/", async (req, res) => {
     const items = Array.isArray(resp.data) ? resp.data : [];
     return res.json({ items });
   } catch (err) {
-    console.error("ExerciseDB search error:", err?.message || err);
+    console.error(
+      "ExerciseDB search error:",
+      err?.response?.data || err?.message || err
+    );
     return res.status(500).json({ error: "Failed to fetch exercises" });
   }
 });

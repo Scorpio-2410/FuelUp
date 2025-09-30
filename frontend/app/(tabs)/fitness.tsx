@@ -1,5 +1,5 @@
 // app/(tabs)/fitness.tsx
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { View, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import RefreshScroll from "../../components/RefreshScroll";
@@ -16,13 +16,30 @@ import TargetFilterBar, {
   MUSCLE_GROUPS,
 } from "../../components/Fitness/TargetFilterBar";
 
+// small debounce hook to avoid hammering the API as you type
+function useDebounced<T>(value: T, delay = 300) {
+  const [v, setV] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setV(value), delay);
+    return () => clearTimeout(t);
+  }, [value, delay]);
+  return v;
+}
+
 export default function FitnessScreen() {
   const [query, setQuery] = useState("");
   const [selectedTarget, setSelectedTarget] = useState<string>(
     MUSCLE_GROUPS[0]
   );
 
-  const { list, loading, error, refresh } = useExerciseAPI(selectedTarget);
+  const debouncedQuery = useDebounced(query.trim().toLowerCase(), 300);
+
+  // pass either debounced search or selected target
+  const { list, loading, error, refresh } = useExerciseAPI(
+    debouncedQuery ? undefined : selectedTarget,
+    debouncedQuery || undefined
+  );
+
   const { refreshing, handleRefresh } = useGlobalRefresh({
     tabName: "fitness",
     onInternalRefresh: refresh,
@@ -30,26 +47,25 @@ export default function FitnessScreen() {
 
   const [selected, setSelected] = useState<ExerciseListItem | null>(null);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const src = Array.isArray(list) ? list : [];
-    if (!q) return src;
-    return src.filter((e) => e.name.toLowerCase().includes(q));
-  }, [query, list]);
+  // server already returns searched/targeted list; no client-side filtering
+  const data = list;
 
   return (
     <SafeAreaView
       style={{ flex: 1, backgroundColor: "#0b0b0b" }}
       edges={["top"]}>
-      {/* Keep content snug under the notch/Dynamic Island without being too low */}
       <View style={{ paddingTop: 4 }}>
         <TopSearchBar
           value={query}
           onChangeText={setQuery}
           onClear={() => setQuery("")}
         />
-
-        <TargetFilterBar value={selectedTarget} onChange={setSelectedTarget} />
+        {!debouncedQuery && (
+          <TargetFilterBar
+            value={selectedTarget}
+            onChange={setSelectedTarget}
+          />
+        )}
       </View>
 
       <RefreshScroll refreshing={refreshing} onRefresh={handleRefresh}>
@@ -58,7 +74,9 @@ export default function FitnessScreen() {
             Exercises
           </Text>
           <Text style={{ color: "#a1a1aa", marginTop: 4 }}>
-            Target: {selectedTarget}. Tap any exercise for GIF and instructions.
+            {debouncedQuery
+              ? `Results for “${debouncedQuery}”.`
+              : `Target: ${selectedTarget}. Tap any exercise for GIF and instructions.`}
           </Text>
         </View>
 
@@ -80,7 +98,7 @@ export default function FitnessScreen() {
         ) : null}
 
         <ExerciseGrid
-          exercises={filtered}
+          exercises={data}
           onExercisePress={(ex) => setSelected(ex)}
         />
       </RefreshScroll>
