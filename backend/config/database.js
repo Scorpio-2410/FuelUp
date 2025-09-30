@@ -101,27 +101,23 @@ const initializeDatabase = async () => {
 
       CREATE INDEX IF NOT EXISTS idx_events_schedule_time ON events (schedule_id, start_at);
 
-      DROP TRIGGER IF EXISTS trg_events_updated_at ON events;
-      CREATE TRIGGER trg_events_updated_at
-      BEFORE UPDATE ON events
-      FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-    `);
-
-    // ---------- Self-healing: normalize constraints every boot ----------
-    await client.query(`
+      -- normalize checks (idempotent)
       ALTER TABLE public.events
         DROP CONSTRAINT IF EXISTS events_category_check;
       ALTER TABLE public.events
         ADD CONSTRAINT events_category_check
         CHECK (category IN ('meal','workout','work','other'));
-    `);
 
-    await client.query(`
       ALTER TABLE public.events
         DROP CONSTRAINT IF EXISTS events_recurrence_rule_check;
       ALTER TABLE public.events
         ADD CONSTRAINT events_recurrence_rule_check
         CHECK (recurrence_rule IN ('none','daily','weekly','weekday'));
+
+      DROP TRIGGER IF EXISTS trg_events_updated_at ON events;
+      CREATE TRIGGER trg_events_updated_at
+      BEFORE UPDATE ON events
+      FOR EACH ROW EXECUTE FUNCTION set_updated_at();
     `);
 
     // ------- other tables (nutrition / meals / fitness / reset tokens) -------
@@ -223,6 +219,7 @@ const initializeDatabase = async () => {
       BEFORE UPDATE ON fitness_plans
       FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
+      /* ---------------- exercise_categories (no 'type' column) ---------------- */
       CREATE TABLE IF NOT EXISTS exercise_categories (
         id               INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
         name             VARCHAR(120) NOT NULL UNIQUE,
@@ -232,32 +229,24 @@ const initializeDatabase = async () => {
         updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
 
-      -- Add missing columns if they don't exist (for existing tables)
-      DO $$ 
+      -- Ensure helper columns exist for older DBs
+      DO $$
       BEGIN
         BEGIN
           ALTER TABLE exercise_categories ADD COLUMN description TEXT;
-        EXCEPTION WHEN duplicate_column THEN
-          -- Column already exists, do nothing
-        END;
-        
+        EXCEPTION WHEN duplicate_column THEN END;
+
         BEGIN
           ALTER TABLE exercise_categories ADD COLUMN is_gym_exercise BOOLEAN NOT NULL DEFAULT FALSE;
-        EXCEPTION WHEN duplicate_column THEN
-          -- Column already exists, do nothing
-        END;
+        EXCEPTION WHEN duplicate_column THEN END;
 
         BEGIN
           ALTER TABLE exercise_categories ADD COLUMN created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
-        EXCEPTION WHEN duplicate_column THEN
-          -- Column already exists, do nothing
-        END;
+        EXCEPTION WHEN duplicate_column THEN END;
 
         BEGIN
           ALTER TABLE exercise_categories ADD COLUMN updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
-        EXCEPTION WHEN duplicate_column THEN
-          -- Column already exists, do nothing
-        END;
+        EXCEPTION WHEN duplicate_column THEN END;
       END $$;
 
       DROP TRIGGER IF EXISTS trg_exercise_categories_updated_at ON exercise_categories;
@@ -265,68 +254,56 @@ const initializeDatabase = async () => {
       BEFORE UPDATE ON exercise_categories
       FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
-      -- Add unique constraint on name if it doesn't exist
-      DO $$ 
-      BEGIN
-        IF NOT EXISTS (
-          SELECT 1 FROM pg_constraint 
-          WHERE conname = 'exercise_categories_name_unique'
-        ) THEN
-          ALTER TABLE exercise_categories ADD CONSTRAINT exercise_categories_name_unique UNIQUE (name);
-        END IF;
-      END $$;
-
-      -- Insert default categories (using individual INSERTs to handle existing data)
-      -- GYM CATEGORIES
-      INSERT INTO exercise_categories (name, type, description, is_gym_exercise) 
-      SELECT 'Chest', 'gym', 'Chest muscle exercises typically done in the gym', TRUE
+      /* ---- Seed default categories (uses name, description, is_gym_exercise) ---- */
+      INSERT INTO exercise_categories (name, description, is_gym_exercise)
+      SELECT 'Chest', 'Chest muscle exercises typically done in the gym', TRUE
       WHERE NOT EXISTS (SELECT 1 FROM exercise_categories WHERE name = 'Chest');
 
-      INSERT INTO exercise_categories (name, type, description, is_gym_exercise) 
-      SELECT 'Back', 'gym', 'Back muscle exercises typically done in the gym', TRUE
+      INSERT INTO exercise_categories (name, description, is_gym_exercise)
+      SELECT 'Back', 'Back muscle exercises typically done in the gym', TRUE
       WHERE NOT EXISTS (SELECT 1 FROM exercise_categories WHERE name = 'Back');
 
-      INSERT INTO exercise_categories (name, type, description, is_gym_exercise) 
-      SELECT 'Legs', 'gym', 'Leg muscle exercises typically done in the gym', TRUE
+      INSERT INTO exercise_categories (name, description, is_gym_exercise)
+      SELECT 'Legs', 'Leg muscle exercises typically done in the gym', TRUE
       WHERE NOT EXISTS (SELECT 1 FROM exercise_categories WHERE name = 'Legs');
 
-      INSERT INTO exercise_categories (name, type, description, is_gym_exercise) 
-      SELECT 'Arms', 'gym', 'Arm muscle exercises typically done in the gym', TRUE
+      INSERT INTO exercise_categories (name, description, is_gym_exercise)
+      SELECT 'Arms', 'Arm muscle exercises typically done in the gym', TRUE
       WHERE NOT EXISTS (SELECT 1 FROM exercise_categories WHERE name = 'Arms');
 
-      INSERT INTO exercise_categories (name, type, description, is_gym_exercise) 
-      SELECT 'Shoulders', 'gym', 'Shoulder muscle exercises typically done in the gym', TRUE
+      INSERT INTO exercise_categories (name, description, is_gym_exercise)
+      SELECT 'Shoulders', 'Shoulder muscle exercises typically done in the gym', TRUE
       WHERE NOT EXISTS (SELECT 1 FROM exercise_categories WHERE name = 'Shoulders');
 
-      INSERT INTO exercise_categories (name, type, description, is_gym_exercise) 
-      SELECT 'Core', 'gym', 'Core muscle exercises typically done in the gym', TRUE
+      INSERT INTO exercise_categories (name, description, is_gym_exercise)
+      SELECT 'Core', 'Core muscle exercises typically done in the gym', TRUE
       WHERE NOT EXISTS (SELECT 1 FROM exercise_categories WHERE name = 'Core');
 
-      INSERT INTO exercise_categories (name, type, description, is_gym_exercise) 
-      SELECT 'Cardio', 'gym', 'Cardio exercises typically done in the gym', TRUE
+      INSERT INTO exercise_categories (name, description, is_gym_exercise)
+      SELECT 'Cardio', 'Cardio exercises typically done in the gym', TRUE
       WHERE NOT EXISTS (SELECT 1 FROM exercise_categories WHERE name = 'Cardio');
 
-      -- NON-GYM CATEGORIES
-      INSERT INTO exercise_categories (name, type, description, is_gym_exercise) 
-      SELECT 'Calisthenics', 'non-gym', 'Bodyweight strength training exercises', FALSE
+      INSERT INTO exercise_categories (name, description, is_gym_exercise)
+      SELECT 'Calisthenics', 'Bodyweight strength training exercises', FALSE
       WHERE NOT EXISTS (SELECT 1 FROM exercise_categories WHERE name = 'Calisthenics');
 
-      INSERT INTO exercise_categories (name, type, description, is_gym_exercise) 
-      SELECT 'Flexibility', 'non-gym', 'Stretching and mobility exercises', FALSE
+      INSERT INTO exercise_categories (name, description, is_gym_exercise)
+      SELECT 'Flexibility', 'Stretching and mobility exercises', FALSE
       WHERE NOT EXISTS (SELECT 1 FROM exercise_categories WHERE name = 'Flexibility');
 
-      INSERT INTO exercise_categories (name, type, description, is_gym_exercise) 
-      SELECT 'Sports', 'non-gym', 'Sport-specific exercises and activities', FALSE
+      INSERT INTO exercise_categories (name, description, is_gym_exercise)
+      SELECT 'Sports', 'Sport-specific exercises and activities', FALSE
       WHERE NOT EXISTS (SELECT 1 FROM exercise_categories WHERE name = 'Sports');
 
-      INSERT INTO exercise_categories (name, type, description, is_gym_exercise) 
-      SELECT 'Running', 'non-gym', 'Running and jogging exercises', FALSE
+      INSERT INTO exercise_categories (name, description, is_gym_exercise)
+      SELECT 'Running', 'Running and jogging exercises', FALSE
       WHERE NOT EXISTS (SELECT 1 FROM exercise_categories WHERE name = 'Running');
 
-      INSERT INTO exercise_categories (name, type, description, is_gym_exercise) 
-      SELECT 'Walking', 'non-gym', 'Walking-based exercises', FALSE
+      INSERT INTO exercise_categories (name, description, is_gym_exercise)
+      SELECT 'Walking', 'Walking-based exercises', FALSE
       WHERE NOT EXISTS (SELECT 1 FROM exercise_categories WHERE name = 'Walking');
 
+      /* ---------------------------- exercises ---------------------------- */
       CREATE TABLE IF NOT EXISTS exercises (
         id               INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
         category_id      INTEGER REFERENCES exercise_categories(id) ON DELETE SET NULL,
@@ -343,74 +320,72 @@ const initializeDatabase = async () => {
         updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
 
-      -- Add missing category_id column to exercises table if it doesn't exist
-      DO $$ 
+      DO $$
       BEGIN
         BEGIN
           ALTER TABLE exercises ADD COLUMN category_id INTEGER REFERENCES exercise_categories(id) ON DELETE SET NULL;
-        EXCEPTION WHEN duplicate_column THEN
-          -- Column already exists, do nothing
-        END;
+        EXCEPTION WHEN duplicate_column THEN END;
       END $$;
 
-      -- Drop fitness_plan_id column if it exists (exercises are now global)
-      DO $$ 
+      DO $$
       BEGIN
         BEGIN
           ALTER TABLE exercises DROP COLUMN IF EXISTS fitness_plan_id;
-        EXCEPTION WHEN others THEN
-          -- Column already dropped or doesn't exist, do nothing
-        END;
+        EXCEPTION WHEN others THEN END;
       END $$;
 
       CREATE INDEX IF NOT EXISTS idx_exercises_category ON exercises(category_id);
+
       DROP TRIGGER IF EXISTS trg_exercises_updated_at ON exercises;
       CREATE TRIGGER trg_exercises_updated_at
       BEFORE UPDATE ON exercises
       FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
+      /* ------------------------- targeting questions ------------------------- */
       CREATE TABLE IF NOT EXISTS target_questions (
-        id          INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-        type        VARCHAR(20) NOT NULL CHECK (type IN ('daily','weekly','monthly')),
-        text        TEXT NOT NULL,
-        priority    VARCHAR(20) NOT NULL DEFAULT 'medium' CHECK (priority IN ('high','medium','low')),
-        frequency   VARCHAR(20) NOT NULL DEFAULT 'mandatory' CHECK (frequency IN ('mandatory','rotational','optional','occasional','rare')),
-        options     JSONB NOT NULL DEFAULT '[]',
-        is_slider   BOOLEAN NOT NULL DEFAULT FALSE,
-        slider_config JSONB DEFAULT NULL,
-        category    VARCHAR(50) DEFAULT 'general',
+        id              INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        type            VARCHAR(20) NOT NULL CHECK (type IN ('daily','weekly','monthly')),
+        text            TEXT NOT NULL,
+        priority        VARCHAR(20) NOT NULL DEFAULT 'medium' CHECK (priority IN ('high','medium','low')),
+        frequency       VARCHAR(20) NOT NULL DEFAULT 'mandatory' CHECK (frequency IN ('mandatory','rotational','optional','occasional','rare')),
+        options         JSONB NOT NULL DEFAULT '[]',
+        is_slider       BOOLEAN NOT NULL DEFAULT FALSE,
+        slider_config   JSONB DEFAULT NULL,
+        category        VARCHAR(50) DEFAULT 'general',
         influence_weight DECIMAL(3,2) DEFAULT 1.0 CHECK (influence_weight >= 0.1 AND influence_weight <= 5.0),
-        created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
-      CREATE INDEX IF NOT EXISTS idx_target_questions_type ON target_questions(type);
+      CREATE INDEX IF NOT EXISTS idx_target_questions_type     ON target_questions(type);
       CREATE INDEX IF NOT EXISTS idx_target_questions_priority ON target_questions(priority);
       CREATE INDEX IF NOT EXISTS idx_target_questions_frequency ON target_questions(frequency);
+
       DROP TRIGGER IF EXISTS trg_target_questions_updated_at ON target_questions;
       CREATE TRIGGER trg_target_questions_updated_at
       BEFORE UPDATE ON target_questions
       FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
       CREATE TABLE IF NOT EXISTS user_question_responses (
-        id          INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-        user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        question_id INTEGER NOT NULL REFERENCES target_questions(id) ON DELETE CASCADE,
+        id            INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        question_id   INTEGER NOT NULL REFERENCES target_questions(id) ON DELETE CASCADE,
         response_value INTEGER NOT NULL,
         response_text VARCHAR(255),
-        asked_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        asked_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
-      CREATE INDEX IF NOT EXISTS idx_user_responses_user ON user_question_responses(user_id);
+      CREATE INDEX IF NOT EXISTS idx_user_responses_user     ON user_question_responses(user_id);
       CREATE INDEX IF NOT EXISTS idx_user_responses_question ON user_question_responses(question_id);
       CREATE INDEX IF NOT EXISTS idx_user_responses_asked_at ON user_question_responses(asked_at);
 
+      /* ------------------------- password reset tokens ------------------------ */
       CREATE TABLE IF NOT EXISTS password_reset_tokens (
-        id          INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-        user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        code        VARCHAR(6) NOT NULL,
-        expires_at  TIMESTAMPTZ NOT NULL,
-        used        BOOLEAN NOT NULL DEFAULT FALSE,
-        created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        id         INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        code       VARCHAR(6) NOT NULL,
+        expires_at TIMESTAMPTZ NOT NULL,
+        used       BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
       CREATE INDEX IF NOT EXISTS idx_prt_user   ON password_reset_tokens(user_id);
       CREATE INDEX IF NOT EXISTS idx_prt_expire ON password_reset_tokens(expires_at);

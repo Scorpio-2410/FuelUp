@@ -9,11 +9,7 @@ const { verifySmtp } = require("./utils/mailer");
 // Route groups (files you already have)
 const userRoutes = require("./routes/userRoutes");
 const fitnessProfileRoutes = require("./routes/fitnessProfileRoutes");
-const fitnessPlanRoutes = require("./routes/fitnessPlanRoutes");
-const exerciseRoutes = require("./routes/exerciseRoutes");
 const nutritionRoutes = require("./routes/nutritionRoutes");
-const mealPlanRoutes = require("./routes/mealPlanRoutes");
-const mealRoutes = require("./routes/mealRoutes");
 const scheduleRoutes = require("./routes/scheduleRoutes");
 const targetQuestionRoutes = require("./routes/targetQuestionRoutes");
 
@@ -32,7 +28,11 @@ app.use("/api/users", userRoutes);
 
 // Fitness namespace (matches frontend: /api/fitness/**)
 app.use("/api/fitness", fitnessProfileRoutes); // expects internal routes like /profile
-
+app.use("/api/fitness/plans", require("./routes/fitnessPlanRoutes"));
+app.use(
+  "/api/fitness/plans/:id/exercises",
+  require("./routes/planExerciseRoutes")
+);
 app.use("/api/exercises", require("./routes/exerciseSearchRoutes"));
 
 // Nutrition (matches frontend: /api/nutrition/profile)
