@@ -75,8 +75,11 @@ const EP = {
   planExercises: (planId: string | number) =>
     `/api/fitness/plans/${planId}/exercises`,
 
-  // Nutrition / Schedule
+  // Profiles (nutrition/fitness)
   nutritionProfile: "/api/nutrition/profile",
+  fitnessProfile: "/api/fitness/profile",
+
+  // Schedule
   schedulesRoot: "/api/schedule",
   events: "/api/schedule/events",
   eventsAutoPlan: "/api/schedule/auto-plan",
@@ -141,6 +144,7 @@ export async function apiSignup(payload: {
   });
   return asJson<{ token: string; user: any }>(res);
 }
+
 export async function apiLogin(payload: {
   identifier: string;
   password: string;
@@ -152,12 +156,14 @@ export async function apiLogin(payload: {
   });
   return asJson<{ token: string; user: any }>(res);
 }
+
 export async function apiGetMe() {
   const res = await fetch(`${BASE_URL}${EP.meGet}`, {
     headers: await authHeaders(),
   });
   return asJson<{ user: any }>(res);
 }
+
 export async function apiUpdateMe(partial: Record<string, any>) {
   const res = await fetch(`${BASE_URL}${EP.mePut}`, {
     method: "PUT",
@@ -165,6 +171,48 @@ export async function apiUpdateMe(partial: Record<string, any>) {
     body: JSON.stringify(partial),
   });
   return asJson<{ user: any; message: string }>(res);
+}
+
+/* -------- username & email availability checks -------- */
+export async function apiCheckUsername(username: string) {
+  const qs = new URLSearchParams({ username: username.trim() });
+  const res = await fetch(`${BASE_URL}${EP.checkUsername}?${qs.toString()}`, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+  });
+  return asJson<{ available: boolean }>(res);
+}
+
+export async function apiCheckEmail(email: string) {
+  const qs = new URLSearchParams({ email: email.trim().toLowerCase() });
+  const res = await fetch(`${BASE_URL}${EP.checkEmail}?${qs.toString()}`, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+  });
+  return asJson<{ available: boolean }>(res);
+}
+
+/* -------------------- password reset -------------------- */
+export async function apiResetRequest(email: string) {
+  const res = await fetch(`${BASE_URL}${EP.resetRequest}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  return asJson<{ success: boolean; message?: string }>(res);
+}
+
+export async function apiResetConfirm(payload: {
+  email: string;
+  code: string;
+  newPassword: string;
+}) {
+  const res = await fetch(`${BASE_URL}${EP.resetConfirm}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return asJson<{ success: boolean; message?: string }>(res);
 }
 
 /* -------------------- ExerciseDB proxy calls -------------------- */
@@ -184,12 +232,14 @@ export async function apiSearchExercises(params?: {
   const res = await fetch(url, { headers: await authHeaders() });
   return asJson<{ items: any[]; pagination?: any }>(res);
 }
+
 export async function apiGetExerciseDetail(id: string | number) {
   const res = await fetch(`${BASE_URL}${EP.exerciseDetail}/${id}`, {
     headers: await authHeaders(),
   });
   return asJson<{ item: any }>(res);
 }
+
 export function getExerciseImageUri(id: string | number, res = "180") {
   return `${BASE_URL}${EP.exerciseImage(id, res)}`;
 }
@@ -202,7 +252,6 @@ export async function apiListPlans() {
   return asJson<{ success: boolean; plans: any[]; pagination?: any }>(res);
 }
 
-// payload trimmed to fields that actually exist on the table now
 export async function apiCreatePlan(payload: {
   name: string;
   status?: "active" | "draft" | "archived";
@@ -244,7 +293,6 @@ export async function apiListPlanExercises(planId: string | number) {
   const res = await fetch(`${BASE_URL}${EP.planExercises(planId)}`, {
     headers: await authHeaders(),
   });
-  // backend may return {items:[...]} or {exercises:[...]} — normalize here
   const json = await asJson<any>(res);
   const items = Array.isArray(json?.items)
     ? json.items
@@ -288,19 +336,64 @@ export async function apiRemoveExerciseFromPlan(
   return asJson<{ success: boolean }>(res);
 }
 
-/* -------------------- nutrition + schedule -------------------- */
+/* -------------------- nutrition + fitness profiles -------------------- */
 export async function apiGetNutritionProfile() {
   const res = await fetch(`${BASE_URL}${EP.nutritionProfile}`, {
     headers: await authHeaders(),
   });
   return asJson<{ profile: any | null }>(res);
 }
+
+export async function apiUpsertNutritionProfile(payload: {
+  dailyCalorieTarget?: number | null;
+  macros?: {
+    protein_g?: number;
+    carbs_g?: number;
+    fat_g?: number;
+  } | null;
+  prefCuisines?: string | null;
+  dietRestrictions?: string | null;
+  dislikedFoods?: string | null;
+  allergies?: string | null;
+}) {
+  const res = await fetch(`${BASE_URL}${EP.nutritionProfile}`, {
+    method: "PUT",
+    headers: await authHeaders(),
+    body: JSON.stringify(payload),
+  });
+  return asJson<{ success: boolean; profile: any }>(res);
+}
+
+export async function apiUpsertFitnessProfile(payload: {
+  goal?: string | null;
+  activityLevel?: string | null;
+  experienceLevel?: string | null;
+  daysPerWeek?: number | null;
+  sessionLengthMin?: number | null;
+  trainingLocation?: string | null;
+  equipmentAvailable?: string | null;
+  preferredActivities?: string | null;
+  injuriesOrLimitations?: string | null;
+  coachingStyle?: string | null;
+  heightCm?: number | null;
+  weightKg?: number | null;
+}) {
+  const res = await fetch(`${BASE_URL}${EP.fitnessProfile}`, {
+    method: "PUT",
+    headers: await authHeaders(),
+    body: JSON.stringify(payload),
+  });
+  return asJson<{ success: boolean; profile: any }>(res);
+}
+
+/* -------------------- schedule + events -------------------- */
 export async function apiGetSchedule() {
   const res = await fetch(`${BASE_URL}${EP.schedulesRoot}`, {
     headers: await authHeaders(),
   });
   return asJson<{ success: boolean; schedule: any | null }>(res);
 }
+
 export async function apiListEvents(params?: { from?: string; to?: string }) {
   const q = new URLSearchParams();
   if (params?.from) q.set("from", params.from);
@@ -310,7 +403,6 @@ export async function apiListEvents(params?: { from?: string; to?: string }) {
   return asJson<{ success: boolean; events: any[] }>(res);
 }
 
-// MISSING BEFORE — now added:
 export async function apiCreateEvent(payload: {
   category: "meal" | "workout" | "work" | "other";
   title: string;
@@ -354,16 +446,6 @@ export async function apiDeleteEvent(id: number | string) {
   return asJson<{ success: boolean }>(res);
 }
 
-// Suggest workouts into free slots; defaults to 7 days if not provided
-export async function apiAutoPlanWorkouts(days = 7) {
-  const res = await fetch(`${BASE_URL}${EP.eventsAutoPlan}`, {
-    method: "POST",
-    headers: await authHeaders(),
-    body: JSON.stringify({ days }),
-  });
-  return asJson<{ success: boolean; created_count: number }>(res);
-}
-
 /* -------------------- profile cache helpers -------------------- */
 export async function readProfileCache(): Promise<any | null> {
   try {
@@ -373,6 +455,7 @@ export async function readProfileCache(): Promise<any | null> {
     return null;
   }
 }
+
 export async function writeProfileCache(userObj: any) {
   try {
     const slim = {
