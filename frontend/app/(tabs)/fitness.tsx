@@ -52,76 +52,91 @@ export default function FitnessScreen() {
   return (
     <SafeAreaView
       style={{ flex: 1, backgroundColor: "#0b0b0b" }}
-      edges={["top"]}>
-      <View style={{ paddingTop: 4 }}>
-        <TopSearchBar
-          value={query}
-          onChangeText={setQuery}
-          onClear={() => setQuery("")}
-        />
-
-        {!debouncedQuery && (
-          <TargetFilterBar
-            value={selectedTarget}
-            onChange={setSelectedTarget}
-          />
-        )}
-      </View>
-
-      {/* Header actions row */}
-      <View
-        style={{
-          flexDirection: "row",
-          paddingHorizontal: 24,
-          marginTop: 10,
-          marginBottom: 4,
-          gap: 10,
-        }}>
-        {/* Calendar (schedule) – green */}
-        <TouchableOpacity
-          onPress={() => setScheduleOpen(true)}
-          activeOpacity={0.9}
-          style={{
-            flex: 1,
-            backgroundColor: "#22c55e",
-            borderRadius: 18,
-            paddingVertical: 12,
-            paddingHorizontal: 14,
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "center",
-          }}>
-          <Text style={{ color: "#052e16", fontWeight: "800", marginRight: 8 }}>
-            Schedule
-          </Text>
-          <Ionicons name="calendar" size={18} color="#052e16" />
-        </TouchableOpacity>
-
-        {/* Plans – weights icon */}
-        <TouchableOpacity
-          onPress={() => setPlansOpen(true)}
-          activeOpacity={0.9}
-          style={{
-            width: 56,
-            backgroundColor: "#171717",
-            borderRadius: 18,
-            alignItems: "center",
-            justifyContent: "center",
-            borderWidth: 1,
-            borderColor: "#262626",
-          }}>
-          <Ionicons name="barbell" size={22} color="#e5e7eb" />
-        </TouchableOpacity>
-      </View>
-
+      edges={["top"]}
+    >
       <RefreshScroll refreshing={refreshing} onRefresh={handleRefresh}>
+        <View style={{ paddingTop: 4 }}>
+          <TopSearchBar
+            value={query}
+            onChangeText={setQuery}
+            onClear={() => setQuery("")}
+          />
+
+          {/* Header */}
+          <View
+            style={{ paddingHorizontal: 24, marginTop: 10, marginBottom: 4 }}
+          >
+            <Text style={{ color: "#fff", fontSize: 40, fontWeight: "800" }}>
+              Fitness
+            </Text>
+          </View>
+
+          {!debouncedQuery && (
+            <TargetFilterBar
+              value={selectedTarget}
+              onChange={setSelectedTarget}
+            />
+          )}
+        </View>
+
+        {/* Header actions row */}
+        <View
+          style={{
+            flexDirection: "row",
+            paddingHorizontal: 24,
+            marginTop: 10,
+            marginBottom: 4,
+            gap: 10,
+          }}
+        >
+          {/* Calendar (schedule) – green */}
+          <TouchableOpacity
+            onPress={() => setScheduleOpen(true)}
+            activeOpacity={0.9}
+            style={{
+              flex: 1,
+              backgroundColor: "#22c55e",
+              borderRadius: 18,
+              paddingVertical: 12,
+              paddingHorizontal: 14,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Text
+              style={{ color: "#052e16", fontWeight: "800", marginRight: 8 }}
+            >
+              Schedule
+            </Text>
+            <Ionicons name="calendar" size={18} color="#052e16" />
+          </TouchableOpacity>
+
+          {/* Plans – weights icon */}
+          <TouchableOpacity
+            onPress={() => setPlansOpen(true)}
+            activeOpacity={0.9}
+            style={{
+              width: 56,
+              backgroundColor: "#171717",
+              borderRadius: 18,
+              alignItems: "center",
+              justifyContent: "center",
+              borderWidth: 1,
+              borderColor: "#262626",
+            }}
+          >
+            <Ionicons name="barbell" size={22} color="#e5e7eb" />
+          </TouchableOpacity>
+        </View>
+
         <View style={{ paddingHorizontal: 24, marginBottom: 12, marginTop: 6 }}>
           <Text style={{ color: "#fff", fontSize: 22, fontWeight: "800" }}>
             Exercises
           </Text>
           <Text style={{ color: "#a1a1aa", marginTop: 4 }}>
             {debouncedQuery
-              ? `Results for “${debouncedQuery}”.`
+              ? `Results for "${debouncedQuery}".`
               : `Target: ${selectedTarget}. Tap any exercise for GIF and instructions.`}
           </Text>
         </View>

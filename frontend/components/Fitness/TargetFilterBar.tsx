@@ -33,18 +33,19 @@ export default function TargetFilterBar({ value, onChange }: Props) {
 
   return (
     <View style={{ paddingTop: 8, paddingBottom: 4 }}>
-      <View style={{ paddingHorizontal: 16, marginBottom: 6 }}>
-        <Text style={{ color: "#e5e7eb", fontWeight: "700" }}>Target</Text>
+      <View style={{ paddingHorizontal: 24, marginBottom: 6 }}>
+        <Text style={{ color: "#e5e7eb", fontWeight: "700" }}>Target:</Text>
       </View>
 
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{
-          paddingHorizontal: 12,
+          paddingHorizontal: 24,
           gap: 8,
           alignItems: "center",
-        }}>
+        }}
+      >
         {items.map((g) => {
           const active = value === g;
           return (
@@ -59,14 +60,16 @@ export default function TargetFilterBar({ value, onChange }: Props) {
                 backgroundColor: active ? "#22c55e" : "#27272a",
                 borderWidth: 1,
                 borderColor: active ? "#16a34a" : "#3f3f46",
-              }}>
+              }}
+            >
               <Text
                 style={{
                   color: active ? "#052e16" : "#e5e7eb",
                   fontWeight: "700",
                   fontSize: 13,
                   textTransform: "capitalize",
-                }}>
+                }}
+              >
                 {g}
               </Text>
             </TouchableOpacity>
