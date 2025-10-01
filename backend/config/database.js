@@ -111,8 +111,6 @@ const initializeDatabase = async () => {
         macros                JSONB,
         pref_cuisines         TEXT,
         diet_restrictions     TEXT,
-        disliked_foods        TEXT,
-        allergies             TEXT,
         updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
 
@@ -166,28 +164,21 @@ const initializeDatabase = async () => {
     /* =========== FITNESS PROFILES & (simplified) PLANS =========== */
     await client.query(`
       CREATE TABLE IF NOT EXISTS fitness_profiles (
-        id                       INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-        user_id                  INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
-        height_cm                NUMERIC,
-        weight_kg                NUMERIC,
-        goal                     VARCHAR(100) DEFAULT 'general_health',
-        activity_level           VARCHAR(50)  DEFAULT 'moderate',
-        experience_level         VARCHAR(50),
-        days_per_week            INTEGER,
-        session_length_min       INTEGER,
-        training_location        VARCHAR(100),
-        equipment_available      TEXT,
-        preferred_activities     TEXT,
-        injuries_or_limitations  TEXT,
-        coaching_style           VARCHAR(50),
-        updated_at               TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        id                 INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        user_id            INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+        height_cm          NUMERIC,
+        weight_kg          NUMERIC,
+        goal               VARCHAR(100) DEFAULT 'general_health',
+        activity_level     VARCHAR(50)  DEFAULT 'moderate',
+        days_per_week      INTEGER,
+        updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
 
       DROP TRIGGER IF EXISTS trg_fitness_profiles_updated_at ON fitness_profiles;
       CREATE TRIGGER trg_fitness_profiles_updated_at
       BEFORE UPDATE ON fitness_profiles FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
-      -- New simplified fitness_plans schema (NO start_date, end_date, fitness_profile_id)
+      -- New simplified fitness_plans schema (unchanged)
       CREATE TABLE IF NOT EXISTS fitness_plans (
         id         INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
         user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -200,7 +191,7 @@ const initializeDatabase = async () => {
 
       CREATE INDEX IF NOT EXISTS idx_fitness_plans_user ON fitness_plans(user_id);
 
-      -- Backward-compatible cleanup for older DBs: drop removed columns safely
+      -- Cleanup older DBs
       DO $$
       BEGIN
         BEGIN
@@ -217,7 +208,6 @@ const initializeDatabase = async () => {
         END;
       END $$;
 
-      -- Also drop the old index if it exists
       DO $$
       BEGIN
         IF EXISTS (
@@ -234,7 +224,7 @@ const initializeDatabase = async () => {
       BEFORE UPDATE ON fitness_plans FOR EACH ROW EXECUTE FUNCTION set_updated_at();
     `);
 
-    /* =========== EXERCISE CATEGORIES & EXERCISES =========== */
+    /* =========== EXERCISES =========== */
     await client.query(`
       CREATE TABLE IF NOT EXISTS exercise_categories (
         id              INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -272,7 +262,7 @@ const initializeDatabase = async () => {
       BEFORE UPDATE ON exercises FOR EACH ROW EXECUTE FUNCTION set_updated_at();
     `);
 
-    /* =========== FITNESS PLAN EXERCISES =========== */
+    /* =========== PLAN EXERCISES =========== */
     await client.query(`
       CREATE TABLE IF NOT EXISTS fitness_plan_exercises (
         id          INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -292,7 +282,7 @@ const initializeDatabase = async () => {
       CREATE INDEX IF NOT EXISTS idx_plan_exercises_plan ON fitness_plan_exercises(plan_id);
     `);
 
-    /* =========== QUESTIONS & RESPONSES & RESET TOKENS =========== */
+    /* =========== QUESTIONS / RESPONSES / RESET TOKENS =========== */
     await client.query(`
       CREATE TABLE IF NOT EXISTS target_questions (
         id               INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,

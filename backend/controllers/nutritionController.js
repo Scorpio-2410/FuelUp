@@ -1,7 +1,8 @@
+// controllers/nutritionController.js
 const NutritionProfile = require("../models/nutritionProfile");
 
 class NutritionController {
-  // Get or create the nutrition profile
+  // GET /api/nutrition/profile
   static async getProfile(req, res) {
     try {
       let profile = await NutritionProfile.findByUserId(req.userId);
@@ -16,25 +17,17 @@ class NutritionController {
     }
   }
 
-  // Upsert (create or overwrite sparse fields)
+  // PUT /api/nutrition/profile (upsert)
   static async upsertProfile(req, res) {
     try {
-      const {
-        dailyCalorieTarget,
-        macros,
-        prefCuisines,
-        dietRestrictions,
-        dislikedFoods,
-        allergies,
-      } = req.body;
+      const { dailyCalorieTarget, macros, prefCuisines, dietRestrictions } =
+        req.body;
 
       const profile = await NutritionProfile.upsert(req.userId, {
         dailyCalorieTarget,
         macros,
         prefCuisines,
         dietRestrictions,
-        dislikedFoods,
-        allergies,
       });
 
       res.status(201).json({ success: true, profile: profile.toJSON() });
@@ -44,7 +37,7 @@ class NutritionController {
     }
   }
 
-  // Patch update
+  // PATCH /api/nutrition/profile
   static async updateProfile(req, res) {
     try {
       const profile = await NutritionProfile.findByUserId(req.userId);

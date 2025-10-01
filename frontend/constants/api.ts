@@ -1,4 +1,3 @@
-// frontend/constants/api.ts
 import { Platform } from "react-native";
 import Constants from "expo-constants";
 import * as SecureStore from "expo-secure-store";
@@ -75,7 +74,7 @@ const EP = {
   planExercises: (planId: string | number) =>
     `/api/fitness/plans/${planId}/exercises`,
 
-  // Profiles (nutrition/fitness)
+  // Profiles
   nutritionProfile: "/api/nutrition/profile",
   fitnessProfile: "/api/fitness/profile",
 
@@ -353,8 +352,6 @@ export async function apiUpsertNutritionProfile(payload: {
   } | null;
   prefCuisines?: string | null;
   dietRestrictions?: string | null;
-  dislikedFoods?: string | null;
-  allergies?: string | null;
 }) {
   const res = await fetch(`${BASE_URL}${EP.nutritionProfile}`, {
     method: "PUT",
@@ -367,14 +364,8 @@ export async function apiUpsertNutritionProfile(payload: {
 export async function apiUpsertFitnessProfile(payload: {
   goal?: string | null;
   activityLevel?: string | null;
-  experienceLevel?: string | null;
   daysPerWeek?: number | null;
-  sessionLengthMin?: number | null;
-  trainingLocation?: string | null;
-  equipmentAvailable?: string | null;
-  preferredActivities?: string | null;
   injuriesOrLimitations?: string | null;
-  coachingStyle?: string | null;
   heightCm?: number | null;
   weightKg?: number | null;
 }) {
