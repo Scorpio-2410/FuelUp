@@ -71,7 +71,8 @@ export function SaveButton({ profile, saving, setSaving }: Props) {
       className={`rounded-xl p-3 ${saving ? "bg-green-400" : "bg-green-600"}`}
       style={{ flexBasis: "48%", flexGrow: 1 }}
       accessibilityRole="button"
-      accessibilityLabel="Save profile">
+      accessibilityLabel="Save profile"
+    >
       <Text className="text-white text-center font-semibold">
         {saving ? "Saving…" : "Save"}
       </Text>
@@ -90,7 +91,8 @@ export function LogoutButton() {
       className="rounded-xl p-3 bg-neutral-700"
       style={{ flexBasis: "48%", flexGrow: 1 }}
       accessibilityRole="button"
-      accessibilityLabel="Log out">
+      accessibilityLabel="Log out"
+    >
       <Text className="text-white text-center font-semibold">Log out</Text>
     </Pressable>
   );
@@ -99,7 +101,10 @@ export function LogoutButton() {
 export default function SaveRow(props: Props) {
   // Row that wraps to stack on narrow screens
   return (
-    <View className="gap-3" style={{ flexDirection: "row", flexWrap: "wrap" }}>
+    <View
+      className="gap-3"
+      style={{ flexDirection: "row", flexWrap: "wrap", paddingBottom: 128 }}
+    >
       <SaveButton {...props} />
       <LogoutButton />
     </View>

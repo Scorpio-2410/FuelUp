@@ -133,10 +133,15 @@ export default function UserTabProfile() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
-      className="flex-1 bg-black">
+      className="flex-1"
+      style={{ backgroundColor: "#1a1a1a" }}
+    >
       <RefreshScroll refreshing={refreshing} onRefresh={handleRefresh}>
-        <View className="flex-1 px-5 pt-8" style={{ paddingBottom: 120 }}>
-          <Text className="text-2xl font-semibold text-white mb-4">
+        <View
+          className="flex-1 px-5 pt-8"
+          style={{ paddingBottom: 120, paddingTop: 80 }}
+        >
+          <Text className="text-3xl font-semibold text-white mb-4">
             Your Profile
           </Text>
           <ProfileForm profile={profile} setProfile={setProfile} />
