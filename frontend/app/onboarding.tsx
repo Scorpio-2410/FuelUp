@@ -6,9 +6,11 @@ import {
   ScrollView,
   Text,
   View,
+  SafeAreaView,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { ArrowLeft } from "lucide-react-native";
+import { useNavigation } from "@react-navigation/native";
 
 import {
   apiGetMe,
@@ -37,17 +39,35 @@ function Header({
   canGoBack: boolean;
   onBack: () => void;
 }) {
+  // Conditionally adjust left padding and margin for 'Your profile' only
+  const leftPad = title === "Your profile" ? 0 : 20;
+  const leftMargin = title === "Your profile" ? -8 : 0;
   return (
-    <View className="px-5 pt-12 pb-4 bg-black flex-row items-center">
-      {canGoBack ? (
-        <Pressable onPress={onBack} hitSlop={12} className="mr-3">
-          <ArrowLeft size={24} color="white" />
-        </Pressable>
-      ) : (
-        <View style={{ width: 24, height: 24, marginRight: 12 }} />
-      )}
-      <Text className="text-white text-2xl font-bold">{title}</Text>
-    </View>
+    <SafeAreaView style={{ backgroundColor: "#000" }}>
+      <View
+        style={{
+          marginLeft: leftMargin,
+          paddingLeft: leftPad,
+          paddingRight: 0,
+          paddingTop: 16,
+          paddingBottom: 16,
+          backgroundColor: "#000",
+          flexDirection: "row",
+          alignItems: "center",
+        }}
+      >
+        {canGoBack ? (
+          <Pressable onPress={onBack} hitSlop={12} style={{ marginRight: 12 }}>
+            <ArrowLeft size={24} color="white" />
+          </Pressable>
+        ) : (
+          <View style={{ width: 24, height: 24, marginRight: 12 }} />
+        )}
+        <Text style={{ color: "#fff", fontSize: 24, fontWeight: "bold" }}>
+          {title}
+        </Text>
+      </View>
+    </SafeAreaView>
   );
 }
 
@@ -90,6 +110,12 @@ function parseFtInchesToCm(raw: string): number {
 }
 
 export default function Onboarding() {
+  const navigation = useNavigation();
+
+  useEffect(() => {
+    navigation.setOptions?.({ gestureEnabled: false });
+  }, [navigation]);
+
   const params = useLocalSearchParams<{ u?: string; e?: string; p?: string }>();
   const signupUsername = useMemo(
     () => (params.u ? String(params.u) : ""),
@@ -113,8 +139,8 @@ export default function Onboarding() {
     fullName: "",
     email: signupEmail || "",
     dob: "",
-    gender: "prefer_not_to_say",
-    ethnicity: "not_specified",
+    gender: "",
+    ethnicity: "",
     followUpFrequency: "daily",
     notifications: true,
     avatarUri: undefined as string | undefined,
@@ -175,11 +201,23 @@ export default function Onboarding() {
   };
 
   // simple validators
+  const validateProfile = (profile: any) => {
+    if (!profile.username || profile.username.trim().length < 1)
+      return "Enter your username.";
+    if (!profile.fullName || profile.fullName.trim().length < 2)
+      return "Enter your full name.";
+    if (!profile.dob || !/^\d{4}-\d{2}-\d{2}$/.test(profile.dob))
+      return "Enter a valid date of birth.";
+    if (!profile.gender) return "Select your gender.";
+    if (!profile.ethnicity || profile.ethnicity === "not_specified")
+      return "Select your ethnicity.";
+    return null;
+  };
+
   const validateFitness = () => {
-    if (!fitness.goal) return "Please choose a goal.";
-    if (!fitness.activityLevel) return "Please choose your activity level.";
     const days = parseInt(String(fitness.daysPerWeek || ""), 10);
-    if (!days || days < 1 || days > 7) return "Choose training days (1–7).";
+    if (!days || days < 1 || days > 7)
+      return "Please select days per week (1–7).";
     const heightCm =
       (fitness.heightUnit as "cm" | "ft") === "cm"
         ? Math.round(Number(fitness.height))
@@ -340,6 +378,7 @@ export default function Onboarding() {
         }
         canGoBack={step !== "profile"}
         onBack={goBack}
+        // Remove default horizontal padding from Header
       />
 
       <ScrollView className="flex-1 px-5">
@@ -347,8 +386,19 @@ export default function Onboarding() {
           <>
             <ProfileFormAdapter value={user} onChange={setUser} />
             <Pressable
-              onPress={goNext}
-              className="rounded-xl p-3 my-8 bg-green-600">
+              onPress={() => {
+                const err = validateProfile(user);
+                if (err) {
+                  Alert.alert("Missing info", err);
+                  return;
+                }
+                goNext();
+              }}
+              disabled={!!validateProfile(user)}
+              className={`rounded-xl p-3 my-8 bg-green-600 ${
+                validateProfile(user) ? "opacity-50" : ""
+              }`}
+            >
               <Text className="text-white text-center font-semibold">
                 Continue
               </Text>
@@ -360,8 +410,19 @@ export default function Onboarding() {
           <>
             <FitnessStep value={fitness} onChange={setFitness} />
             <Pressable
-              onPress={goNext}
-              className="rounded-xl p-3 my-8 bg-green-600">
+              onPress={() => {
+                const err = validateFitness();
+                if (err) {
+                  // Do nothing, error message is shown inline
+                  return;
+                }
+                goNext();
+              }}
+              disabled={!!validateFitness()}
+              className={`rounded-xl p-3 my-8 bg-green-600 ${
+                validateFitness() ? "opacity-50" : ""
+              }`}
+            >
               <Text className="text-white text-center font-semibold">
                 Continue
               </Text>

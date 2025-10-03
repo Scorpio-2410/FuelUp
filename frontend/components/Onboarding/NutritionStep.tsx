@@ -29,7 +29,8 @@ function Chip({
         active
           ? "bg-green-700 border-green-600"
           : "bg-transparent border-gray-700"
-      }`}>
+      }`}
+    >
       <Text className={active ? "text-white" : "text-gray-300"}>{label}</Text>
     </Pressable>
   );
@@ -77,6 +78,7 @@ export default function NutritionStep({
   const toggle = (arr: string[], item: string) =>
     arr.includes(item) ? arr.filter((x) => x !== item) : [...arr, item];
 
+  const isCuisineSelected = value.prefCuisines.length > 0;
   return (
     <View className="mt-4 mb-16">
       {/* Preferences */}
@@ -102,6 +104,18 @@ export default function NutritionStep({
           />
         ))}
       </View>
+      {!isCuisineSelected && (
+        <Text
+          style={{
+            color: "#ef4444",
+            marginBottom: 12,
+            marginLeft: 4,
+            fontSize: 13,
+          }}
+        >
+          Please select at least one preferred cuisine.
+        </Text>
+      )}
 
       {/* Diet restrictions multi-select */}
       <Text className="text-gray-300 mb-2">Diet restrictions</Text>
@@ -123,7 +137,11 @@ export default function NutritionStep({
 
       <Pressable
         onPress={onSubmit}
-        className="rounded-2xl p-4 mt-10 bg-green-600 shadow-lg">
+        disabled={!isCuisineSelected}
+        className={`rounded-2xl p-4 mt-10 bg-green-600 shadow-lg ${
+          !isCuisineSelected ? "opacity-50" : ""
+        }`}
+      >
         <Text className="text-white text-center font-semibold text-lg">
           {submitLabel || "Complete onboarding"}
         </Text>

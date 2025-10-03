@@ -3,7 +3,7 @@ import { View, Text, Switch } from "react-native";
 
 import ProfileAvatar from "./ProfileAvatar";
 import ProfileField from "./ProfileField";
-import ProfileDropdown from "./ProfileDropdown";
+import ModalDropdown from "../Shared/ModalDropdown";
 import ProfileRow from "./ProfileRow";
 
 import {
@@ -69,6 +69,23 @@ type Props = {
 };
 
 export default function ProfileForm({ profile, setProfile }: Props) {
+  // Validation logic for each field
+  const errors: { [key: string]: string } = {};
+  if (!profile.username || profile.username.trim().length < 1) {
+    errors.username = "Username is required.";
+  }
+  if (!profile.fullName || profile.fullName.trim().length < 2) {
+    errors.fullName = "Full name is required.";
+  }
+  if (!profile.dob || !/^\d{4}-\d{2}-\d{2}$/.test(profile.dob)) {
+    errors.dob = "Date of birth is required.";
+  }
+  if (!profile.gender) {
+    errors.gender = "Gender is required.";
+  }
+  if (!profile.ethnicity || profile.ethnicity === "not_specified") {
+    errors.ethnicity = "Ethnicity is required.";
+  }
   // DOB local draft
   const initial = parseISO(profile.dob);
   const [dobDay, setDobDay] = useState<string>(initial ? pad2(initial.d) : "");
@@ -109,7 +126,12 @@ export default function ProfileForm({ profile, setProfile }: Props) {
 
   return (
     <>
-      <ProfileAvatar profile={profile as any} setProfile={setProfile as any} />
+      <View style={{ paddingHorizontal: 0 }}>
+        <ProfileAvatar
+          profile={profile as any}
+          setProfile={setProfile as any}
+        />
+      </View>
 
       <ProfileField
         label="Username"
@@ -120,6 +142,18 @@ export default function ProfileForm({ profile, setProfile }: Props) {
           onChangeText: (v) => setProfile({ ...profile, username: v }),
         }}
       />
+      {errors.username && (
+        <Text
+          style={{
+            color: "#ef4444",
+            marginBottom: 8,
+            marginLeft: 4,
+            fontSize: 13,
+          }}
+        >
+          {errors.username}
+        </Text>
+      )}
 
       <ProfileField
         label="Full name"
@@ -129,6 +163,18 @@ export default function ProfileForm({ profile, setProfile }: Props) {
           onChangeText: (v) => setProfile({ ...profile, fullName: v }),
         }}
       />
+      {errors.fullName && (
+        <Text
+          style={{
+            color: "#ef4444",
+            marginBottom: 8,
+            marginLeft: 4,
+            fontSize: 13,
+          }}
+        >
+          {errors.fullName}
+        </Text>
+      )}
 
       {/* Email (view-only) */}
       <View className="opacity-60">
@@ -147,59 +193,112 @@ export default function ProfileForm({ profile, setProfile }: Props) {
       <ProfileField label="Date of birth (DD-MM-YYYY)">
         <View className="flex-row gap-3">
           <View style={{ flex: 1 }}>
-            <ProfileDropdown
+            <ModalDropdown
               value={dobDay}
-              items={dayItems}
-              placeholderLabel="DD"
-              onChange={(v) => handleDobChange("d", v)}
+              options={dayItems.map((i) => ({
+                label: i.label,
+                value: i.value,
+              }))}
+              placeholder="DD"
+              onSelect={(v) => handleDobChange("d", v)}
             />
           </View>
           <View style={{ flex: 1.2 }}>
-            <ProfileDropdown
+            <ModalDropdown
               value={dobMonth}
-              items={monthItems}
-              placeholderLabel="MM"
-              onChange={(v) => handleDobChange("m", v)}
+              options={monthItems.map((i) => ({
+                label: i.label,
+                value: i.value,
+              }))}
+              placeholder="MM"
+              onSelect={(v) => handleDobChange("m", v)}
             />
           </View>
           <View style={{ flex: 1.2 }}>
-            <ProfileDropdown
+            <ModalDropdown
               value={dobYear}
-              items={yearItems}
-              placeholderLabel="YYYY"
-              onChange={(v) => handleDobChange("y", v)}
+              options={yearItems.map((i) => ({
+                label: i.label,
+                value: i.value,
+              }))}
+              placeholder="YYYY"
+              onSelect={(v) => handleDobChange("y", v)}
             />
           </View>
         </View>
+        {errors.dob && (
+          <Text
+            style={{
+              color: "#ef4444",
+              marginBottom: 8,
+              marginLeft: 4,
+              fontSize: 13,
+            }}
+          >
+            {errors.dob}
+          </Text>
+        )}
       </ProfileField>
 
       {/* Gender */}
       <ProfileField label="Gender">
-        <ProfileDropdown
-          value={profile.gender ?? "prefer_not_to_say"}
-          items={GENDER_ITEMS}
-          placeholderLabel="Select gender"
-          onChange={(v) => setProfile({ ...profile, gender: v })}
+        <ModalDropdown
+          value={profile.gender ?? ""}
+          options={GENDER_ITEMS.map((i) => ({
+            label: i.label,
+            value: i.value,
+          }))}
+          placeholder="Select Gender"
+          onSelect={(v) => setProfile({ ...profile, gender: v })}
         />
+        {errors.gender && (
+          <Text
+            style={{
+              color: "#ef4444",
+              marginBottom: 8,
+              marginLeft: 4,
+              fontSize: 13,
+            }}
+          >
+            {errors.gender}
+          </Text>
+        )}
       </ProfileField>
 
       {/* Ethnicity */}
       <ProfileField label="Ethnicity">
-        <ProfileDropdown
+        <ModalDropdown
           value={profile.ethnicity ?? "not_specified"}
-          items={ETHNICITY_ITEMS}
-          placeholderLabel="Select ethnicity"
-          onChange={(v) => setProfile({ ...profile, ethnicity: v })}
+          options={ETHNICITY_ITEMS.filter(
+            (i) => i.value !== "not_specified"
+          ).map((i) => ({ label: i.label, value: i.value }))}
+          placeholder="Select ethnicity"
+          onSelect={(v) => setProfile({ ...profile, ethnicity: v })}
         />
+        {errors.ethnicity && (
+          <Text
+            style={{
+              color: "#ef4444",
+              marginBottom: 8,
+              marginLeft: 4,
+              fontSize: 13,
+            }}
+          >
+            {errors.ethnicity}
+          </Text>
+        )}
       </ProfileField>
 
       {/* Follow-up frequency */}
       <ProfileField label="Follow-up questions frequency">
-        <ProfileDropdown
+        <ModalDropdown
           value={profile.followUpFrequency ?? "daily"}
-          items={FREQUENCY_ITEMS}
-          placeholderLabel="Choose frequency"
-          onChange={(v) =>
+          options={FREQUENCY_ITEMS.map((i) => ({
+            label: i.label,
+            value: i.value,
+          }))}
+          placeholder="Choose frequency"
+          onSelect={(v) =>
             setProfile({ ...profile, followUpFrequency: v as any })
           }
         />

@@ -33,7 +33,8 @@ function Chip({
         active
           ? "bg-green-700 border-green-600"
           : "bg-transparent border-gray-700"
-      }`}>
+      }`}
+    >
       <Text className={active ? "text-white" : "text-gray-300"}>{label}</Text>
     </Pressable>
   );
@@ -57,7 +58,8 @@ function Dropdown({
       <Text className="text-gray-300 mb-2">{label}</Text>
       <Pressable
         onPress={() => setOpen(true)}
-        className="bg-[#1a1a1a] border border-gray-800 rounded-xl px-4 py-3">
+        className="bg-[#1a1a1a] border border-gray-800 rounded-xl px-4 py-3"
+      >
         <Text className="text-white">{value || "Select"}</Text>
       </Pressable>
       <Modal visible={open} animationType="slide" transparent>
@@ -77,7 +79,8 @@ function Dropdown({
                     onSelect(opt);
                     setOpen(false);
                   }}
-                  className="px-3 py-3 border-b border-gray-800">
+                  className="px-3 py-3 border-b border-gray-800"
+                >
                   <Text className="text-white">{opt}</Text>
                 </Pressable>
               ))}
@@ -129,6 +132,23 @@ function labelToInches(label: string): number {
 }
 
 export default function FitnessStep({ value, onChange }: Props) {
+  // Validation logic for required fields
+  const errors: { [key: string]: string } = {};
+  if (
+    !value.daysPerWeek ||
+    isNaN(Number(value.daysPerWeek)) ||
+    Number(value.daysPerWeek) < 1 ||
+    Number(value.daysPerWeek) > 7
+  ) {
+    errors.daysPerWeek = "Please select days per week (1–7).";
+  }
+  if (!value.height || value.height.trim().length < 1) {
+    errors.height = "Height is required.";
+  }
+  // Remove 'Enter a valid height.' error logic
+  if (!value.weight || value.weight.trim().length < 1) {
+    errors.weight = "Weight is required.";
+  }
   // Height dropdowns
   const heightCmOptions = useMemo(
     () => Array.from({ length: 151 }, (_, i) => String(100 + i)), // 100–250 cm
@@ -216,6 +236,19 @@ export default function FitnessStep({ value, onChange }: Props) {
           />
         ))}
       </View>
+      {errors.daysPerWeek && (
+        <Text
+          style={{
+            color: "#ef4444",
+            marginTop: 0,
+            marginBottom: 6,
+            marginLeft: 4,
+            fontSize: 13,
+          }}
+        >
+          {errors.daysPerWeek}
+        </Text>
+      )}
 
       {/* Body Stats */}
       <Text className="text-white text-lg font-semibold mb-3">Body Stats</Text>
@@ -239,7 +272,6 @@ export default function FitnessStep({ value, onChange }: Props) {
               />
             </View>
           </View>
-
           {(value.heightUnit ?? "cm") === "cm" ? (
             <Dropdown
               label="Height (cm)"
@@ -254,6 +286,18 @@ export default function FitnessStep({ value, onChange }: Props) {
               options={heightFtOptions}
               onSelect={(v) => onChange({ ...value, height: v })}
             />
+          )}
+          {errors.height && (
+            <Text
+              style={{
+                color: "#ef4444",
+                marginTop: 4,
+                marginLeft: 4,
+                fontSize: 13,
+              }}
+            >
+              {errors.height}
+            </Text>
           )}
         </View>
 
@@ -288,6 +332,18 @@ export default function FitnessStep({ value, onChange }: Props) {
             options={weightOptions}
             onSelect={(v) => onChange({ ...value, weight: v })}
           />
+          {errors.weight && (
+            <Text
+              style={{
+                color: "#ef4444",
+                marginTop: 4,
+                marginLeft: 4,
+                fontSize: 13,
+              }}
+            >
+              {errors.weight}
+            </Text>
+          )}
         </View>
       </View>
     </View>

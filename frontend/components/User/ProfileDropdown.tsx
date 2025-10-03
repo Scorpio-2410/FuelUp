@@ -1,6 +1,6 @@
-import React from "react";
-import { View, Text, ViewStyle, TextStyle } from "react-native";
-import RNPickerSelect, { Item } from "react-native-picker-select";
+import React, { useState } from "react";
+import { View, ViewStyle, TextStyle } from "react-native";
+import DropDownPicker from "react-native-dropdown-picker";
 
 type DropdownItem = { label: string; value: string };
 type Props = {
@@ -26,44 +26,52 @@ export default function ProfileDropdown({
   inputStyleAndroid,
   testID,
 }: Props) {
-  const pickerItems: Item[] = items.map((i) => ({
-    label: i.label,
-    value: i.value,
-  }));
+  const [open, setOpen] = useState(false);
+  const [selectedValue, setSelectedValue] = useState(value);
+
+  // Convert items for DropDownPicker
+  const pickerItems = items.map((i) => ({ label: i.label, value: i.value }));
+
+  // Sync external value
+  React.useEffect(() => {
+    setSelectedValue(value);
+  }, [value]);
 
   return (
     <View
       testID={testID}
-      className={`bg-neutral-900 border border-neutral-800 rounded-lg ${
-        disabled ? "opacity-60" : ""
-      }`}
-      style={[{ minWidth: 100 }, containerStyle]}>
-      <RNPickerSelect
-        onValueChange={(v) => {
+      style={[{ minWidth: 100, zIndex: open ? 1000 : 1 }, containerStyle]}
+    >
+      <DropDownPicker
+        open={open}
+        value={selectedValue}
+        items={pickerItems}
+        setOpen={setOpen}
+        setValue={(cb) => {
+          const v = typeof cb === "function" ? cb(selectedValue) : cb;
+          setSelectedValue(v);
           if (typeof v === "string") onChange(v);
         }}
-        value={value}
-        items={pickerItems}
+        placeholder={placeholderLabel}
         disabled={disabled}
-        placeholder={{ label: placeholderLabel, value: null }}
-        useNativeAndroidPickerStyle={false}
+        listMode="SCROLLVIEW"
         style={{
-          inputIOS: {
-            paddingVertical: 12,
-            paddingHorizontal: 12,
-            color: "white",
-            ...(inputStyleIOS ?? {}),
-          },
-          inputAndroid: {
-            paddingVertical: 8,
-            paddingHorizontal: 12,
-            color: "white",
-            ...(inputStyleAndroid ?? {}),
-          },
-          placeholder: { color: "#9CA3AF" },
-          iconContainer: { top: 14, right: 12 },
+          backgroundColor: "#171717",
+          borderColor: "#262626",
+          borderRadius: 8,
+          minHeight: 44,
         }}
-        Icon={() => <Text style={{ color: "#9CA3AF" }}>▾</Text>}
+        textStyle={{ color: "white" }}
+        placeholderStyle={{ color: "#9CA3AF" }}
+        dropDownContainerStyle={{
+          backgroundColor: "#171717",
+          borderColor: "#262626",
+          zIndex: 1000,
+        }}
+        listItemLabelStyle={{ color: "white" }}
+        selectedItemLabelStyle={{ color: "#22d3ee" }}
+        disabledStyle={{ opacity: 0.6 }}
+        zIndex={1000}
       />
     </View>
   );
