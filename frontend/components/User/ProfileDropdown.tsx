@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, ViewStyle, TextStyle } from "react-native";
+import { View, Text, ViewStyle, TextStyle, TouchableOpacity } from "react-native";
 import RNPickerSelect, { Item } from "react-native-picker-select";
 
 type DropdownItem = { label: string; value: string };
@@ -26,45 +26,73 @@ export default function ProfileDropdown({
   inputStyleAndroid,
   testID,
 }: Props) {
+  const pickerRef = React.useRef<any>(null);
   const pickerItems: Item[] = items.map((i) => ({
     label: i.label,
     value: i.value,
   }));
 
+  const displayValue = items.find(i => i.value === value)?.label || placeholderLabel;
+  const isPlaceholder = !value || !items.find(i => i.value === value);
+
   return (
-    <View
+    <TouchableOpacity
       testID={testID}
-      className={`bg-neutral-900 border border-neutral-800 rounded-lg ${
+      onPress={() => {
+        if (!disabled && pickerRef.current) {
+          pickerRef.current.togglePicker(true);
+        }
+      }}
+      activeOpacity={0.7}
+      disabled={disabled}
+      className={`bg-gray-900/50 border border-gray-800/50 rounded-xl ${
         disabled ? "opacity-60" : ""
       }`}
       style={[{ minWidth: 100 }, containerStyle]}>
-      <RNPickerSelect
-        onValueChange={(v) => {
-          if (typeof v === "string") onChange(v);
-        }}
-        value={value}
-        items={pickerItems}
-        disabled={disabled}
-        placeholder={{ label: placeholderLabel, value: null }}
-        useNativeAndroidPickerStyle={false}
-        style={{
-          inputIOS: {
-            paddingVertical: 12,
-            paddingHorizontal: 12,
-            color: "white",
-            ...(inputStyleIOS ?? {}),
-          },
-          inputAndroid: {
-            paddingVertical: 8,
-            paddingHorizontal: 12,
-            color: "white",
-            ...(inputStyleAndroid ?? {}),
-          },
-          placeholder: { color: "#9CA3AF" },
-          iconContainer: { top: 14, right: 12 },
-        }}
-        Icon={() => <Text style={{ color: "#9CA3AF" }}>▾</Text>}
-      />
-    </View>
+      <View className="flex-row items-center justify-between px-4 py-4">
+        <Text 
+          className={`text-base font-medium flex-1 ${
+            isPlaceholder ? "text-gray-500" : "text-white"
+          }`}
+          numberOfLines={1}>
+          {displayValue}
+        </Text>
+        <Text className="text-purple-500 text-lg ml-2">▾</Text>
+      </View>
+      
+      {/* Hidden picker that opens when TouchableOpacity is pressed */}
+      <View style={{ position: 'absolute', opacity: 0, width: '100%', height: '100%' }}>
+        <RNPickerSelect
+          ref={pickerRef}
+          onValueChange={(v) => {
+            if (typeof v === "string") onChange(v);
+          }}
+          value={value}
+          items={pickerItems}
+          disabled={disabled}
+          placeholder={{ label: placeholderLabel, value: null }}
+          useNativeAndroidPickerStyle={false}
+          touchableWrapperProps={{
+            style: { width: '100%', height: '100%' }
+          }}
+          style={{
+            inputIOS: {
+              width: '100%',
+              height: '100%',
+              color: "transparent",
+              ...(inputStyleIOS ?? {}),
+            },
+            inputAndroid: {
+              width: '100%',
+              height: '100%',
+              color: "transparent",
+              ...(inputStyleAndroid ?? {}),
+            },
+            placeholder: { color: "transparent" },
+            iconContainer: { display: 'none' },
+          }}
+        />
+      </View>
+    </TouchableOpacity>
   );
 }

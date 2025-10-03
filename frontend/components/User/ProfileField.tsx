@@ -30,15 +30,17 @@ export default function ProfileField({
   children,
 }: Props) {
   const baseInputClass =
-    "flex-1 bg-neutral-900 text-white rounded-lg px-3 py-3 border border-neutral-800";
+    "flex-1 bg-gray-900/50 text-white rounded-xl px-4 py-3.5 border border-gray-800/50";
 
   return (
-    <View className="mb-4" style={containerStyle}>
-      <Text className="text-neutral-300 mb-2">{label}</Text>
+    <View className="mb-5" style={containerStyle}>
+      <Text className="text-gray-300 mb-2.5 text-sm font-semibold tracking-wide">
+        {label}
+      </Text>
 
       {textInputProps ? (
         // TextInput mode
-        <View className="flex-row gap-4 items-stretch">
+        <View className="flex-row gap-3 items-stretch">
           <TextInput
             {...textInputProps}
             className={
@@ -47,14 +49,18 @@ export default function ProfileField({
                 : baseInputClass
             }
             placeholderTextColor={
-              textInputProps.placeholderTextColor ?? "#9CA3AF"
+              textInputProps.placeholderTextColor ?? "#6B7280"
             }
+            style={{
+              fontSize: 16,
+              fontWeight: "500",
+            }}
           />
           {rightAccessory ? <View>{rightAccessory}</View> : null}
         </View>
       ) : (
         // Custom content mode (children) — now also supports rightAccessory
-        <View className="flex-row gap-4 items-stretch">
+        <View className="flex-row gap-3 items-stretch">
           <View className="flex-1">{children}</View>
           {rightAccessory ? <View>{rightAccessory}</View> : null}
         </View>
