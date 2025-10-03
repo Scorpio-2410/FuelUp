@@ -43,7 +43,7 @@ function RootLayoutNav() {
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="targetquestions" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="steps-detail" options={{ headerShown: false }} />
+        <Stack.Screen name="steps-analytics" options={{ headerShown: false }} />
 
       {/* Auth + onboarding: hide headers */}
       <Stack.Screen name="authlogin" options={{ headerShown: false }} />

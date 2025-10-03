@@ -79,7 +79,7 @@ const HomepageSteps = forwardRef<any, HomepageStepsProps>(({ className, onRefres
   };
 
   const handlePress = () => {
-    router.push('/steps-detail');
+    router.push('/steps-analytics');
   };
 
   return (
