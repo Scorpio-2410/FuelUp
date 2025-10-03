@@ -5,7 +5,6 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import {
   DarkTheme,
   DefaultTheme,
-  ThemeProvider,
 } from "@react-navigation/native";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
@@ -39,18 +38,17 @@ export default function RootLayout() {
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
   return (
-    <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-      <Stack>
-        {/* Core routes */}
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="targetquestions" options={{ headerShown: false }} />
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+    <Stack>
+      {/* Core routes */}
+      <Stack.Screen name="index" options={{ headerShown: false }} />
+      <Stack.Screen name="targetquestions" options={{ headerShown: false }} />
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="steps-detail" options={{ headerShown: false }} />
 
-        {/* Auth + onboarding: hide headers */}
-        <Stack.Screen name="authlogin" options={{ headerShown: false }} />
-        <Stack.Screen name="authsignup" options={{ headerShown: false }} />
-        <Stack.Screen name="onboarding" options={{ headerShown: false }} />
-      </Stack>
-    </ThemeProvider>
+      {/* Auth + onboarding: hide headers */}
+      <Stack.Screen name="authlogin" options={{ headerShown: false }} />
+      <Stack.Screen name="authsignup" options={{ headerShown: false }} />
+      <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+    </Stack>
   );
 }
