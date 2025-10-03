@@ -107,11 +107,11 @@ export default function ProfileDropdown({
                         activeOpacity={0.7}
                         className={`flex-row items-center justify-between px-5 py-4 rounded-2xl mb-3 ${
                           isSelected 
-                            ? 'bg-green-600 border-2 border-green-400' 
+                            ? 'bg-emerald-500 border-2 border-emerald-400' 
                             : 'bg-gray-800 border border-gray-700'
                         }`}
                         style={{
-                          shadowColor: isSelected ? "#22C55E" : "transparent",
+                          shadowColor: isSelected ? "#10B981" : "transparent",
                           shadowOffset: { width: 0, height: 2 },
                           shadowOpacity: isSelected ? 0.5 : 0,
                           shadowRadius: 8,
@@ -125,7 +125,7 @@ export default function ProfileDropdown({
                         </Text>
                         {isSelected && (
                           <View className="w-7 h-7 rounded-full bg-white items-center justify-center">
-                            <Text className="text-green-600 text-base font-black">✓</Text>
+                            <Text className="text-emerald-500 text-base font-black">✓</Text>
                           </View>
                         )}
                       </TouchableOpacity>
