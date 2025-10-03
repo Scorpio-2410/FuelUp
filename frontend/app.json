@@ -9,6 +9,7 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
+      "image": "./assets/images/FuelUpIcon.png",
       "resizeMode": "contain",
       "backgroundColor": "#1a1a1a"
     },

@@ -9,9 +9,10 @@ import {
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { useColorScheme } from "../components/useColorScheme";
+import AppLoadingScreen from "../components/AppLoadingScreen";
 
 export { ErrorBoundary } from "expo-router";
 
@@ -23,14 +24,26 @@ export default function RootLayout() {
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
     ...FontAwesome.font,
   });
+  const [showCustomSplash, setShowCustomSplash] = useState(true);
 
   useEffect(() => {
     if (error) throw error;
   }, [error]);
+
   useEffect(() => {
-    if (loaded) SplashScreen.hideAsync();
+    if (loaded) {
+      SplashScreen.hideAsync();
+      // Show custom loading screen for a minimum duration
+      setTimeout(() => {
+        setShowCustomSplash(false);
+      }, 2000); // 2 seconds minimum
+    }
   }, [loaded]);
-  if (!loaded) return null;
+
+  // Show custom loading screen while fonts load or during minimum display time
+  if (!loaded || showCustomSplash) {
+    return <AppLoadingScreen />;
+  }
 
   return <RootLayoutNav />;
 }
