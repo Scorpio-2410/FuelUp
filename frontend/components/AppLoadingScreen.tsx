@@ -31,16 +31,20 @@ export default function AppLoadingScreen() {
       false
     );
 
-    // Simulate loading progress
+    // Simulate loading progress - 7 seconds total
+    const totalDuration = 7000; // 7 seconds
+    const intervalTime = 50; // Update every 50ms
+    const incrementPerStep = (100 / totalDuration) * intervalTime;
+    
     const interval = setInterval(() => {
       setProgress((prev) => {
         if (prev >= 100) {
           clearInterval(interval);
           return 100;
         }
-        return prev + 2;
+        return Math.min(prev + incrementPerStep, 100);
       });
-    }, 30);
+    }, intervalTime);
 
     return () => clearInterval(interval);
   }, []);
@@ -56,29 +60,25 @@ export default function AppLoadingScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Background with subtle gradient */}
+      {/* Charcoal Gradient Background - Luxury Metallic */}
       <LinearGradient
-        colors={['#0a0a0a', '#1a1a1a', '#0a0a0a']}
+        colors={['#1C1C1C', '#2A2A2A', '#3A3A3A']}
         style={StyleSheet.absoluteFillObject}
       />
 
       <Animated.View style={[styles.content, containerAnimatedStyle]}>
         {/* Logo with pulse animation */}
         <Animated.View style={[styles.logoContainer, logoAnimatedStyle]}>
-          <View style={styles.logoGlow}>
-            <Image
-              source={require('../assets/images/FuelUpIcon.png')}
-              style={styles.logo}
-              resizeMode="contain"
-            />
-          </View>
+          <Image
+            source={require('../assets/images/NewFuelUpIcon.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
         </Animated.View>
 
         {/* Modern Progress Bar */}
         <View style={styles.progressContainer}>
-          {/* Background track */}
           <View style={styles.progressTrack}>
-            {/* Animated progress fill */}
             <Animated.View style={[styles.progressFill, { width: `${progress}%` }]}>
               <LinearGradient
                 colors={['#8B5CF6', '#6366F1', '#3B82F6']}
@@ -86,7 +86,6 @@ export default function AppLoadingScreen() {
                 end={{ x: 1, y: 0 }}
                 style={styles.progressGradient}
               />
-              {/* Shimmer effect */}
               <LinearGradient
                 colors={['transparent', 'rgba(255,255,255,0.3)', 'transparent']}
                 start={{ x: 0, y: 0 }}
@@ -106,7 +105,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0a0a0a',
   },
   content: {
     alignItems: 'center',
@@ -116,22 +114,10 @@ const styles = StyleSheet.create({
   logoContainer: {
     marginBottom: 60,
   },
-  logoGlow: {
+  logo: {
     width: 180,
     height: 180,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 40,
-    backgroundColor: 'rgba(139, 92, 246, 0.1)',
-    shadowColor: '#8B5CF6',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 30,
-    elevation: 10,
-  },
-  logo: {
-    width: 140,
-    height: 140,
+    backgroundColor: 'transparent',
   },
   progressContainer: {
     width: '100%',

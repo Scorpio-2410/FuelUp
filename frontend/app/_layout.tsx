@@ -33,10 +33,10 @@ export default function RootLayout() {
   useEffect(() => {
     if (loaded) {
       SplashScreen.hideAsync();
-      // Show custom loading screen for a minimum duration
+      // Show custom loading screen for full progress bar duration
       setTimeout(() => {
         setShowCustomSplash(false);
-      }, 2000); // 2 seconds minimum
+      }, 7000); // 7 seconds to match progress bar
     }
   }, [loaded]);
 
