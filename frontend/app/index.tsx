@@ -3,7 +3,7 @@ import { Redirect } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 
 const K_TOKEN = "fu_token";
-type Dest = "/targetquestions" | "/authlogin";
+type Dest = "/(tabs)/homepage" | "/authlogin";
 
 export default function Index() {
   const [dest, setDest] = useState<Dest | null>(null);
@@ -11,7 +11,7 @@ export default function Index() {
   useEffect(() => {
     (async () => {
       const token = await SecureStore.getItemAsync(K_TOKEN);
-      setDest(token ? "/targetquestions" : "/authlogin");
+      setDest(token ? "/(tabs)/homepage" : "/authlogin");
     })();
   }, []);
 

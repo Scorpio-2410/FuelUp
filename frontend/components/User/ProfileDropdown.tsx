@@ -10,8 +10,6 @@ type Props = {
   placeholderLabel: string;
   disabled?: boolean;
   containerStyle?: ViewStyle;
-  inputStyleIOS?: TextStyle;
-  inputStyleAndroid?: TextStyle;
   testID?: string;
 };
 
@@ -22,8 +20,6 @@ export default function ProfileDropdown({
   placeholderLabel,
   disabled = false,
   containerStyle,
-  inputStyleIOS,
-  inputStyleAndroid,
   testID,
 }: Props) {
   const [open, setOpen] = useState(false);

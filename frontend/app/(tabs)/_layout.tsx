@@ -37,6 +37,7 @@ export default function TabLayout() {
 
   return (
     <SwipeNavigate
+      children={undefined}
       currentTabIndex={currentTabIndex}
       totalTabs={tabs.length}
       onTabChange={handleTabChange}

@@ -1,38 +1,109 @@
 // Homepage steps tracking component
-// Displays current step count with placeholder data
-// Ready for future integration with step tracking APIs
+// Uses expo-sensors for real step counting with caching
 
-import React, { useState, forwardRef, useImperativeHandle } from 'react';
-import { View, Text } from 'react-native';
+import React, { forwardRef, useImperativeHandle, useEffect } from 'react';
+import { View, Text, TouchableOpacity } from 'react-native';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { useStepsTracking } from '../../hooks/useStepsTracking';
+import { LinearGradient } from 'expo-linear-gradient';
 
 interface HomepageStepsProps {
   className?: string;
-  onRefresh?: () => void; // Callback for when steps update
+  onRefresh?: () => void;
 }
 
 const HomepageSteps = forwardRef<any, HomepageStepsProps>(({ className, onRefresh }, ref) => {
-  const [stepCount, setStepCount] = useState(954);
-
-  // Update steps with random value (placeholder for real step tracking)
-  const updateSteps = () => {
-    const newSteps = Math.floor(Math.random() * 2000) + 500;
-    setStepCount(newSteps);
-    onRefresh?.(); // Notify parent component if needed
-  };
+  const router = useRouter();
+  const { stepsData, isLoading, isAvailable, hasError, updateSteps, refreshSteps } = useStepsTracking();
 
   // Expose update function for external refresh
   useImperativeHandle(ref, () => ({
-    updateSteps
+    updateSteps: refreshSteps
   }));
 
+  // Load data on mount and smart refresh when returning to homepage
+  useEffect(() => {
+    // Load cached data on mount
+    if (stepsData.steps === 0 && !isLoading) {
+      refreshSteps();
+    }
+  }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      // Only refresh if we have cached data and it's older than 15 minutes
+      if (!isLoading && stepsData.lastUpdated) {
+        const lastUpdateTime = new Date(stepsData.lastUpdated).getTime();
+        const now = new Date().getTime();
+        const fifteenMinutes = 15 * 60 * 1000; // 15 minutes in milliseconds
+        
+        if ((now - lastUpdateTime) > fifteenMinutes) {
+          refreshSteps();
+        }
+      }
+    }, [refreshSteps, isLoading, stepsData.lastUpdated])
+  );
+
+  const getSourceIcon = () => {
+    switch (stepsData.source) {
+      case 'sensor':
+        return '📱';
+      case 'cached':
+        return '💾';
+      default:
+        return '👟';
+    }
+  };
+
+  const formatSteps = (steps: number): string => {
+    if (steps >= 1000) {
+      return `${(steps / 1000).toFixed(1)}k`;
+    }
+    return steps.toString();
+  };
+
+  const getDisplaySteps = (): string => {
+    if (isLoading) return '...';
+    if (hasError) return '--';
+    return stepsData.steps.toLocaleString();
+  };
+
+  const handlePress = () => {
+    router.push('/steps-analytics');
+  };
+
   return (
-    <View
-      className={`flex-1 p-4 rounded-2xl ${className}`}
-      style={{ backgroundColor: "#c59fc4" }}>
-      <Text className="text-black text-xl font-bold mb-1">Steps</Text>
-      <Text className="text-black text-3xl font-bold">{stepCount}</Text>
-      <Text className="text-black text-sm">Steps</Text>
-    </View>
+    <TouchableOpacity
+      className={`flex-1 p-5 rounded-3xl bg-purple-600 justify-between ${className}`}
+      style={{ 
+        shadowColor: "#8B5CF6",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 8
+      }}
+      onPress={handlePress}
+      activeOpacity={0.8}>
+      
+      <View className="flex-row items-center justify-between">
+        <View className="flex-row items-center">
+          <Text className="text-white text-xl font-bold mr-2">👟</Text>
+          <Text className="text-white text-xl font-bold">Steps</Text>
+        </View>
+        {isLoading && (
+          <View className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+        )}
+      </View>
+      
+      <View>
+       <Text className="text-white text-4xl font-black">
+         {getDisplaySteps()}
+       </Text>
+       <Text className="text-white/70 text-sm font-medium">
+         View Analytics
+       </Text>
+      </View>
+    </TouchableOpacity>
   );
 });
 
