@@ -1,42 +1,117 @@
-// Homepage motivational quote component with placeholder quotes
-// Ready for future AI integration to generate personalized motivation
-// Currently uses random selection from predefined quotes
+// Homepage motivational quote component
+// Fetches quotes from backend API with 30-minute auto-refresh
+// Supports pull-to-refresh and cache clearing
 
-import React, { useState, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, forwardRef, useImperativeHandle, useEffect, useRef } from 'react';
 import { View, Text } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { 
+  apiGetQuoteOfTheDay, 
+  readQuoteCache, 
+  writeQuoteCache 
+} from '../../constants/api';
+
+interface QuoteData {
+  id: number;
+  quoteText: string;
+  category: string;
+  author: {
+    name: string;
+    birthYear?: number;
+    deathYear?: number;
+  } | null;
+}
 
 interface HomepageMotivationalQuotesProps {
   className?: string;
-  onRefresh?: () => void; // Callback for when quote updates
+  onRefresh?: () => void;
 }
 
+const THIRTY_MINUTES = 30 * 60 * 1000; // 30 minutes in milliseconds
+
 const HomepageMotivationalQuotes = forwardRef<any, HomepageMotivationalQuotesProps>(({ className, onRefresh }, ref) => {
-  const [quote, setQuote] = useState("give up bro");
+  const [quote, setQuote] = useState<QuoteData | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const hasInitialized = useRef(false);
 
-  // Placeholder quotes - will be replaced with AI-generated content
-  const quotes = [
-    "give up bro",
-    "you dont got this!",
-    "keep crying",
-    "stay negative!",
-    "almost there! loser",
-    "one more step! loser", 
-    "never give up! you are a loser!",
-  ];
+  // Format author display with years
+  const formatAuthor = (author: QuoteData['author']) => {
+    if (!author) return 'Unknown';
+    if (author.birthYear && author.deathYear) {
+      return `${author.name} (${author.birthYear}–${author.deathYear})`;
+    }
+    if (author.birthYear) {
+      return `${author.name} (${author.birthYear}–)`;
+    }
+    return author.name;
+  };
 
-  // Update quote with random selection (placeholder for AI)
-  const updateQuote = () => {
-    const newQuote = quotes[Math.floor(Math.random() * quotes.length)];
-    setQuote(newQuote);
-    onRefresh?.(); // Notify parent component if needed
+  // Check if cached quote needs refresh (older than 30 minutes)
+  const shouldRefreshQuote = (timestamp: number): boolean => {
+    const now = Date.now();
+    return (now - timestamp) > THIRTY_MINUTES;
+  };
+
+  // Fetch fresh quote from API
+  const fetchQuote = async (forceRefresh = false) => {
+    try {
+      setIsLoading(true);
+      
+      // Check cache first if not forcing refresh
+      if (!forceRefresh) {
+        const cached = await readQuoteCache();
+        if (cached && cached.quote && !shouldRefreshQuote(cached.timestamp)) {
+          setQuote(cached.quote);
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      // Fetch fresh quote from API
+      const freshQuote = await apiGetQuoteOfTheDay();
+      setQuote(freshQuote);
+      await writeQuoteCache(freshQuote);
+      
+      onRefresh?.();
+    } catch (error) {
+      console.error('Failed to fetch quote:', error);
+      
+      // Fall back to cached quote on error
+      const cached = await readQuoteCache();
+      if (cached && cached.quote) {
+        setQuote(cached.quote);
+      } else {
+        // Ultimate fallback
+        setQuote({
+          id: 0,
+          quoteText: "The journey of a thousand miles begins with a single step.",
+          category: "motivational",
+          author: { name: "Lao Tzu" }
+        });
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Update quote (for pull-to-refresh)
+  const updateQuote = async () => {
+    await fetchQuote(true); // Force refresh
   };
 
   // Expose update function for external refresh
   useImperativeHandle(ref, () => ({
     updateQuote
   }));
+
+  // Initialize: Load cached quote first, then check if refresh needed
+  useEffect(() => {
+    if (!hasInitialized.current) {
+      hasInitialized.current = true;
+      fetchQuote(false);
+    }
+  }, []);
 
   return (
     <View className={`rounded-3xl overflow-hidden ${className}`}
@@ -104,22 +179,31 @@ const HomepageMotivationalQuotes = forwardRef<any, HomepageMotivationalQuotesPro
                   lineHeight: 28,
                   fontStyle: 'italic',
                 }}>
-                {quote}
+                {isLoading ? 'Loading wisdom...' : quote?.quoteText || '...'}
               </Text>
             </View>
             
-            {/* Closing quote mark */}
-            <Text 
-              className="text-amber-400 font-black absolute right-0"
-              style={{ 
-                fontSize: 72,
-                lineHeight: 72,
-                opacity: 0.85,
-                fontWeight: '900',
-                bottom: -30,
-              }}>
-              "
-            </Text>
+            {/* Closing quote mark and author - bottom right */}
+            <View className="absolute bottom-0 right-0 items-end">
+              <Text 
+                className="text-amber-400 font-black"
+                style={{ 
+                  fontSize: 72,
+                  lineHeight: 72,
+                  opacity: 0.85,
+                  fontWeight: '900',
+                  marginBottom: -30,
+                }}>
+                "
+              </Text>
+              {quote?.author && !isLoading && (
+                <Text 
+                  className="text-amber-300/70 text-xs font-medium mr-2 mb-2"
+                  style={{ letterSpacing: 0.3 }}>
+                  — {formatAuthor(quote.author)}
+                </Text>
+              )}
+            </View>
           </View>
         </View>
 

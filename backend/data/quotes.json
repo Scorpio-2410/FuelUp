@@ -1,0 +1,69 @@
+[
+  {
+    "quote": "He who has a why to live can bear almost any how.",
+    "author": "Friedrich Nietzsche",
+    "birthYear": 1844,
+    "deathYear": 1900,
+    "category": "philosophy"
+  },
+  {
+    "quote": "The only way to do great work is to love what you do.",
+    "author": "Steve Jobs",
+    "birthYear": 1955,
+    "deathYear": 2011,
+    "category": "motivational"
+  },
+  {
+    "quote": "In the middle of difficulty lies opportunity.",
+    "author": "Albert Einstein",
+    "birthYear": 1879,
+    "deathYear": 1955,
+    "category": "motivational"
+  },
+  {
+    "quote": "Success is not final, failure is not fatal: it is the courage to continue that counts.",
+    "author": "Winston Churchill",
+    "birthYear": 1874,
+    "deathYear": 1965,
+    "category": "motivational"
+  },
+  {
+    "quote": "The unexamined life is not worth living.",
+    "author": "Socrates",
+    "birthYear": -470,
+    "deathYear": -399,
+    "category": "philosophy"
+  },
+  {
+    "quote": "What we think, we become.",
+    "author": "Buddha",
+    "birthYear": -563,
+    "deathYear": -483,
+    "category": "philosophy"
+  },
+  {
+    "quote": "The only impossible journey is the one you never begin.",
+    "author": "Tony Robbins",
+    "category": "motivational"
+  },
+  {
+    "quote": "It does not matter how slowly you go as long as you do not stop.",
+    "author": "Confucius",
+    "birthYear": -551,
+    "deathYear": -479,
+    "category": "perseverance"
+  },
+  {
+    "quote": "Strength does not come from physical capacity. It comes from an indomitable will.",
+    "author": "Mahatma Gandhi",
+    "birthYear": 1869,
+    "deathYear": 1948,
+    "category": "fitness"
+  },
+  {
+    "quote": "The body achieves what the mind believes.",
+    "author": "Unknown",
+    "category": "fitness"
+  }
+]
+

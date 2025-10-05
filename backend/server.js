@@ -15,6 +15,7 @@ const exerciseSearchRoutes = require("./routes/exerciseSearchRoutes"); // Exerci
 const nutritionRoutes = require("./routes/nutritionRoutes");
 const scheduleRoutes = require("./routes/scheduleRoutes");
 const targetQuestionRoutes = require("./routes/targetQuestionRoutes");
+const quotesRoutes = require("./routes/quotesRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -47,6 +48,9 @@ app.use("/api/schedule", scheduleRoutes); // /, /events, /events/:id
 // Target Questions
 app.use("/api/questions", targetQuestionRoutes);
 
+// Motivational Quotes
+app.use("/api/quotes", quotesRoutes);
+
 /* ---------------- Root + health ---------------- */
 app.get("/", (req, res) => {
   res.json({
@@ -78,6 +82,13 @@ app.get("/", (req, res) => {
         userHistory: "/api/questions/user/:userId/history",
         userInsights: "/api/questions/user/:userId/insights",
         byType: "/api/questions/type/:type",
+      },
+      quotes: {
+        all: "/api/quotes",
+        random: "/api/quotes/random",
+        daily: "/api/quotes/daily",
+        byId: "/api/quotes/:id",
+        authors: "/api/quotes/authors",
       },
     },
   });
