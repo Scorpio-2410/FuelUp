@@ -139,8 +139,7 @@ const HomepageMotivationalQuotes = forwardRef<any, HomepageMotivationalQuotesPro
         colors={['#1e1b4b', '#312e81', '#1e293b']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        className="relative"
-        style={{ minHeight: 160 }}>
+        className="relative">
         
         {/* Subtle overlay for depth */}
         <LinearGradient
@@ -151,11 +150,11 @@ const HomepageMotivationalQuotes = forwardRef<any, HomepageMotivationalQuotesPro
         />
         
         {/* Decorative background elements */}
-        <View className="absolute -top-8 -right-8 opacity-8">
-          <Ionicons name="sparkles" size={120} color="#fbbf24" />
+        <View className="absolute top-4 right-4 opacity-10" style={{ zIndex: 0 }}>
+          <Ionicons name="sparkles" size={90} color="#fbbf24" />
         </View>
-        <View className="absolute -bottom-6 -left-6 opacity-6">
-          <Ionicons name="book-outline" size={90} color="#a78bfa" />
+        <View className="absolute bottom-4 left-4 opacity-8" style={{ zIndex: 0 }}>
+          <Ionicons name="book-outline" size={70} color="#a78bfa" />
         </View>
         
         {/* Top accent bar with golden gradient */}
@@ -164,57 +163,76 @@ const HomepageMotivationalQuotes = forwardRef<any, HomepageMotivationalQuotesPro
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           className="absolute top-0 left-0 right-0"
-          style={{ height: 2 }}
+          style={{ height: 2.5 }}
         />
 
         {/* Content wrapper */}
-        <View className="p-7" style={{ overflow: 'visible' }}>
-          {/* Quote text with sophisticated styling */}
-          <View className="relative" style={{ minHeight: 120 }}>
+        <View className="px-6 py-6" style={{ zIndex: 1 }}>
+          <View className="flex-row items-start">
             {/* Opening quote mark */}
             <Text 
-              className="text-amber-400 font-black absolute top-0 left-0"
+              className="text-amber-400 font-black"
               style={{ 
-                fontSize: 72,
-                lineHeight: 72,
-                opacity: 0.85,
+                fontSize: 44,
+                lineHeight: 44,
+                opacity: 0.7,
                 fontWeight: '900',
+                marginTop: -6,
+                marginRight: 6,
               }}>
               "
             </Text>
             
-            <View className="pl-14 pr-14 pt-8 pb-8">
-              <Text 
-                className="text-white text-lg font-medium leading-7" 
-                style={{ 
-                  letterSpacing: 0.4, 
-                  lineHeight: 28,
-                  fontStyle: 'italic',
-                }}>
-                {isLoading ? 'Loading wisdom...' : quote?.quoteText || '...'}
-              </Text>
-            </View>
-            
-            {/* Closing quote mark and author - bottom right */}
-            <View className="absolute bottom-0 right-0 items-end">
-              <Text 
-                className="text-amber-400 font-black"
-                style={{ 
-                  fontSize: 72,
-                  lineHeight: 72,
-                  opacity: 0.85,
-                  fontWeight: '900',
-                  marginBottom: -30,
-                }}>
-                "
-              </Text>
-              {!isLoading && quote?.author && formatAuthor(quote.author) && (
+            {/* Quote content */}
+            <View className="flex-1">
+              {/* Quote text with gradient effect */}
+              <View style={{ 
+                backgroundColor: 'rgba(251, 191, 36, 0.06)',
+                borderLeftWidth: 2,
+                borderLeftColor: 'rgba(251, 191, 36, 0.3)',
+                paddingLeft: 12,
+                paddingRight: 8,
+                paddingVertical: 6,
+                borderRadius: 6,
+              }}>
                 <Text 
-                  className="text-amber-300/70 text-xs font-medium mr-2 mb-2"
-                  style={{ letterSpacing: 0.3 }}>
-                  — {formatAuthor(quote.author)}
+                  className="text-white font-semibold" 
+                  style={{ 
+                    fontSize: 17,
+                    letterSpacing: 0.5, 
+                    lineHeight: 26,
+                    fontStyle: 'italic',
+                    textShadowColor: 'rgba(251, 191, 36, 0.2)',
+                    textShadowOffset: { width: 0, height: 1 },
+                    textShadowRadius: 3,
+                  }}>
+                  {isLoading ? 'Loading wisdom...' : quote?.quoteText || '...'}
                 </Text>
-              )}
+              </View>
+              
+              {/* Closing quote and author inline */}
+              <View className="flex-row items-end justify-end mt-2">
+                <View className="items-end mr-1">
+                  {!isLoading && quote?.author && formatAuthor(quote.author) && (
+                    <Text 
+                      className="text-amber-300/70 text-xs font-medium"
+                      style={{ letterSpacing: 0.3 }}>
+                      — {formatAuthor(quote.author)}
+                    </Text>
+                  )}
+                </View>
+                <Text 
+                  className="text-amber-400 font-black"
+                  style={{ 
+                    fontSize: 44,
+                    lineHeight: 44,
+                    opacity: 0.7,
+                    fontWeight: '900',
+                    marginBottom: -10,
+                  }}>
+                  "
+                </Text>
+              </View>
             </View>
           </View>
         </View>
