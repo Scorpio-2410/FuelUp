@@ -1,7 +1,7 @@
 // Homepage steps tracking component
 // Uses expo-sensors for real step counting with caching
 
-import React, { forwardRef, useImperativeHandle, useEffect } from 'react';
+import React, { forwardRef, useImperativeHandle, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useStepsTracking } from '../../hooks/useStepsTracking';
@@ -15,24 +15,29 @@ interface HomepageStepsProps {
 const HomepageSteps = forwardRef<any, HomepageStepsProps>(({ className, onRefresh }, ref) => {
   const router = useRouter();
   const { stepsData, isLoading, isAvailable, hasError, updateSteps, refreshSteps } = useStepsTracking();
+  const hasInitiallyRefreshed = useRef(false);
 
   // Expose update function for external refresh
   useImperativeHandle(ref, () => ({
     updateSteps: refreshSteps
   }));
 
-  // Load data on mount and smart refresh when returning to homepage
+  // Load data on mount - always refresh once to ensure fresh data
   useEffect(() => {
-    // Load cached data on mount
-    if (stepsData.steps === 0 && !isLoading) {
-      refreshSteps();
+    if (!hasInitiallyRefreshed.current && !isLoading) {
+      hasInitiallyRefreshed.current = true;
+      // Small delay to allow cached data to load first
+      const timer = setTimeout(() => {
+        refreshSteps();
+      }, 300);
+      return () => clearTimeout(timer);
     }
-  }, []);
+  }, [isLoading, refreshSteps]);
 
   useFocusEffect(
     React.useCallback(() => {
-      // Only refresh if we have cached data and it's older than 15 minutes
-      if (!isLoading && stepsData.lastUpdated) {
+      // Only refresh if data is older than 15 minutes when returning to screen
+      if (!isLoading && stepsData.lastUpdated && hasInitiallyRefreshed.current) {
         const lastUpdateTime = new Date(stepsData.lastUpdated).getTime();
         const now = new Date().getTime();
         const fifteenMinutes = 15 * 60 * 1000; // 15 minutes in milliseconds
