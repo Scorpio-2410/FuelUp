@@ -44,19 +44,19 @@ export default function CustomTabBar({
     >
       {/* Glassmorphism background container with blur */}
       <BlurView
-        intensity={80}
+        intensity={90}
         tint="dark"
         style={{
           marginHorizontal: 16,
-          marginBottom: 24,
-          borderRadius: 40,
+          marginBottom: 6,
+          borderRadius: 80,
           borderWidth: 1,
-          borderColor: "rgba(74, 222, 128, 0.2)",
+          borderColor: "rgba(116, 113, 113, 0.89)",
           overflow: "hidden",
           shadowColor: "#000",
           shadowOffset: { width: 0, height: 10 },
-          shadowOpacity: 0.3,
-          shadowRadius: 20,
+          shadowOpacity: 0.25,
+          shadowRadius: 18,
           elevation: 5,
         }}
       >
@@ -68,7 +68,7 @@ export default function CustomTabBar({
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: "rgba(5, 27, 16, 0.6)",
+            backgroundColor: "rgba(36, 42, 42, 0.66)",
           }}
         />
 
@@ -78,7 +78,7 @@ export default function CustomTabBar({
             flexDirection: "row",
             alignItems: "center",
             paddingVertical: 12,
-            paddingHorizontal: 8,
+            paddingHorizontal: 12,
           }}
         >
           {tabs.map((tab, index) => {
@@ -102,28 +102,22 @@ export default function CustomTabBar({
                     alignItems: "center",
                     justifyContent: "center",
                     position: "relative",
+                    padding: isActive ? 8 : 0,
+                    borderRadius: 16,
+                    backgroundColor: isActive
+                      ? "rgba(74, 222, 128, 0.12)"
+                      : "transparent",
+                    borderWidth: isActive ? 1 : 0,
+                    borderColor: isActive
+                      ? "rgba(74, 222, 128, 0.35)"
+                      : "transparent",
                   }}
                 >
-                  {/* Glow effect */}
-                  {isActive && (
-                    <View
-                      style={{
-                        position: "absolute",
-                        width: 40,
-                        height: 40,
-                        borderRadius: 20,
-                        backgroundColor: "#4ade80",
-                        opacity: 0.2,
-                        transform: [{ scale: 1.3 }],
-                      }}
-                    />
-                  )}
-
                   {/* Icon */}
                   <Ionicons
                     name={isActive ? tab.activeIcon : tab.icon}
                     size={24}
-                    color={isActive ? "#4ade80" : "#888"}
+                    color={isActive ? "#86efac" : "#9ca3af"}
                     style={{
                       marginBottom: 4,
                     }}
@@ -138,7 +132,7 @@ export default function CustomTabBar({
                       width: 4,
                       height: 4,
                       borderRadius: 2,
-                      backgroundColor: "#4ade80",
+                      backgroundColor: "#22c55e",
                     }}
                   />
                 )}
