@@ -3,11 +3,12 @@
 // Supports pull-to-refresh and cache clearing
 
 import React, { useState, forwardRef, useImperativeHandle, useEffect, useRef } from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { 
-  apiGetQuoteOfTheDay, 
+  apiGetQuoteOfTheDay,
+  apiGetRandomQuote, 
   readQuoteCache, 
   writeQuoteCache 
 } from '../../constants/api';
@@ -39,38 +40,29 @@ const HomepageMotivationalQuotes = forwardRef<any, HomepageMotivationalQuotesPro
   const formatAuthor = (author: QuoteData['author']) => {
     if (!author || !author.name) return null;
     
-    // Format years
     let yearsStr = '';
     if (author.birthYear || author.deathYear) {
       const birth = author.birthYear 
         ? (author.birthYear < 0 ? `${Math.abs(author.birthYear)} BC` : author.birthYear)
-        : '';
+        : '?';
       const death = author.deathYear 
         ? (author.deathYear < 0 ? `${Math.abs(author.deathYear)} BC` : author.deathYear)
-        : '';
-      
-      if (birth && death) {
+        : '?';
+      if (birth !== '?' || death !== '?') {
         yearsStr = ` (${birth} - ${death})`;
-      } else if (birth) {
-        yearsStr = ` (${birth} - )`;
       }
     }
-    
     return `${author.name}${yearsStr}`;
   };
 
-  // Check if cached quote needs refresh (older than 30 minutes)
   const shouldRefreshQuote = (timestamp: number): boolean => {
     const now = Date.now();
     return (now - timestamp) > THIRTY_MINUTES;
   };
 
-  // Fetch fresh quote from API
   const fetchQuote = async (forceRefresh = false) => {
     try {
       setIsLoading(true);
-      
-      // Check cache first if not forcing refresh
       if (!forceRefresh) {
         const cached = await readQuoteCache();
         if (cached && cached.quote && !shouldRefreshQuote(cached.timestamp)) {
@@ -80,21 +72,17 @@ const HomepageMotivationalQuotes = forwardRef<any, HomepageMotivationalQuotesPro
         }
       }
 
-      // Fetch fresh quote from API
-      const freshQuote = await apiGetQuoteOfTheDay();
+      // For testing
+      const freshQuote = await apiGetRandomQuote();
       setQuote(freshQuote);
       await writeQuoteCache(freshQuote);
-      
       onRefresh?.();
     } catch (error) {
       console.error('Failed to fetch quote:', error);
-      
-      // Fall back to cached quote on error
       const cached = await readQuoteCache();
       if (cached && cached.quote) {
         setQuote(cached.quote);
       } else {
-        // Ultimate fallback
         setQuote({
           id: 0,
           quoteText: "The journey of a thousand miles begins with a single step.",
@@ -107,17 +95,14 @@ const HomepageMotivationalQuotes = forwardRef<any, HomepageMotivationalQuotesPro
     }
   };
 
-  // Update quote (for pull-to-refresh)
   const updateQuote = async () => {
-    await fetchQuote(true); // Force refresh
+    await fetchQuote(true);
   };
 
-  // Expose update function for external refresh
   useImperativeHandle(ref, () => ({
     updateQuote
   }));
 
-  // Initialize: Load cached quote first, then check if refresh needed
   useEffect(() => {
     if (!hasInitialized.current) {
       hasInitialized.current = true;
@@ -134,110 +119,120 @@ const HomepageMotivationalQuotes = forwardRef<any, HomepageMotivationalQuotesPro
         shadowRadius: 24,
         elevation: 14,
       }}>
-      {/* Main gradient background */}
       <LinearGradient
         colors={['#1e1b4b', '#312e81', '#1e293b']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         className="relative">
-        
-        {/* Subtle overlay for depth */}
+
         <LinearGradient
           colors={['rgba(251, 191, 36, 0.08)', 'transparent', 'rgba(168, 85, 247, 0.08)']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           className="absolute inset-0"
         />
-        
-        {/* Decorative background elements */}
-        <View className="absolute top-4 right-4 opacity-10" style={{ zIndex: 0 }}>
-          <Ionicons name="sparkles" size={90} color="#fbbf24" />
+
+        <View className="absolute -top-6 -right-6 opacity-10" style={{ zIndex: 0 }}>
+          <Ionicons name="sparkles" size={110} color="#fbbf24" />
         </View>
-        <View className="absolute bottom-4 left-4 opacity-8" style={{ zIndex: 0 }}>
-          <Ionicons name="book-outline" size={70} color="#a78bfa" />
+        <View className="absolute -bottom-8 -left-8 opacity-8" style={{ zIndex: 0 }}>
+          <Ionicons name="book-outline" size={120} color="#a78bfa" />
         </View>
-        
-        {/* Top accent bar with golden gradient */}
+
         <LinearGradient
           colors={['#f59e0b', '#fbbf24', '#fcd34d']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           className="absolute top-0 left-0 right-0"
-          style={{ height: 2.5 }}
+          style={{ height: 3 }}
         />
 
-        {/* Content wrapper */}
-        <View className="px-6 py-6" style={{ zIndex: 1 }}>
-          <View className="flex-row items-start">
-            {/* Opening quote mark */}
+        <View className="px-6 py-6 pb-7" style={{ zIndex: 1, minHeight: 140 }}>
+          <View style={{ position: 'relative', flex: 1 }}>
+            {/* Opening quote */}
             <Text 
-              className="text-amber-400 font-black"
               style={{ 
-                fontSize: 44,
-                lineHeight: 44,
-                opacity: 0.7,
+                position: 'absolute',
+                top: -10,
+                left: -4,
+                color: '#fbbf24',
+                fontSize: 48,
                 fontWeight: '900',
-                marginTop: -6,
-                marginRight: 6,
+                opacity: 0.75,
+                textShadowColor: 'rgba(251, 191, 36, 0.6)',
+                textShadowOffset: { width: 0, height: 2 },
+                textShadowRadius: 8,
+                lineHeight: 48,
+                zIndex: 5,
               }}>
-              "
+              {'\u201C'}
             </Text>
-            
-            {/* Quote content */}
-            <View className="flex-1">
-              {/* Quote text with gradient effect */}
-              <View style={{ 
-                backgroundColor: 'rgba(251, 191, 36, 0.06)',
-                borderLeftWidth: 2,
-                borderLeftColor: 'rgba(251, 191, 36, 0.3)',
-                paddingLeft: 12,
-                paddingRight: 8,
-                paddingVertical: 6,
-                borderRadius: 6,
-              }}>
-                <Text 
-                  className="text-white font-semibold" 
-                  style={{ 
-                    fontSize: 17,
-                    letterSpacing: 0.5, 
-                    lineHeight: 26,
-                    fontStyle: 'italic',
-                    textShadowColor: 'rgba(251, 191, 36, 0.2)',
-                    textShadowOffset: { width: 0, height: 1 },
-                    textShadowRadius: 3,
-                  }}>
-                  {isLoading ? 'Loading wisdom...' : quote?.quoteText || '...'}
-                </Text>
-              </View>
-              
-              {/* Closing quote and author inline */}
-              <View className="flex-row items-end justify-end mt-2">
-                <View className="items-end mr-1">
-                  {!isLoading && quote?.author && formatAuthor(quote.author) && (
-                    <Text 
-                      className="text-amber-300/70 text-xs font-medium"
-                      style={{ letterSpacing: 0.3 }}>
-                      — {formatAuthor(quote.author)}
-                    </Text>
-                  )}
-                </View>
-                <Text 
-                  className="text-amber-400 font-black"
-                  style={{ 
-                    fontSize: 44,
-                    lineHeight: 44,
-                    opacity: 0.7,
-                    fontWeight: '900',
-                    marginBottom: -10,
-                  }}>
-                  "
-                </Text>
-              </View>
+
+             {/* Closing quote */}
+             <Text 
+               style={{ 
+                 position: 'absolute',
+                 bottom: 10,
+                 right: 4,
+                 color: '#fbbf24',
+                 fontSize: 48,
+                 fontWeight: '900',
+                 opacity: 0.75,
+                 textShadowColor: 'rgba(251, 191, 36, 0.6)',
+                 textShadowOffset: { width: 0, height: 2 },
+                 textShadowRadius: 8,
+                 lineHeight: 48,
+                 zIndex: 5,
+               }}>
+               {'\u201D'}
+             </Text>
+
+            {/* Centered quote text */}
+            <View style={{
+              paddingHorizontal: 16,
+              paddingVertical: 16,
+              paddingBottom: 56, // Added space for author
+              flex: 1,
+              justifyContent: 'center',
+            }}>
+               <Text 
+                 style={{ 
+                   fontSize: 20,
+                   fontWeight: '700',
+                   letterSpacing: 0.8, 
+                   lineHeight: 34,
+                   color: '#ffffff',
+                   textAlign: 'center',
+                   fontStyle: 'italic',
+                   fontFamily: Platform.OS === 'ios' ? 'Georgia-Bold' : 'serif',
+                   textShadowColor: 'rgba(251, 191, 36, 0.6)',
+                   textShadowOffset: { width: 0, height: 2 },
+                   textShadowRadius: 12,
+                   textTransform: 'capitalize',
+                 }}>
+                 {isLoading ? 'Loading wisdom...' : quote?.quoteText || '...'}
+               </Text>
             </View>
+
+            {/* Author attribution */}
+            {!isLoading && quote?.author && formatAuthor(quote.author) && (
+              <Text 
+                className="text-amber-300/70 text-xs font-medium"
+                style={{ 
+                  position: 'absolute',
+                  bottom: 12, // under closing quote
+                  right: -5,
+                  letterSpacing: 0.3,
+                  textAlign: 'right',
+                  maxWidth: '75%',
+                  zIndex: 6,
+                }}>
+                — {formatAuthor(quote.author)}
+              </Text>
+            )}
           </View>
         </View>
 
-        {/* Bottom accent shimmer */}
         <LinearGradient
           colors={['transparent', 'rgba(251, 191, 36, 0.15)', 'transparent']}
           start={{ x: 0, y: 0 }}
