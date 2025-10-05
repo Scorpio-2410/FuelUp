@@ -37,14 +37,26 @@ const HomepageMotivationalQuotes = forwardRef<any, HomepageMotivationalQuotesPro
 
   // Format author display with years
   const formatAuthor = (author: QuoteData['author']) => {
-    if (!author) return 'Unknown';
-    if (author.birthYear && author.deathYear) {
-      return `${author.name} (${author.birthYear}–${author.deathYear})`;
+    if (!author || !author.name) return null;
+    
+    // Format years
+    let yearsStr = '';
+    if (author.birthYear || author.deathYear) {
+      const birth = author.birthYear 
+        ? (author.birthYear < 0 ? `${Math.abs(author.birthYear)} BC` : author.birthYear)
+        : '';
+      const death = author.deathYear 
+        ? (author.deathYear < 0 ? `${Math.abs(author.deathYear)} BC` : author.deathYear)
+        : '';
+      
+      if (birth && death) {
+        yearsStr = ` (${birth} - ${death})`;
+      } else if (birth) {
+        yearsStr = ` (${birth} - )`;
+      }
     }
-    if (author.birthYear) {
-      return `${author.name} (${author.birthYear}–)`;
-    }
-    return author.name;
+    
+    return `${author.name}${yearsStr}`;
   };
 
   // Check if cached quote needs refresh (older than 30 minutes)
@@ -196,7 +208,7 @@ const HomepageMotivationalQuotes = forwardRef<any, HomepageMotivationalQuotesPro
                 }}>
                 "
               </Text>
-              {quote?.author && !isLoading && (
+              {!isLoading && quote?.author && formatAuthor(quote.author) && (
                 <Text 
                   className="text-amber-300/70 text-xs font-medium mr-2 mb-2"
                   style={{ letterSpacing: 0.3 }}>

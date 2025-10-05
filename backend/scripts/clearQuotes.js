@@ -1,7 +1,6 @@
 const { pool } = require("../config/database");
 
 /**
- * HOW TO USE:
  * 1. Run: cd backend && node scripts/clearQuotes.js
  * 2. This deletes ALL quotes and authors (you have 3 seconds to cancel)
  * 3. Then run importQuotes.js to reimport fresh data
