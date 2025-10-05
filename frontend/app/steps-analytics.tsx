@@ -14,10 +14,13 @@ import Animated, {
   withSpring
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
+import CelestialBackground from '../components/Theme/night/CelestialBackground';
+import { useTheme } from '../contexts/ThemeContext';
 
 export default function StepsAnalytics() {
   const router = useRouter();
   const { stepsData, isLoading, isAvailable, hasError, yesterdaySteps, refreshSteps, updateGoal } = useStepsTracking();
+  const { theme } = useTheme();
 
   // Auto-refresh when screen loads (like normal apps)
   useEffect(() => {
@@ -75,18 +78,21 @@ export default function StepsAnalytics() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-black">
-      <ScrollView 
-        className="flex-1"
-        refreshControl={
-          <RefreshControl
-            refreshing={isLoading}
-            onRefresh={refreshSteps}
-            tintColor="#ffffff"
-            colors={['#ffffff']}
-          />
-        }>
-        <View className="p-6">
+    <CelestialBackground
+      theme={theme}
+      intensity="medium">
+      <SafeAreaView className="flex-1">
+        <ScrollView 
+          className="flex-1"
+          refreshControl={
+            <RefreshControl
+              refreshing={isLoading}
+              onRefresh={refreshSteps}
+              tintColor="#ffffff"
+              colors={['#ffffff']}
+            />
+          }>
+          <View className="p-6">
         {/* Header - Fixed Padding */}
         <View className="flex-row items-center justify-between mb-6 px-2">
           <TouchableOpacity onPress={() => router.back()} className="flex-1">
@@ -279,8 +285,9 @@ export default function StepsAnalytics() {
           </Animated.View>
         </View>
 
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    </CelestialBackground>
   );
 }

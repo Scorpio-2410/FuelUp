@@ -87,11 +87,9 @@ export default function HomePageScreen() {
   );
 
   return (
-    <CelestialBackground 
-      theme={theme}
-      intensity="medium"
-      showStars={true}
-      showClouds={true}>
+          <CelestialBackground
+            theme={theme}
+            intensity="medium">
       <View style={{ flex: 1, paddingBottom: 80 }}>
         <RefreshScroll refreshing={refreshing} onRefresh={handleRefresh}>
           <View className="px-6 pb-6" style={{ paddingTop: insets.top + 24 }}>
