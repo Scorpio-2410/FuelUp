@@ -81,6 +81,7 @@ const HomepageSteps = forwardRef<any, HomepageStepsProps>(({ className, onRefres
     <TouchableOpacity
       className={`flex-1 p-5 rounded-3xl bg-purple-600 justify-between ${className}`}
       style={{ 
+        opacity: 0.7,
         shadowColor: "#8B5CF6",
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,

@@ -6,10 +6,6 @@ import React, { useState, forwardRef, useImperativeHandle, useEffect, useRef } f
 import { View, Text, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { CelestialBackground } from '../Theme/CelestialBackground';
-import { ThemedCard } from '../Theme/ThemedCard';
-import { ThemedText } from '../Theme/ThemedText';
-import { useTheme } from '../../contexts/ThemeContext';
 import { 
   apiGetQuoteOfTheDay,
   apiGetRandomQuote, 
@@ -39,7 +35,6 @@ const HomepageMotivationalQuotes = forwardRef<any, HomepageMotivationalQuotesPro
   const [quote, setQuote] = useState<QuoteData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const hasInitialized = useRef(false);
-  const { theme } = useTheme();
 
   // Format author display with years
   const formatAuthor = (author: QuoteData['author']) => {
@@ -142,6 +137,26 @@ const HomepageMotivationalQuotes = forwardRef<any, HomepageMotivationalQuotesPro
         </View>
         <View className="absolute -bottom-8 -left-8 opacity-8" style={{ zIndex: 0 }}>
           <Ionicons name="book-outline" size={120} color="#a78bfa" />
+        </View>
+
+        {/* Decorative stars inside the quote widget */}
+        <View className="absolute top-12 right-16 opacity-20" style={{ zIndex: 2 }}>
+          <Text style={{ color: '#fbbf24', fontSize: 8 }}>✦</Text>
+        </View>
+        <View className="absolute top-20 right-20 opacity-15" style={{ zIndex: 2 }}>
+          <Text style={{ color: '#ffffff', fontSize: 6 }}>✦</Text>
+        </View>
+        <View className="absolute bottom-16 left-16 opacity-25" style={{ zIndex: 2 }}>
+          <Text style={{ color: '#fbbf24', fontSize: 10 }}>✦</Text>
+        </View>
+        <View className="absolute bottom-20 left-24 opacity-20" style={{ zIndex: 2 }}>
+          <Text style={{ color: '#ffffff', fontSize: 7 }}>✦</Text>
+        </View>
+        <View className="absolute top-16 left-12 opacity-18" style={{ zIndex: 2 }}>
+          <Text style={{ color: '#a78bfa', fontSize: 8 }}>✦</Text>
+        </View>
+        <View className="absolute bottom-24 right-12 opacity-22" style={{ zIndex: 2 }}>
+          <Text style={{ color: '#fbbf24', fontSize: 6 }}>✦</Text>
         </View>
 
         <LinearGradient

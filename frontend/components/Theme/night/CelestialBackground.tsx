@@ -2,7 +2,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Animated, Dimensions, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { TimeBasedTheme } from '../../constants/TimeBasedTheme';
+import { TimeBasedTheme } from '../../../constants/TimeBasedTheme';
 
 const { width, height } = Dimensions.get('window');
 
@@ -72,8 +72,8 @@ export const CelestialBackground: React.FC<CelestialBackgroundProps> = ({
         id: i,
         x: Math.random() * width,
         y: Math.random() * height,
-        size: Math.random() * 2 + 0.5, // 0.5-2.5px for smaller, more realistic stars
-        opacity: Math.random() * 0.6 + 0.3, // 0.3-0.9 for subtle twinkling
+        size: Math.random() * 2.5 + 1, // 1-3.5px for more visible stars
+        opacity: Math.random() * 0.7 + 0.5, // 0.5-1.2 for brighter stars
         animationDelay: Math.random() * 3000, // 0-3s delay for varied timing
       });
     }
@@ -93,7 +93,7 @@ export const CelestialBackground: React.FC<CelestialBackgroundProps> = ({
         y: Math.random() * (height * 0.6), // Keep clouds in upper portion
         width: Math.random() * 200 + 100, // 100-300px wide
         height: Math.random() * 80 + 40, // 40-120px tall
-        opacity: Math.random() * 0.15 + 0.05, // Very subtle, 0.05-0.2
+        opacity: Math.random() * 0.2 + 0.1, // More visible clouds, 0.1-0.3
         animationDelay: Math.random() * 5000, // 0-5s delay
       });
     }
@@ -181,7 +181,7 @@ export const CelestialBackground: React.FC<CelestialBackgroundProps> = ({
               height: star.size,
               opacity: animatedValue.interpolate({
                 inputRange: [0, 1],
-                outputRange: [star.opacity * 0.4, star.opacity],
+                outputRange: [star.opacity * 0.6, star.opacity],
               }),
               transform: [
                 {
@@ -243,7 +243,7 @@ export const CelestialBackground: React.FC<CelestialBackgroundProps> = ({
     <View style={styles.container}>
       {/* Deep Indigo Night Sky Gradient Background */}
       <LinearGradient
-        colors={currentTheme.colors.gradients.background}
+        colors={currentTheme.colors.gradients.background as [string, string, ...string[]]}
         style={StyleSheet.absoluteFillObject}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -292,17 +292,17 @@ const styles = StyleSheet.create({
     position: 'absolute',
     backgroundColor: '#ffffff',
     borderRadius: 50,
-    shadowColor: 'rgba(255, 255, 255, 0.6)',
+    shadowColor: 'rgba(255, 255, 255, 0.9)',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOpacity: 1.0,
+    shadowRadius: 4,
+    elevation: 4,
   },
   cloud: {
     position: 'absolute',
-    backgroundColor: '#1a1b4b',
+    backgroundColor: '#1A2332',
     borderRadius: 50,
-    opacity: 0.1,
+    opacity: 0.15,
   },
   content: {
     flex: 1,
