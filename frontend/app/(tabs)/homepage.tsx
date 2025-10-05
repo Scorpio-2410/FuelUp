@@ -116,7 +116,7 @@ export default function HomePageScreen() {
             </View>
 
           {/* Calendar */}
-          <RealTimeCalendar className="mb-8" />
+          <RealTimeCalendar className="mb-12" />
 
           {/* Quote */}
           <HomepageMotivationalQuotes ref={quotesRef} className="mb-8" />

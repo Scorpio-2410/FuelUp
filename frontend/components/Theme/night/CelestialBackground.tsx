@@ -45,13 +45,13 @@ export const CelestialBackground: React.FC<CelestialBackgroundProps> = ({
   const starAnimatedValues = useRef<Animated.Value[]>([]);
   const cloudAnimatedValues = useRef<Animated.Value[]>([]);
 
-  // Default to night theme if no theme provided
+  // Default to night theme with dark chill blue gradient
   const currentTheme = theme || {
     colors: {
       gradients: {
-        background: ['#1e1b4b', '#312e81', '#4338ca'],
-        primary: ['#1e1b4b', '#312e81', '#4338ca'],
-        card: ['#312e81', '#4338ca'],
+        background: ['#04040B', '#1E213C', '#304063'],
+        primary: ['#04040B', '#1E213C', '#304063'],
+        card: ['#1E213C', '#304063'],
       },
       effects: {
         star: '#ffffff',
@@ -243,10 +243,11 @@ export const CelestialBackground: React.FC<CelestialBackgroundProps> = ({
     <View style={styles.container}>
       {/* Deep Indigo Night Sky Gradient Background */}
       <LinearGradient
-        colors={currentTheme.colors.gradients.background as [string, string, ...string[]]}
+        colors={['#04040B', '#1E213C', '#304063']}
+        locations={[0, 0.55, 1]}
         style={StyleSheet.absoluteFillObject}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
       />
       
       {/* Subtle Cloud Wisps Layer */}

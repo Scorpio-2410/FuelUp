@@ -120,7 +120,7 @@ const HomepageMotivationalQuotes = forwardRef<any, HomepageMotivationalQuotesPro
         elevation: 14,
       }}>
       <LinearGradient
-        colors={['#1e1b4b', '#312e81', '#1e293b']}
+        colors={['rgba(30, 27, 75, 0.6)', 'rgba(49, 40, 129, 0.6)', 'rgba(30, 41, 59, 0.6)']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         className="relative">

@@ -44,7 +44,7 @@ export default function CustomTabBar({
     >
       {/* Glassmorphism background container with blur */}
       <BlurView
-        intensity={90}
+        intensity={5}
         tint="dark"
         style={{
           marginHorizontal: 16,
