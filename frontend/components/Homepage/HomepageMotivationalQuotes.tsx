@@ -6,6 +6,10 @@ import React, { useState, forwardRef, useImperativeHandle, useEffect, useRef } f
 import { View, Text, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { CelestialBackground } from '../Theme/CelestialBackground';
+import { ThemedCard } from '../Theme/ThemedCard';
+import { ThemedText } from '../Theme/ThemedText';
+import { useTheme } from '../../contexts/ThemeContext';
 import { 
   apiGetQuoteOfTheDay,
   apiGetRandomQuote, 
@@ -35,6 +39,7 @@ const HomepageMotivationalQuotes = forwardRef<any, HomepageMotivationalQuotesPro
   const [quote, setQuote] = useState<QuoteData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const hasInitialized = useRef(false);
+  const { theme } = useTheme();
 
   // Format author display with years
   const formatAuthor = (author: QuoteData['author']) => {
