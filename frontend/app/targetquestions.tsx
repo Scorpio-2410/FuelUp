@@ -4,12 +4,12 @@ import {
   View,
   Text,
   TouchableOpacity,
-  SafeAreaView,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
   Alert,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
@@ -318,8 +318,6 @@ function QuestionSegmentContent() {
 // Main export component with provider
 export default function QuestionSegment() {
   return (
-    <TargetQuestionsProvider>
-      <QuestionSegmentContent />
-    </TargetQuestionsProvider>
+    <TargetQuestionsProvider children={<QuestionSegmentContent />} />
   );
 }

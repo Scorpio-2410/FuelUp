@@ -83,22 +83,43 @@ export default function ProfileAvatar({
   }
 
   return (
-    <View className="items-center mb-4">
+    <View className="items-center mb-8">
       <Pressable
         onPress={pickAvatar}
-        className="w-24 h-24 rounded-full overflow-hidden">
-        {profile.avatarUri ? (
-          <Image
-            source={{ uri: profile.avatarUri }}
-            className="w-full h-full"
-          />
-        ) : (
-          <View className="w-full h-full items-center justify-center bg-neutral-800">
-            <Text className="text-gray-400">Add photo</Text>
-          </View>
-        )}
+        className="relative"
+        style={{
+          shadowColor: "#8B5CF6",
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.3,
+          shadowRadius: 12,
+          elevation: 8,
+        }}>
+        <View className="w-28 h-28 rounded-full overflow-hidden border-4 border-purple-500/30">
+          {profile.avatarUri ? (
+            <Image
+              source={{ uri: profile.avatarUri }}
+              className="w-full h-full"
+            />
+          ) : (
+            <View className="w-full h-full items-center justify-center bg-gradient-to-br from-purple-900/50 to-blue-900/50">
+              <Text className="text-5xl">📸</Text>
+            </View>
+          )}
+        </View>
+        {/* Edit Badge */}
+        <View 
+          className="absolute bottom-0 right-0 w-9 h-9 rounded-full bg-purple-600 items-center justify-center border-2 border-black"
+          style={{
+            shadowColor: "#8B5CF6",
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.5,
+            shadowRadius: 4,
+            elevation: 4,
+          }}>
+          <Text className="text-white text-xs font-bold">✏️</Text>
+        </View>
       </Pressable>
-      <Text className="text-gray-400 mt-2 text-xs">Tap to change</Text>
+      <Text className="text-purple-300 mt-3 text-sm font-semibold">Tap to change photo</Text>
     </View>
   );
 }

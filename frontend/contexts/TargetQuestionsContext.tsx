@@ -49,9 +49,7 @@ interface TargetQuestionsProviderProps {
   children: ReactNode;
 }
 
-export const TargetQuestionsProvider: React.FC<
-  TargetQuestionsProviderProps
-> = ({ children }) => {
+export const TargetQuestionsProvider: React.FC<TargetQuestionsProviderProps> = ({ children }) => {
   const {
     loading,
     error,

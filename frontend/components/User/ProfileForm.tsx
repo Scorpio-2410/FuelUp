@@ -111,108 +111,134 @@ export default function ProfileForm({ profile, setProfile }: Props) {
     <>
       <ProfileAvatar profile={profile as any} setProfile={setProfile as any} />
 
-      <ProfileField
-        label="Username"
-        textInputProps={{
-          placeholder: "username",
-          autoCapitalize: "none",
-          value: profile.username,
-          onChangeText: (v) => setProfile({ ...profile, username: v }),
-        }}
-      />
-
-      <ProfileField
-        label="Full name"
-        textInputProps={{
-          placeholder: "Your full name",
-          value: profile.fullName,
-          onChangeText: (v) => setProfile({ ...profile, fullName: v }),
-        }}
-      />
-
-      {/* Email (view-only) */}
-      <View className="opacity-60">
+      {/* Basic Info Section */}
+      <View className="mb-6">
+        <Text className="text-white text-lg font-bold mb-4 flex-row items-center">
+          <Text className="text-2xl mr-2">👤</Text> Basic Info
+        </Text>
+        
         <ProfileField
-          label="Email"
+          label="USERNAME"
           textInputProps={{
-            value: profile.email,
-            editable: false,
-            selectTextOnFocus: false,
-            placeholder: "you@example.com",
+            placeholder: "username",
+            autoCapitalize: "none",
+            value: profile.username,
+            onChangeText: (v) => setProfile({ ...profile, username: v }),
           }}
         />
+
+        <ProfileField
+          label="FULL NAME"
+          textInputProps={{
+            placeholder: "Your full name",
+            value: profile.fullName,
+            onChangeText: (v) => setProfile({ ...profile, fullName: v }),
+          }}
+        />
+
+        {/* Email (view-only) */}
+        <View className="opacity-60">
+          <ProfileField
+            label="EMAIL (READ-ONLY)"
+            textInputProps={{
+              value: profile.email,
+              editable: false,
+              selectTextOnFocus: false,
+              placeholder: "you@example.com",
+            }}
+          />
+        </View>
       </View>
 
-      {/* DOB */}
-      <ProfileField label="Date of birth (DD-MM-YYYY)">
-        <View className="flex-row gap-3">
-          <View style={{ flex: 1 }}>
-            <ProfileDropdown
-              value={dobDay}
-              items={dayItems}
-              placeholderLabel="DD"
-              onChange={(v) => handleDobChange("d", v)}
-            />
+      {/* Personal Details Section */}
+      <View className="mb-6">
+        <Text className="text-white text-lg font-bold mb-4">
+          <Text className="text-2xl mr-2">🎂</Text> Personal Details
+        </Text>
+        
+        {/* DOB */}
+        <ProfileField label="DATE OF BIRTH">
+          <View className="flex-row gap-3">
+            <View style={{ flex: 1 }}>
+              <ProfileDropdown
+                value={dobDay}
+                items={dayItems}
+                placeholderLabel="DD"
+                onChange={(v) => handleDobChange("d", v)}
+              />
+            </View>
+            <View style={{ flex: 1.2 }}>
+              <ProfileDropdown
+                value={dobMonth}
+                items={monthItems}
+                placeholderLabel="MM"
+                onChange={(v) => handleDobChange("m", v)}
+              />
+            </View>
+            <View style={{ flex: 1.2 }}>
+              <ProfileDropdown
+                value={dobYear}
+                items={yearItems}
+                placeholderLabel="YYYY"
+                onChange={(v) => handleDobChange("y", v)}
+              />
+            </View>
           </View>
-          <View style={{ flex: 1.2 }}>
-            <ProfileDropdown
-              value={dobMonth}
-              items={monthItems}
-              placeholderLabel="MM"
-              onChange={(v) => handleDobChange("m", v)}
-            />
+        </ProfileField>
+
+        {/* Gender */}
+        <ProfileField label="GENDER">
+          <ProfileDropdown
+            value={profile.gender ?? "prefer_not_to_say"}
+            items={GENDER_ITEMS}
+            placeholderLabel="Select gender"
+            onChange={(v) => setProfile({ ...profile, gender: v })}
+          />
+        </ProfileField>
+
+        {/* Ethnicity */}
+        <ProfileField label="ETHNICITY">
+          <ProfileDropdown
+            value={profile.ethnicity ?? "not_specified"}
+            items={ETHNICITY_ITEMS}
+            placeholderLabel="Select ethnicity"
+            onChange={(v) => setProfile({ ...profile, ethnicity: v })}
+          />
+        </ProfileField>
+      </View>
+
+      {/* Preferences Section */}
+      <View className="mb-6">
+        <Text className="text-white text-lg font-bold mb-4">
+          <Text className="text-2xl mr-2">⚙️</Text> Preferences
+        </Text>
+
+        {/* Follow-up frequency */}
+        <ProfileField label="FOLLOW-UP FREQUENCY">
+          <ProfileDropdown
+            value={profile.followUpFrequency ?? "daily"}
+            items={FREQUENCY_ITEMS}
+            placeholderLabel="Choose frequency"
+            onChange={(v) =>
+              setProfile({ ...profile, followUpFrequency: v as any })
+            }
+          />
+        </ProfileField>
+
+        {/* Notifications */}
+        <View className="flex-row items-center justify-between bg-gray-900/50 border border-gray-800/50 rounded-xl px-4 py-4 mb-5">
+          <View className="flex-row items-center gap-3">
+            <Text className="text-2xl">🔔</Text>
+            <Text className="text-white font-semibold text-base">Notifications</Text>
           </View>
-          <View style={{ flex: 1.2 }}>
-            <ProfileDropdown
-              value={dobYear}
-              items={yearItems}
-              placeholderLabel="YYYY"
-              onChange={(v) => handleDobChange("y", v)}
-            />
-          </View>
+          <Switch
+            value={profile.notifications}
+            onValueChange={(v) => setProfile({ ...profile, notifications: v })}
+            trackColor={{ false: "#374151", true: "#8B5CF6" }}
+            thumbColor={profile.notifications ? "#ffffff" : "#9CA3AF"}
+          />
         </View>
-      </ProfileField>
-
-      {/* Gender */}
-      <ProfileField label="Gender">
-        <ProfileDropdown
-          value={profile.gender ?? "prefer_not_to_say"}
-          items={GENDER_ITEMS}
-          placeholderLabel="Select gender"
-          onChange={(v) => setProfile({ ...profile, gender: v })}
-        />
-      </ProfileField>
-
-      {/* Ethnicity */}
-      <ProfileField label="Ethnicity">
-        <ProfileDropdown
-          value={profile.ethnicity ?? "not_specified"}
-          items={ETHNICITY_ITEMS}
-          placeholderLabel="Select ethnicity"
-          onChange={(v) => setProfile({ ...profile, ethnicity: v })}
-        />
-      </ProfileField>
-
-      {/* Follow-up frequency */}
-      <ProfileField label="Follow-up questions frequency">
-        <ProfileDropdown
-          value={profile.followUpFrequency ?? "daily"}
-          items={FREQUENCY_ITEMS}
-          placeholderLabel="Choose frequency"
-          onChange={(v) =>
-            setProfile({ ...profile, followUpFrequency: v as any })
-          }
-        />
-      </ProfileField>
-
-      {/* Notifications */}
-      <ProfileRow>
-        <Text className="text-white font-medium">Notifications</Text>
-        <Switch
-          value={profile.notifications}
-          onValueChange={(v) => setProfile({ ...profile, notifications: v })}
-        />
-      </ProfileRow>
+      </View>
     </>
   );
 }
