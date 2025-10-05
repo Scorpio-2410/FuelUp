@@ -282,6 +282,40 @@ const initializeDatabase = async () => {
       CREATE INDEX IF NOT EXISTS idx_plan_exercises_plan ON fitness_plan_exercises(plan_id);
     `);
 
+    /* =========== MOTIVATIONAL QUOTES & AUTHORS =========== */
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS quote_authors (
+        id          INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        name        VARCHAR(255) NOT NULL UNIQUE,
+        birth_year  INTEGER,
+        death_year  INTEGER,
+        created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      DROP TRIGGER IF EXISTS trg_quote_authors_updated_at ON quote_authors;
+      CREATE TRIGGER trg_quote_authors_updated_at
+      BEFORE UPDATE ON quote_authors FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+      CREATE TABLE IF NOT EXISTS motivational_quotes (
+        id          INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        quote_text  TEXT NOT NULL,
+        author_id   INTEGER REFERENCES quote_authors(id) ON DELETE SET NULL,
+        category    VARCHAR(50) DEFAULT 'general',
+        is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_motivational_quotes_author ON motivational_quotes(author_id);
+      CREATE INDEX IF NOT EXISTS idx_motivational_quotes_category ON motivational_quotes(category);
+      CREATE INDEX IF NOT EXISTS idx_motivational_quotes_active ON motivational_quotes(is_active);
+
+      DROP TRIGGER IF EXISTS trg_motivational_quotes_updated_at ON motivational_quotes;
+      CREATE TRIGGER trg_motivational_quotes_updated_at
+      BEFORE UPDATE ON motivational_quotes FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    `);
+
     /* =========== QUESTIONS / RESPONSES / RESET TOKENS =========== */
     await client.query(`
       CREATE TABLE IF NOT EXISTS target_questions (
