@@ -84,7 +84,7 @@ export default function HomePageScreen() {
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#1a1a1a" }}>
+    <View style={{ flex: 1, backgroundColor: "#1a1a1a", paddingBottom: 80 }}>
       <RefreshScroll refreshing={refreshing} onRefresh={handleRefresh}>
         <View className="px-6 pb-6" style={{ paddingTop: insets.top + 24 }}>
           {/* Header */}
@@ -96,7 +96,8 @@ export default function HomePageScreen() {
             </View>
             <View
               className="w-20 h-20 rounded-full overflow-hidden"
-              style={{ backgroundColor: "#2a2a2a" }}>
+              style={{ backgroundColor: "#2a2a2a" }}
+            >
               {profile.avatarUri ? (
                 <Image
                   source={{ uri: profile.avatarUri }}

@@ -51,7 +51,7 @@ export default function FitnessScreen() {
 
   return (
     <SafeAreaView
-      style={{ flex: 1, backgroundColor: "#0b0b0b" }}
+      style={{ flex: 1, backgroundColor: "#1a1a1a" }}
       edges={["top"]}
     >
       <RefreshScroll refreshing={refreshing} onRefresh={handleRefresh}>
@@ -162,6 +162,8 @@ export default function FitnessScreen() {
         visible={scheduleOpen}
         onClose={() => setScheduleOpen(false)}
       />
+
+      <View style={{ paddingBottom: 120, opacity: 0.2 }} />
     </SafeAreaView>
   );
 }
