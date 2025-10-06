@@ -1,6 +1,6 @@
 // frontend/components/TopSearchBar.tsx
 import React from "react";
-import { View, TextInput, Image, TouchableOpacity } from "react-native";
+import { View, TextInput, Image, TouchableOpacity, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 type Props = {
@@ -8,6 +8,7 @@ type Props = {
   onChangeText: (t: string) => void;
   onClear?: () => void;
   avatarUri?: string; // optional – parent can pass profile avatar
+  onAvatarPress?: () => void; // optional – called when avatar is pressed
 };
 
 export default function TopSearchBar({
@@ -15,7 +16,16 @@ export default function TopSearchBar({
   onChangeText,
   onClear,
   avatarUri,
+  onAvatarPress,
 }: Props) {
+  // Default handler for avatar press
+  const handleAvatarPress = () => {
+    if (onAvatarPress) {
+      onAvatarPress();
+    } else {
+      Alert.alert("Avatar Pressed", "You tapped the avatar!");
+    }
+  };
   return (
     <View
       style={{
@@ -23,16 +33,20 @@ export default function TopSearchBar({
         paddingHorizontal: 16,
         paddingVertical: 12,
         marginBottom: 12,
-      }}>
+      }}
+    >
       <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-        <View
+        <TouchableOpacity
+          onPress={handleAvatarPress}
+          activeOpacity={onAvatarPress ? 0.7 : 1}
           style={{
             width: 40,
             height: 40,
             borderRadius: 20,
             overflow: "hidden",
             backgroundColor: "#2a2a2a",
-          }}>
+          }}
+        >
           {avatarUri ? (
             <Image
               source={{ uri: avatarUri }}
@@ -44,11 +58,12 @@ export default function TopSearchBar({
                 flex: 1,
                 alignItems: "center",
                 justifyContent: "center",
-              }}>
+              }}
+            >
               <Ionicons name="person" size={20} color="#a1a1aa" />
             </View>
           )}
-        </View>
+        </TouchableOpacity>
 
         <View
           style={{
@@ -59,7 +74,8 @@ export default function TopSearchBar({
             paddingVertical: 10,
             flexDirection: "row",
             alignItems: "center",
-          }}>
+          }}
+        >
           <Ionicons name="search" size={18} color="#a1a1aa" />
           <TextInput
             placeholder="Search"

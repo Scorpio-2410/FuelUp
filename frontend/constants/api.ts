@@ -249,6 +249,13 @@ export function getExerciseImageUri(id: string | number, res = "180") {
 }
 
 /* -------------------- Fitness plan APIs -------------------- */
+
+export async function apiGetFitnessProfile() {
+  const res = await fetch(`${BASE_URL}${EP.fitnessProfile}`, {
+    headers: await authHeaders(),
+  });
+  return asJson<{ profile: any | null }>(res);
+}
 export async function apiListPlans() {
   const res = await fetch(`${BASE_URL}${EP.plansRoot}`, {
     headers: await authHeaders(),
