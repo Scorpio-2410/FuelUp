@@ -162,17 +162,17 @@ export const TimeBasedThemes: Record<ThemeMode, TimeBasedTheme> = {
     },
   },
 
-  // Morning (7 AM - 12 PM) - Warm sunrise colors
+  // Morning (7 AM - 12 PM) - Bright blue sky with sun bloom
   morning: {
     name: 'Morning',
     mode: 'morning',
     colors: {
       background: {
-        primary: '#2d1b69',
-        secondary: '#11998e',
-        tertiary: '#38ef7d',
-        card: '#11998e',
-        overlay: 'rgba(45, 27, 105, 0.95)',
+        primary: '#7492BA',
+        secondary: '#1A66B4',
+        tertiary: '#548CCA',
+        card: '#1A66B4',
+        overlay: 'rgba(116, 146, 186, 0.95)',
       },
       text: {
         primary: '#ffffff',
@@ -190,15 +190,15 @@ export const TimeBasedThemes: Record<ThemeMode, TimeBasedTheme> = {
         error: '#ef4444',
       },
       gradients: {
-        primary: ['#2d1b69', '#11998e', '#38ef7d'],
-        background: ['#2d1b69', '#11998e'],
-        card: ['#11998e', '#38ef7d'],
+        primary: ['#7492BA', '#1A66B4', '#548CCA'],
+        background: ['#7492BA', '#1A66B4', '#548CCA'],
+        card: ['#1A66B4', '#548CCA'],
       },
       effects: {
-        star: '#fbbf24',
-        starGlow: 'rgba(251, 191, 36, 0.6)',
+        sun: '#FFFFFF',
+        sunGlow: 'rgba(255, 255, 255, 0.8)',
         shadow: 'rgba(0, 0, 0, 0.3)',
-        glow: 'rgba(245, 158, 11, 0.3)',
+        glow: 'rgba(116, 146, 186, 0.4)',
       },
     },
     typography: {

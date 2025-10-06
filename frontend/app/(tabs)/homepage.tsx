@@ -2,7 +2,7 @@ import React, { useState, useCallback, useRef } from "react";
 import { View, Text, Dimensions, Image, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
-import CelestialBackground from "../../components/Theme/night/CelestialBackground";
+import DynamicBackground from "../../components/Theme/DynamicBackground";
 import { useTheme } from "../../contexts/ThemeContext";
 
 import RealTimeCalendar from "../../components/Homepage/RealTimeCalendar";
@@ -87,7 +87,7 @@ export default function HomePageScreen() {
   );
 
   return (
-          <CelestialBackground
+          <DynamicBackground
             theme={theme}
             intensity="medium">
       <View style={{ flex: 1, paddingBottom: 80 }}>
@@ -130,6 +130,6 @@ export default function HomePageScreen() {
           </View>
         </RefreshScroll>
       </View>
-    </CelestialBackground>
+    </DynamicBackground>
   );
 }
