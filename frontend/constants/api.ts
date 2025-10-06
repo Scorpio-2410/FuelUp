@@ -82,6 +82,11 @@ const EP = {
   schedulesRoot: "/api/schedule",
   events: "/api/schedule/events",
   eventsAutoPlan: "/api/schedule/auto-plan",
+
+  // Motivational Quotes
+  quotesDaily: "/api/quotes/daily",
+  quotesRandom: "/api/quotes/random",
+  quotesAll: "/api/quotes",
 };
 
 /* -------------------- helpers -------------------- */
@@ -459,4 +464,68 @@ export async function writeProfileCache(userObj: any) {
     };
     await AsyncStorage.setItem(K_PROFILE, JSON.stringify(slim));
   } catch {}
+}
+
+/* -------------------- motivational quotes -------------------- */
+const K_QUOTE_CACHE = "fu_quote_cache";
+
+export async function apiGetQuoteOfTheDay() {
+  const res = await fetch(`${BASE_URL}${EP.quotesDaily}`);
+  return asJson<{
+    id: number;
+    quoteText: string;
+    category: string;
+    author: {
+      name: string;
+      birthYear?: number;
+      deathYear?: number;
+    } | null;
+  }>(res);
+}
+
+export async function apiGetRandomQuote(category?: string) {
+  const qs = category ? `?category=${encodeURIComponent(category)}` : "";
+  const res = await fetch(`${BASE_URL}${EP.quotesRandom}${qs}`);
+  return asJson<{
+    id: number;
+    quoteText: string;
+    category: string;
+    author: {
+      name: string;
+      birthYear?: number;
+      deathYear?: number;
+    } | null;
+  }>(res);
+}
+
+export async function readQuoteCache(): Promise<{
+  quote: any;
+  timestamp: number;
+} | null> {
+  try {
+    const raw = await AsyncStorage.getItem(K_QUOTE_CACHE);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function writeQuoteCache(quote: any) {
+  try {
+    const data = {
+      quote,
+      timestamp: Date.now(),
+    };
+    await AsyncStorage.setItem(K_QUOTE_CACHE, JSON.stringify(data));
+  } catch (err) {
+    console.error("Failed to cache quote:", err);
+  }
+}
+
+export async function clearQuoteCache() {
+  try {
+    await AsyncStorage.removeItem(K_QUOTE_CACHE);
+  } catch (err) {
+    console.error("Failed to clear quote cache:", err);
+  }
 }

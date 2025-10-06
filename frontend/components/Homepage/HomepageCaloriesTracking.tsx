@@ -30,7 +30,7 @@ const HomepageCaloriesTracking = forwardRef<any, HomepageCaloriesProps>(({ class
   return (
     <View
       className={`p-6 rounded-2xl ${className}`}
-      style={{ backgroundColor: "#2a2a2a" }}>
+      style={{ backgroundColor: "rgba(42, 42, 42, 0.1)" }}>
       <View className="flex-row items-center">
         <View className="flex-1 pr-4">
           <View className="mb-4">

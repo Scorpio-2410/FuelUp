@@ -36,7 +36,11 @@ export function SaveButton({ profile, saving, setSaving }: Props) {
     type: "success" | "error" | "warning";
   }>({ title: "", message: "", type: "success" });
 
-  const showAlert = (title: string, message: string, type: "success" | "error" | "warning" = "success") => {
+  const showAlert = (
+    title: string,
+    message: string,
+    type: "success" | "error" | "warning" = "success"
+  ) => {
     setAlertConfig({ title, message, type });
     setAlertVisible(true);
   };
@@ -47,7 +51,11 @@ export function SaveButton({ profile, saving, setSaving }: Props) {
       return;
     }
     if (!isValidEmail(profile.email)) {
-      showAlert("Invalid Email", "Please enter a valid email address.", "warning");
+      showAlert(
+        "Invalid Email",
+        "Please enter a valid email address.",
+        "warning"
+      );
       return;
     }
 
@@ -69,7 +77,11 @@ export function SaveButton({ profile, saving, setSaving }: Props) {
       setSaving(true);
       const { user } = await apiUpdateMe(userPatch);
       if (user) await writeProfileCache(user);
-      showAlert("Saved", "Your profile has been updated successfully.", "success");
+      showAlert(
+        "Saved",
+        "Your profile has been updated successfully.",
+        "success"
+      );
     } catch (e: any) {
       showAlert("Save Failed", e?.message ?? "Please try again.", "error");
     } finally {
@@ -82,9 +94,11 @@ export function SaveButton({ profile, saving, setSaving }: Props) {
       <Pressable
         onPress={onSave}
         disabled={saving}
-        className={`rounded-2xl py-4 ${saving ? "bg-emerald-500/80" : "bg-emerald-500"}`}
-        style={{ 
-          flexBasis: "48%", 
+        className={`rounded-2xl py-4 ${
+          saving ? "bg-emerald-500/80" : "bg-emerald-500"
+        }`}
+        style={{
+          flexBasis: "48%",
           flexGrow: 1,
           shadowColor: "#10B981",
           shadowOffset: { width: 0, height: 4 },
@@ -93,7 +107,8 @@ export function SaveButton({ profile, saving, setSaving }: Props) {
           elevation: 6,
         }}
         accessibilityRole="button"
-        accessibilityLabel="Save profile">
+        accessibilityLabel="Save profile"
+      >
         <View className="flex-row items-center justify-center gap-2">
           <Text className="text-lg">{saving ? "⏳" : "💾"}</Text>
           <Text className="text-white text-center font-bold text-base">
@@ -135,8 +150,8 @@ export function LogoutButton() {
       <Pressable
         onPress={handleLogoutPress}
         className="rounded-2xl py-4 bg-red-500/80 border border-red-400/30"
-        style={{ 
-          flexBasis: "48%", 
+        style={{
+          flexBasis: "48%",
           flexGrow: 1,
           shadowColor: "#EF4444",
           shadowOffset: { width: 0, height: 4 },
@@ -145,10 +160,13 @@ export function LogoutButton() {
           elevation: 6,
         }}
         accessibilityRole="button"
-        accessibilityLabel="Log out">
+        accessibilityLabel="Log out"
+      >
         <View className="flex-row items-center justify-center gap-2">
           <Text className="text-lg">🚪</Text>
-          <Text className="text-white text-center font-bold text-base">Log Out</Text>
+          <Text className="text-white text-center font-bold text-base">
+            Log Out
+          </Text>
         </View>
       </Pressable>
 
@@ -170,7 +188,10 @@ export function LogoutButton() {
 export default function SaveRow(props: Props) {
   // Row that wraps to stack on narrow screens
   return (
-    <View className="gap-3" style={{ flexDirection: "row", flexWrap: "wrap" }}>
+    <View
+      className="gap-3"
+      style={{ flexDirection: "row", flexWrap: "wrap", paddingBottom: 128 }}
+    >
       <SaveButton {...props} />
       <LogoutButton />
     </View>

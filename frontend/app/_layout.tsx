@@ -13,6 +13,7 @@ import { useEffect, useState } from "react";
 
 import { useColorScheme } from "../components/useColorScheme";
 import AppLoadingScreen from "../components/AppLoadingScreen";
+import { ThemeProvider } from "../contexts/ThemeContext";
 
 export { ErrorBoundary } from "expo-router";
 
@@ -51,17 +52,19 @@ export default function RootLayout() {
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
   return (
-    <Stack>
-      {/* Core routes */}
-      <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen name="targetquestions" options={{ headerShown: false }} />
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="steps-analytics" options={{ headerShown: false }} />
+    <ThemeProvider>
+      <Stack>
+        {/* Core routes */}
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="targetquestions" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="steps-analytics" options={{ headerShown: false }} />
 
-      {/* Auth + onboarding: hide headers */}
-      <Stack.Screen name="authlogin" options={{ headerShown: false }} />
-      <Stack.Screen name="authsignup" options={{ headerShown: false }} />
-      <Stack.Screen name="onboarding" options={{ headerShown: false }} />
-    </Stack>
+        {/* Auth + onboarding: hide headers */}
+        <Stack.Screen name="authlogin" options={{ headerShown: false }} />
+        <Stack.Screen name="authsignup" options={{ headerShown: false }} />
+        <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+      </Stack>
+    </ThemeProvider>
   );
 }

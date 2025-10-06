@@ -2,6 +2,8 @@ import React, { useState, useCallback, useRef } from "react";
 import { View, Text, Dimensions, Image, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
+import CelestialBackground from "../../components/Theme/night/CelestialBackground";
+import { useTheme } from "../../contexts/ThemeContext";
 
 import RealTimeCalendar from "../../components/Homepage/RealTimeCalendar";
 import RefreshScroll from "../../components/RefreshScroll";
@@ -25,6 +27,7 @@ type Profile = {
 export default function HomePageScreen() {
   const insets = useSafeAreaInsets();
   const { width } = Dimensions.get("window");
+  const { theme } = useTheme();
 
   const [profile, setProfile] = useState<Profile>({ username: "" });
 
@@ -84,44 +87,49 @@ export default function HomePageScreen() {
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#1a1a1a" }}>
-      <RefreshScroll refreshing={refreshing} onRefresh={handleRefresh}>
-        <View className="px-6 pb-6" style={{ paddingTop: insets.top + 24 }}>
-          {/* Header */}
-          <View className="flex-row items-center justify-between mb-8 mt-4">
-            <View className="flex-1 pr-4">
-              <Text className="text-white text-2xl font-bold" numberOfLines={1}>
-                {profile.username ? profile.username : "Welcome back!"}
-              </Text>
+          <CelestialBackground
+            theme={theme}
+            intensity="medium">
+      <View style={{ flex: 1, paddingBottom: 80 }}>
+        <RefreshScroll refreshing={refreshing} onRefresh={handleRefresh}>
+          <View className="px-6 pb-6" style={{ paddingTop: insets.top + 24 }}>
+            {/* Header */}
+            <View className="flex-row items-center justify-between mb-8 mt-4">
+              <View className="flex-1 pr-4">
+                <Text className="text-white text-2xl font-bold" numberOfLines={1}>
+                  {profile.username ? profile.username : "Welcome back!"}
+                </Text>
+              </View>
+              <View
+                className="w-20 h-20 rounded-full overflow-hidden"
+                style={{ backgroundColor: "#2a2a2a" }}
+              >
+                {profile.avatarUri ? (
+                  <Image
+                    source={{ uri: profile.avatarUri }}
+                    className="w-full h-full"
+                  />
+                ) : null}
+              </View>
             </View>
-            <View
-              className="w-20 h-20 rounded-full overflow-hidden"
-              style={{ backgroundColor: "#2a2a2a" }}>
-              {profile.avatarUri ? (
-                <Image
-                  source={{ uri: profile.avatarUri }}
-                  className="w-full h-full"
-                />
-              ) : null}
-            </View>
-          </View>
 
           {/* Calendar */}
-          <RealTimeCalendar className="mb-6" />
+          <RealTimeCalendar className="mb-12" />
 
           {/* Quote */}
-          <HomepageMotivationalQuotes ref={quotesRef} className="mb-6" />
+          <HomepageMotivationalQuotes ref={quotesRef} className="mb-8" />
 
           {/* Stats row */}
-          <View className="flex-row gap-4 mb-6">
+          <View className="flex-row gap-6 mb-8">
             <HomepageSteps ref={stepsRef} />
             <HomepageGoalsMessage ref={goalsRef} />
           </View>
 
           {/* Calories */}
-          <HomepageCaloriesTracking ref={caloriesRef} className="mb-4" />
-        </View>
-      </RefreshScroll>
-    </View>
+          <HomepageCaloriesTracking ref={caloriesRef} className="mb-6" />
+          </View>
+        </RefreshScroll>
+      </View>
+    </CelestialBackground>
   );
 }

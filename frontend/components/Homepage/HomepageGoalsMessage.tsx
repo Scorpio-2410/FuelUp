@@ -40,7 +40,7 @@ const HomepageGoalsMessage = forwardRef<any, HomepageGoalsMessageProps>(({ class
   return (
     <View
       className={`flex-1 p-4 rounded-2xl ${className}`}
-      style={{ backgroundColor: "#bbf246" }}>
+      style={{ backgroundColor: "#bbf246", opacity: 0.7 }}>
       <Text className="text-black text-xl font-bold mb-1">
         Your Goal
       </Text>
