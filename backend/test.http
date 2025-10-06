@@ -1,0 +1,31 @@
+### Create User (Register)
+PUT http://localhost:4000/api/fitness/profile
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEwLCJ1c2VybmFtZSI6Im5ld1VzZXIzIiwiaWF0IjoxNzU5MTM3NjA5LCJleHAiOjE3NTk3NDI0MDl9.lGu0B6NUtWB4jzfjuG6VTbveSI68vkh4DNw2v9HOT9E
+
+
+{
+  "heightCm": 175,
+  "weightKg": 70,
+  "goal": "strength",
+  "activityLevel": "moderate",
+  "experienceLevel": "beginner",
+  "daysPerWeek": 3,
+  "sessionLengthMin": 60,
+  "trainingLocation": "gym"
+}
+
+### Create Fitness Plan
+POST http://localhost:4000/api/fitness/plans
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEwLCJ1c2VybmFtZSI6Im5ld1VzZXIzIiwiaWF0IjoxNzU5MTM3NjA5LCJleHAiOjE3NTk3NDI0MDl9.lGu0B6NUtWB4jzfjuG6VTbveSI68vkh4DNw2v9HOT9E
+
+{
+  "fitnessProfileId": 10,
+  "name": "Strength Block 1",
+  "status": "active",
+  "startDate": "2025-09-01",
+  "notes": "Intro 4-week strength plan"
+}
+
+### Option A: GET my profile (common)
+GET http://localhost:4000/api/fitness/profile
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEwLCJ1c2VybmFtZSI6Im5ld1VzZXIzIiwiaWF0IjoxNzU5MTM3NjA5LCJleHAiOjE3NTk3NDI0MDl9.lGu0B6NUtWB4jzfjuG6VTbveSI68vkh4DNw2v9HOT9E

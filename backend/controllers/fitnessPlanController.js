@@ -18,7 +18,7 @@ class FitnessPlanController {
         fitnessProfileId, // optional: associate to an existing profile
       } = req.body; */
       const { name, status = "active", startDate, endDate, notes, fitnessProfileId } = req.body;
-      if (!fitnessProfileId) {
+      if (!fitness_profile_id) {
         return res.status(400).json({ error: "fitnessProfileId is required" });
       }
 
