@@ -1,3 +1,5 @@
+//Assembles all morning theme elements into a cohesive sky scene.
+
 import React from "react";
 import { View, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -8,7 +10,7 @@ import HazeVeil from "./HazeVeil";
 export default function MorningBackground({ children }: { children?: React.ReactNode }) {
   return (
     <View style={styles.container}>
-      {/* Sky: hue ~210–216°, saturation increases downward */}
+      {/* Sky gradient: transitions from soft blue-gray at top to deeper blue at bottom */}
       <LinearGradient
         colors={["#95A8C5","#8CA2BF","#5B81AF","#3A6EA6","#1D66B2","#1A68B8"]}
         locations={[0,0.2,0.4,0.6,0.8,1]}
@@ -17,19 +19,19 @@ export default function MorningBackground({ children }: { children?: React.React
         style={StyleSheet.absoluteFill}
       />
 
-      {/* High-altitude haze near top (thin veil) */}
+      {/* Atmospheric haze at top for depth */}
       <HazeVeil type="top" />
 
-      {/* Sun + bloom (behind most clouds) */}
-      <SunBloom size={260} />
+      {/* Brilliant sun positioned higher - 30% smaller, ultra-bright */}
+      <SunBloom size={90} />
 
-      {/* Horizon haze band to push depth */}
+      {/* Horizon haze for atmospheric perspective */}
       <HazeVeil type="horizon" />
 
-      {/* Cloud banks: far → mid → near (increasing opacity & size) */}
-      <CloudBank depth="far"   speed={0.15} opacity={0.55} tint="#F6FAFF" />
-      <CloudBank depth="mid"   speed={0.30} opacity={0.70} tint="#F6FAFF" />
-      <CloudBank depth="near"  speed={0.45} opacity={0.85} tint="#FFFFFF" />
+      {/* Three cloud layers with parallax - denser with wind effects */}
+      <CloudBank depth="far"   speed={0.10} opacity={0.45} tint="#F6FAFF" />
+      <CloudBank depth="mid"   speed={0.22} opacity={0.60} tint="#F8FBFF" />
+      <CloudBank depth="near"  speed={0.35} opacity={0.75} tint="#FFFFFF" />
 
       {/* Soft edge vignette (very subtle) */}
       <HazeVeil type="vignette" />

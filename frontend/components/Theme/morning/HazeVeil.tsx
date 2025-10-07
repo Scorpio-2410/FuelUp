@@ -1,3 +1,7 @@
+//Adds atmospheric haze layers to enhance depth and realism in the morning sky.
+//Three types: top (high altitude haze), horizon (distance blur), vignette (edge darkening).
+// Subtle overlays that add professional polish without distracting from content.
+
 import React from "react";
 import { StyleSheet } from "react-native";
 import Svg, { Defs, LinearGradient, Stop, Rect, RadialGradient } from "react-native-svg";
@@ -7,9 +11,10 @@ interface HazeVeilProps {
 }
 
 export default function HazeVeil({ type }: HazeVeilProps) {
+  // Top haze: simulates high-altitude atmospheric scattering
   if (type === "top") {
     return (
-      <Svg style={StyleSheet.absoluteFill}>
+      <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
         <Defs>
           <LinearGradient id="topHaze" x1="50%" y1="0%" x2="50%" y2="100%">
             <Stop offset="0%" stopColor="#FFFFFF" stopOpacity={0.12}/>
@@ -22,9 +27,10 @@ export default function HazeVeil({ type }: HazeVeilProps) {
     );
   }
 
+  // Horizon haze: creates atmospheric perspective at distance
   if (type === "horizon") {
     return (
-      <Svg style={StyleSheet.absoluteFill}>
+      <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
         <Defs>
           <RadialGradient id="horizon" cx="50%" cy="65%" r="60%">
             <Stop offset="0%"   stopColor="#EAF3FF" stopOpacity={0.16}/>
@@ -37,9 +43,9 @@ export default function HazeVeil({ type }: HazeVeilProps) {
     );
   }
 
-  // vignette
+  // Subtle vignette: gently darkens edges to focus attention center
   return (
-    <Svg style={StyleSheet.absoluteFill}>
+    <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
       <Defs>
         <RadialGradient id="v" cx="50%" cy="55%" r="80%">
           <Stop offset="0%"   stopColor="#000000" stopOpacity={0}/>
