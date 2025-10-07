@@ -96,7 +96,7 @@ export default function StepsAnalytics() {
         <RefreshScroll refreshing={refreshing} onRefresh={handleRefresh}>
           <View className="p-6">
         {/* Header - Fixed Padding */}
-        <View className="flex-row items-center justify-between mb-6 px-3 py-4">
+        <View className="flex-row items-center justify-between px-3 py-4" style={{ marginBottom: 80 }}>
           <TouchableOpacity onPress={() => router.back()} className="flex-1">
             <Text className="text-white text-lg font-semibold">← Back</Text>
           </TouchableOpacity>
@@ -114,8 +114,7 @@ export default function StepsAnalytics() {
         {/* Main Today Card - Sleek & Focused */}
         <Animated.View 
           entering={FadeIn.delay(150).duration(1000)}
-          className="p-6 rounded-3xl mb-4 bg-gray-900 mt-8"
-          style={{ opacity: 0.75 }}
+          className="p-6 rounded-3xl mb-10 bg-gray-900/70"
         >
           <Animated.View 
             entering={FadeIn.delay(300).duration(900)}
@@ -147,7 +146,7 @@ export default function StepsAnalytics() {
 
         {/* Progress Bar - High Contrast & Clear */}
         <Animated.View entering={FadeIn.delay(750).duration(900)} className="w-full mb-6">
-          <View className="flex-row justify-between items-center mb-2 px-1">
+          <View className="flex-row justify-between items-center mb- px-1">
             <Text className="text-white font-bold text-lg">
               Progress
             </Text>
@@ -178,151 +177,80 @@ export default function StepsAnalytics() {
         {/* Health Guidelines - Energetic & Modern */}
         <Animated.View 
           entering={FadeIn.delay(900).duration(1000)}
-          className="rounded-3xl mb-6 overflow-hidden"
-          style={{
-            shadowColor: "#10b981",
-            shadowOffset: { width: 0, height: 6 },
-            shadowOpacity: 0.25,
-            shadowRadius: 10,
-            elevation: 8
-          }}
+          className="mt-5 mb-10"
         >
-          <LinearGradient
-            colors={['rgba(17, 24, 39, 0.6)', 'rgba(31, 41, 55, 0.6)', 'rgba(17, 24, 39, 0.6)']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            className="p-6"
-          >
-            {/* Energetic Header */}
-            <Animated.View 
-              entering={FadeIn.delay(1050).duration(900)}
-              className="mb-6">
-              <View className="flex-row items-center justify-center mb-3">
-                <Text className="text-3xl mr-3">💪</Text>
-                <Text className="text-white text-2xl font-black tracking-wider">FITNESS LEVELS</Text>
-                <Text className="text-3xl ml-3">🔥</Text>
-              </View>
-              <Text className="text-green-400 text-base font-semibold text-center"
-                style={{
-                  textShadowColor: 'rgba(16, 185, 129, 0.4)',
-                  textShadowOffset: { width: 0, height: 1 },
-                  textShadowRadius: 6,
-                }}>
-                {getHealthGuideline()}
-              </Text>
-            </Animated.View>
+          {/* Energetic Header */}
+          <Animated.View 
+            entering={FadeIn.delay(1050).duration(900)}
+            className="mb-5">
+            <View className="flex-row items-center justify-center mb-2">
+              <Text className="text-2xl mr-2">💪</Text>
+              <Text className="text-white text-lg font-bold tracking-wide">Fitness Levels</Text>
+              <Text className="text-2xl ml-2">🔥</Text>
+            </View>
+            <Text className="text-gray-300 text-sm font-medium text-center">
+              {getHealthGuideline()}
+            </Text>
+          </Animated.View>
 
-            {/* Transparent Cards with Color Progression */}
-            <View className="space-y-3">
+          {/* Transparent Cards with Color Progression */}
+          <View className="space-y-3">
               {/* 7,000+ */}
               <Animated.View 
                 entering={FadeIn.delay(1200).duration(900)}
-                className="p-5 rounded-xl bg-green-500/15"
-                style={{
-                  shadowColor: "#10b981",
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.2,
-                  shadowRadius: 4,
-                }}
+                className="p-4 rounded-2xl bg-green-900/20 border border-green-500/20"
               >
                 <View className="flex-row items-center justify-between">
-                  <View>
-                    <Text className="text-white text-lg font-bold mb-1">7,000+ STEPS</Text>
-                    <Text className="text-green-400 text-sm font-medium">Healthy baseline</Text>
+                  <View className="flex-1">
+                    <Text className="text-white text-base font-bold mb-0.5">7,000+ Steps</Text>
+                    <Text className="text-green-400 text-xs">Healthy baseline</Text>
                   </View>
-                  <View className="w-3 h-3 bg-green-400 rounded-full" 
-                    style={{
-                      shadowColor: "#10b981",
-                      shadowOffset: { width: 0, height: 0 },
-                      shadowOpacity: 0.6,
-                      shadowRadius: 6,
-                    }}
-                  ></View>
+                  <View className="w-2.5 h-2.5 bg-green-400 rounded-full"></View>
                 </View>
               </Animated.View>
               
               {/* 8,000-12,000 */}
               <Animated.View 
                 entering={FadeIn.delay(1350).duration(900)}
-                className="p-5 rounded-xl bg-blue-500/15"
-                style={{
-                  shadowColor: "#3b82f6",
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.2,
-                  shadowRadius: 4,
-                }}
+                className="p-4 rounded-2xl bg-blue-900/20 border border-blue-500/20"
               >
                 <View className="flex-row items-center justify-between">
-                  <View>
-                    <Text className="text-white text-lg font-bold mb-1">8,000-12,000 STEPS</Text>
-                    <Text className="text-blue-400 text-sm font-medium">Moderate activity</Text>
+                  <View className="flex-1">
+                    <Text className="text-white text-base font-bold mb-0.5">8,000-12,000 Steps</Text>
+                    <Text className="text-blue-400 text-xs">Moderate activity</Text>
                   </View>
-                  <View className="w-3 h-3 bg-blue-400 rounded-full"
-                    style={{
-                      shadowColor: "#3b82f6",
-                      shadowOffset: { width: 0, height: 0 },
-                      shadowOpacity: 0.6,
-                      shadowRadius: 6,
-                    }}
-                  ></View>
+                  <View className="w-2.5 h-2.5 bg-blue-400 rounded-full"></View>
                 </View>
               </Animated.View>
               
               {/* 10,000 */}
               <Animated.View 
                 entering={FadeIn.delay(1500).duration(900)}
-                className="p-5 rounded-xl bg-purple-500/15"
-                style={{
-                  shadowColor: "#a855f7",
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.2,
-                  shadowRadius: 4,
-                }}
+                className="p-4 rounded-2xl bg-purple-900/20 border border-purple-500/20"
               >
                 <View className="flex-row items-center justify-between">
-                  <View>
-                    <Text className="text-white text-lg font-bold mb-1">10,000 STEPS</Text>
-                    <Text className="text-purple-400 text-sm font-medium">Common benchmark</Text>
+                  <View className="flex-1">
+                    <Text className="text-white text-base font-bold mb-0.5">10,000 Steps</Text>
+                    <Text className="text-purple-400 text-xs">Common benchmark</Text>
                   </View>
-                  <View className="w-3 h-3 bg-purple-400 rounded-full"
-                    style={{
-                      shadowColor: "#a855f7",
-                      shadowOffset: { width: 0, height: 0 },
-                      shadowOpacity: 0.6,
-                      shadowRadius: 6,
-                    }}
-                  ></View>
+                  <View className="w-2.5 h-2.5 bg-purple-400 rounded-full"></View>
                 </View>
               </Animated.View>
               
               {/* 12,000-15,000 */}
               <Animated.View 
                 entering={FadeIn.delay(1650).duration(900)}
-                className="p-5 rounded-xl bg-orange-500/15"
-                style={{
-                  shadowColor: "#f97316",
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.2,
-                  shadowRadius: 4,
-                }}
+                className="p-4 rounded-2xl bg-orange-900/20 border border-orange-500/20"
               >
                 <View className="flex-row items-center justify-between">
-                  <View>
-                    <Text className="text-white text-lg font-bold mb-1">12,000-15,000 STEPS</Text>
-                    <Text className="text-orange-400 text-sm font-medium">Higher activity</Text>
+                  <View className="flex-1">
+                    <Text className="text-white text-base font-bold mb-0.5">12,000-15,000 Steps</Text>
+                    <Text className="text-orange-400 text-xs">Higher activity</Text>
                   </View>
-                  <View className="w-3 h-3 bg-orange-400 rounded-full"
-                    style={{
-                      shadowColor: "#f97316",
-                      shadowOffset: { width: 0, height: 0 },
-                      shadowOpacity: 0.6,
-                      shadowRadius: 6,
-                    }}
-                  ></View>
+                  <View className="w-2.5 h-2.5 bg-orange-400 rounded-full"></View>
                 </View>
               </Animated.View>
             </View>
-          </LinearGradient>
         </Animated.View>
 
         {/* Stats Cards - Modern Design */}
