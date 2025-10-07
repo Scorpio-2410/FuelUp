@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useStepsTracking } from '../hooks/useStepsTracking';
@@ -16,16 +16,27 @@ import Animated, {
 import { LinearGradient } from 'expo-linear-gradient';
 import CelestialBackground from '../components/Theme/night/CelestialBackground';
 import { useTheme } from '../contexts/ThemeContext';
+import RefreshScroll from '../components/RefreshScroll';
 
 export default function StepsAnalytics() {
   const router = useRouter();
   const { stepsData, isLoading, isAvailable, hasError, yesterdaySteps, refreshSteps, updateGoal } = useStepsTracking();
   const { theme } = useTheme();
+  const [refreshing, setRefreshing] = useState(false);
 
   // Auto-refresh when screen loads (like normal apps)
   useEffect(() => {
     refreshSteps();
   }, []); // Only run once when screen loads
+
+  const handleRefresh = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    await refreshSteps();
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1200);
+  };
 
   const formatSteps = (steps: number): string => {
     return steps.toLocaleString();
@@ -82,19 +93,10 @@ export default function StepsAnalytics() {
       theme={theme}
       intensity="medium">
       <SafeAreaView className="flex-1">
-        <ScrollView 
-          className="flex-1"
-          refreshControl={
-            <RefreshControl
-              refreshing={isLoading}
-              onRefresh={refreshSteps}
-              tintColor="#ffffff"
-              colors={['#ffffff']}
-            />
-          }>
+        <RefreshScroll refreshing={refreshing} onRefresh={handleRefresh}>
           <View className="p-6">
         {/* Header - Fixed Padding */}
-        <View className="flex-row items-center justify-between mb-6 px-3 py-4 rounded-2xl bg-gray-900/30">
+        <View className="flex-row items-center justify-between mb-6 px-3 py-4">
           <TouchableOpacity onPress={() => router.back()} className="flex-1">
             <Text className="text-white text-lg font-semibold">← Back</Text>
           </TouchableOpacity>
@@ -106,15 +108,14 @@ export default function StepsAnalytics() {
             }}>
             Step Analytics
           </Text>
-          <TouchableOpacity onPress={refreshSteps} className="flex-1 items-end" activeOpacity={0.7}>
-            <Text className="text-white text-xl">🔄</Text>
-          </TouchableOpacity>
+          <View className="flex-1" />
         </View>
 
         {/* Main Today Card - Sleek & Focused */}
         <Animated.View 
           entering={FadeIn.delay(150).duration(1000)}
-          className="p-6 rounded-3xl mb-4 bg-gray-900"
+          className="p-6 rounded-3xl mb-4 bg-gray-900 mt-8"
+          style={{ opacity: 0.75 }}
         >
           <Animated.View 
             entering={FadeIn.delay(300).duration(900)}
@@ -145,52 +146,33 @@ export default function StepsAnalytics() {
         </Animated.View>
 
         {/* Progress Bar - High Contrast & Clear */}
-        <Animated.View 
-          entering={FadeIn.delay(750).duration(900)} 
-          className="w-full mb-6 rounded-2xl overflow-hidden"
-          style={{
-            shadowColor: "#22D3EE",
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.2,
-            shadowRadius: 8,
-            elevation: 5
-          }}
-        >
-          <LinearGradient
-            colors={['rgba(17, 24, 39, 0.5)', 'rgba(31, 41, 55, 0.5)']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-            className="p-5"
-          >
-            <View className="flex-row justify-between items-center mb-3 px-1">
-              <Text className="text-white font-bold text-lg">
-                Progress
-              </Text>
-              <Text className="text-cyan-400 font-bold text-lg"
-                style={{
-                  textShadowColor: 'rgba(34, 211, 238, 0.5)',
-                  textShadowOffset: { width: 0, height: 1 },
-                  textShadowRadius: 6,
-                }}>
-                {Math.round(getProgressPercentage())}%
-              </Text>
-            </View>
-            <View className="w-full h-4 bg-gray-800/60 rounded-full overflow-hidden">
-              <View 
-                className="h-4 bg-cyan-400 rounded-full"
-                style={{ 
-                  width: `${getProgressPercentage()}%`,
-                  shadowColor: "#22D3EE",
-                  shadowOffset: { width: 0, height: 0 },
-                  shadowOpacity: 0.9,
-                  shadowRadius: 10,
-                }}
-              />
-            </View>
-            <Text className="text-gray-200 text-sm font-medium mt-3 px-1">
-              {isLoading || hasError ? '...' : `${formatSteps(getRemainingSteps())} steps remaining to reach your goal`}
+        <Animated.View entering={FadeIn.delay(750).duration(900)} className="w-full mb-6">
+          <View className="flex-row justify-between items-center mb-2 px-1">
+            <Text className="text-white font-bold text-lg">
+              Progress
             </Text>
-          </LinearGradient>
+            <Text className="text-orange-400 font-bold text-lg">
+              {Math.round(getProgressPercentage())}%
+            </Text>
+          </View>
+          <View className="w-full h-4 bg-gray-800 rounded-full" style={{ opacity: 0.6 }}>
+            <LinearGradient
+              colors={['#ef4444', '#f97316', '#fb923c']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              className="h-4 rounded-full"
+              style={{ 
+                width: `${getProgressPercentage()}%`,
+                shadowColor: "#f97316",
+                shadowOffset: { width: 0, height: 0 },
+                shadowOpacity: 0.8,
+                shadowRadius: 8,
+              }}
+            />
+          </View>
+          <Text className="text-gray-400 text-sm font-medium mt-2 px-1">
+            {isLoading || hasError ? '...' : `${formatSteps(getRemainingSteps())} steps remaining to reach your goal`}
+          </Text>
         </Animated.View>
 
         {/* Health Guidelines - Energetic & Modern */}
@@ -348,126 +330,44 @@ export default function StepsAnalytics() {
           {/* Yesterday */}
           <Animated.View 
             entering={FadeIn.delay(1800).duration(1000)}
-            className="rounded-2xl w-[48%] mb-4 overflow-hidden"
-            style={{
-              shadowColor: "#6366f1",
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.2,
-              shadowRadius: 6,
-              elevation: 6
-            }}
+            className="p-5 rounded-2xl w-[48%] mb-4 bg-indigo-900/30 items-center border border-indigo-500/20"
           >
-            <LinearGradient
-              colors={['rgba(79, 70, 229, 0.5)', 'rgba(99, 102, 241, 0.5)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              className="p-5 items-center"
-            >
-              <Text className="text-gray-200 font-bold mb-2">📅 Yesterday</Text>
-              <Text className="text-white text-3xl font-black"
-                style={{
-                  textShadowColor: 'rgba(99, 102, 241, 0.4)',
-                  textShadowOffset: { width: 0, height: 1 },
-                  textShadowRadius: 6,
-                }}>
-                {yesterdaySteps ? formatSteps(yesterdaySteps.steps) : '0'}
-              </Text>
-            </LinearGradient>
+            <Text className="text-indigo-300 font-bold mb-2 text-sm">📅 Yesterday</Text>
+            <Text className="text-white text-3xl font-black">
+              {yesterdaySteps ? formatSteps(yesterdaySteps.steps) : '0'}
+            </Text>
           </Animated.View>
 
           {/* Daily Average */}
           <Animated.View 
             entering={FadeIn.delay(1950).duration(1000)}
-            className="rounded-2xl w-[48%] mb-4 overflow-hidden"
-            style={{
-              shadowColor: "#14b8a6",
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.2,
-              shadowRadius: 6,
-              elevation: 6
-            }}
+            className="p-5 rounded-2xl w-[48%] mb-4 bg-teal-900/30 items-center border border-teal-500/20"
           >
-            <LinearGradient
-              colors={['rgba(20, 184, 166, 0.5)', 'rgba(6, 182, 212, 0.5)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              className="p-5 items-center"
-            >
-              <Text className="text-gray-200 font-bold mb-2">📊 Daily Average</Text>
-              <Text className="text-white text-3xl font-black"
-                style={{
-                  textShadowColor: 'rgba(20, 184, 166, 0.4)',
-                  textShadowOffset: { width: 0, height: 1 },
-                  textShadowRadius: 6,
-                }}>
-                {getDisplaySteps()}
-              </Text>
-            </LinearGradient>
+            <Text className="text-teal-300 font-bold mb-2 text-sm">📊 Daily Average</Text>
+            <Text className="text-white text-3xl font-black">{getDisplaySteps()}</Text>
           </Animated.View>
 
           {/* Best Day */}
           <Animated.View 
             entering={FadeIn.delay(2100).duration(1000)}
-            className="rounded-2xl w-[48%] overflow-hidden"
-            style={{
-              shadowColor: "#f59e0b",
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.2,
-              shadowRadius: 6,
-              elevation: 6
-            }}
+            className="p-5 rounded-2xl w-[48%] bg-amber-900/30 items-center border border-amber-500/20"
           >
-            <LinearGradient
-              colors={['rgba(245, 158, 11, 0.5)', 'rgba(251, 191, 36, 0.5)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              className="p-5 items-center"
-            >
-              <Text className="text-gray-200 font-bold mb-2">🏆 Best Day</Text>
-              <Text className="text-white text-3xl font-black"
-                style={{
-                  textShadowColor: 'rgba(245, 158, 11, 0.4)',
-                  textShadowOffset: { width: 0, height: 1 },
-                  textShadowRadius: 6,
-                }}>
-                {getDisplaySteps()}
-              </Text>
-            </LinearGradient>
+            <Text className="text-amber-300 font-bold mb-2 text-sm">🏆 Best Day</Text>
+            <Text className="text-white text-3xl font-black">{getDisplaySteps()}</Text>
           </Animated.View>
 
           {/* Longest Streak */}
           <Animated.View 
             entering={FadeIn.delay(2250).duration(1000)}
-            className="rounded-2xl w-[48%] overflow-hidden"
-            style={{
-              shadowColor: "#ec4899",
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.2,
-              shadowRadius: 6,
-              elevation: 6
-            }}
+            className="p-5 rounded-2xl w-[48%] bg-pink-900/30 items-center border border-pink-500/20"
           >
-            <LinearGradient
-              colors={['rgba(236, 72, 153, 0.5)', 'rgba(244, 114, 182, 0.5)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              className="p-5 items-center"
-            >
-              <Text className="text-gray-200 font-bold mb-2">📈 Longest Streak</Text>
-              <Text className="text-white text-3xl font-black"
-                style={{
-                  textShadowColor: 'rgba(236, 72, 153, 0.4)',
-                  textShadowOffset: { width: 0, height: 1 },
-                  textShadowRadius: 6,
-                }}>
-                0 days
-              </Text>
-            </LinearGradient>
+            <Text className="text-pink-300 font-bold mb-2 text-sm">📈 Longest Streak</Text>
+            <Text className="text-white text-3xl font-black">0 days</Text>
           </Animated.View>
         </View>
 
           </View>
-        </ScrollView>
+        </RefreshScroll>
       </SafeAreaView>
     </CelestialBackground>
   );

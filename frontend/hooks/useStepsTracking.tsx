@@ -25,7 +25,7 @@ export const useStepsTracking = (): UseStepsTrackingReturn => {
     steps: 0,
     source: 'cached',
     lastUpdated: new Date().toISOString(),
-    goal: 8000,
+    goal: 12000,
     currentStreak: 0,
     lastStreakDate: null,
     streakGoal: 7000
