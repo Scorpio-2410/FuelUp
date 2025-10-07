@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useStepsTracking } from '../hooks/useStepsTracking';
@@ -16,16 +16,27 @@ import Animated, {
 import { LinearGradient } from 'expo-linear-gradient';
 import CelestialBackground from '../components/Theme/night/CelestialBackground';
 import { useTheme } from '../contexts/ThemeContext';
+import RefreshScroll from '../components/RefreshScroll';
 
 export default function StepsAnalytics() {
   const router = useRouter();
   const { stepsData, isLoading, isAvailable, hasError, yesterdaySteps, refreshSteps, updateGoal } = useStepsTracking();
   const { theme } = useTheme();
+  const [refreshing, setRefreshing] = useState(false);
 
   // Auto-refresh when screen loads (like normal apps)
   useEffect(() => {
     refreshSteps();
   }, []); // Only run once when screen loads
+
+  const handleRefresh = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    await refreshSteps();
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1200);
+  };
 
   const formatSteps = (steps: number): string => {
     return steps.toLocaleString();
@@ -82,32 +93,28 @@ export default function StepsAnalytics() {
       theme={theme}
       intensity="medium">
       <SafeAreaView className="flex-1">
-        <ScrollView 
-          className="flex-1"
-          refreshControl={
-            <RefreshControl
-              refreshing={isLoading}
-              onRefresh={refreshSteps}
-              tintColor="#ffffff"
-              colors={['#ffffff']}
-            />
-          }>
+        <RefreshScroll refreshing={refreshing} onRefresh={handleRefresh}>
           <View className="p-6">
         {/* Header - Fixed Padding */}
-        <View className="flex-row items-center justify-between mb-6 px-2">
+        <View className="flex-row items-center justify-between px-3 py-4" style={{ marginBottom: 80 }}>
           <TouchableOpacity onPress={() => router.back()} className="flex-1">
-            <Text className="text-white text-lg">← Back</Text>
+            <Text className="text-white text-lg font-semibold">← Back</Text>
           </TouchableOpacity>
-          <Text className="text-white text-xl font-bold flex-2 text-center">Step Analytics</Text>
-          <TouchableOpacity onPress={refreshSteps} className="flex-1 items-end">
-            <Text className="text-white text-lg">⚙️</Text>
-          </TouchableOpacity>
+          <Text className="text-white text-xl font-black flex-2 text-center tracking-wide"
+            style={{
+              textShadowColor: 'rgba(255, 255, 255, 0.2)',
+              textShadowOffset: { width: 0, height: 1 },
+              textShadowRadius: 4,
+            }}>
+            Step Analytics
+          </Text>
+          <View className="flex-1" />
         </View>
 
         {/* Main Today Card - Sleek & Focused */}
         <Animated.View 
           entering={FadeIn.delay(150).duration(1000)}
-          className="p-6 rounded-3xl mb-4 bg-gray-900"
+          className="p-6 rounded-3xl mb-10 bg-gray-900/70"
         >
           <Animated.View 
             entering={FadeIn.delay(300).duration(900)}
@@ -139,20 +146,23 @@ export default function StepsAnalytics() {
 
         {/* Progress Bar - High Contrast & Clear */}
         <Animated.View entering={FadeIn.delay(750).duration(900)} className="w-full mb-6">
-          <View className="flex-row justify-between items-center mb-2 px-1">
+          <View className="flex-row justify-between items-center mb- px-1">
             <Text className="text-white font-bold text-lg">
               Progress
             </Text>
-            <Text className="text-cyan-400 font-bold text-lg">
+            <Text className="text-orange-400 font-bold text-lg">
               {Math.round(getProgressPercentage())}%
             </Text>
           </View>
-          <View className="w-full h-4 bg-gray-800 rounded-full">
-            <View 
-              className="h-4 bg-cyan-400 rounded-full"
+          <View className="w-full h-4 bg-gray-800 rounded-full" style={{ opacity: 0.6 }}>
+            <LinearGradient
+              colors={['#ef4444', '#f97316', '#fb923c']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              className="h-4 rounded-full"
               style={{ 
                 width: `${getProgressPercentage()}%`,
-                shadowColor: "#22D3EE",
+                shadowColor: "#f97316",
                 shadowOffset: { width: 0, height: 0 },
                 shadowOpacity: 0.8,
                 shadowRadius: 8,
@@ -167,81 +177,80 @@ export default function StepsAnalytics() {
         {/* Health Guidelines - Energetic & Modern */}
         <Animated.View 
           entering={FadeIn.delay(900).duration(1000)}
-          className="p-6 rounded-3xl mb-6 bg-gray-900"
+          className="mt-5 mb-10"
         >
-          
           {/* Energetic Header */}
           <Animated.View 
             entering={FadeIn.delay(1050).duration(900)}
-            className="mb-6">
+            className="mb-5">
             <View className="flex-row items-center justify-center mb-2">
-              <Text className="text-3xl mr-3">💪</Text>
-              <Text className="text-white text-2xl font-black tracking-wider">FITNESS LEVELS</Text>
-              <Text className="text-3xl ml-3">🔥</Text>
+              <Text className="text-2xl mr-2">💪</Text>
+              <Text className="text-white text-lg font-bold tracking-wide">Fitness Levels</Text>
+              <Text className="text-2xl ml-2">🔥</Text>
             </View>
-            <Text className="text-green-400 text-base font-semibold text-center">
+            <Text className="text-gray-300 text-sm font-medium text-center">
               {getHealthGuideline()}
             </Text>
           </Animated.View>
 
           {/* Transparent Cards with Color Progression */}
           <View className="space-y-3">
-            {/* 7,000+ */}
-            <Animated.View 
-              entering={FadeIn.delay(1200).duration(900)}
-              className="p-5 rounded-xl bg-green-500/10"
-            >
-              <View className="flex-row items-center justify-between">
-                <View>
-                  <Text className="text-white text-lg font-bold mb-1">7,000+ STEPS</Text>
-                  <Text className="text-green-400 text-sm font-medium">Healthy baseline</Text>
+              {/* 7,000+ */}
+              <Animated.View 
+                entering={FadeIn.delay(1200).duration(900)}
+                className="p-4 rounded-2xl bg-green-900/20 border border-green-500/20"
+              >
+                <View className="flex-row items-center justify-between">
+                  <View className="flex-1">
+                    <Text className="text-white text-base font-bold mb-0.5">7,000+ Steps</Text>
+                    <Text className="text-green-400 text-xs">Healthy baseline</Text>
+                  </View>
+                  <View className="w-2.5 h-2.5 bg-green-400 rounded-full"></View>
                 </View>
-                <View className="w-3 h-3 bg-green-400 rounded-full"></View>
-              </View>
-            </Animated.View>
-            
-            {/* 8,000-12,000 */}
-            <Animated.View 
-              entering={FadeIn.delay(1350).duration(900)}
-              className="p-5 rounded-xl bg-blue-500/10"
-            >
-              <View className="flex-row items-center justify-between">
-                <View>
-                  <Text className="text-white text-lg font-bold mb-1">8,000-12,000 STEPS</Text>
-                  <Text className="text-blue-400 text-sm font-medium">Moderate activity</Text>
+              </Animated.View>
+              
+              {/* 8,000-12,000 */}
+              <Animated.View 
+                entering={FadeIn.delay(1350).duration(900)}
+                className="p-4 rounded-2xl bg-blue-900/20 border border-blue-500/20"
+              >
+                <View className="flex-row items-center justify-between">
+                  <View className="flex-1">
+                    <Text className="text-white text-base font-bold mb-0.5">8,000-12,000 Steps</Text>
+                    <Text className="text-blue-400 text-xs">Moderate activity</Text>
+                  </View>
+                  <View className="w-2.5 h-2.5 bg-blue-400 rounded-full"></View>
                 </View>
-                <View className="w-3 h-3 bg-blue-400 rounded-full"></View>
-              </View>
-            </Animated.View>
-            
-            {/* 10,000 */}
-            <Animated.View 
-              entering={FadeIn.delay(1500).duration(900)}
-              className="p-5 rounded-xl bg-purple-500/10"
-            >
-              <View className="flex-row items-center justify-between">
-                <View>
-                  <Text className="text-white text-lg font-bold mb-1">10,000 STEPS</Text>
-                  <Text className="text-purple-400 text-sm font-medium">Common benchmark</Text>
+              </Animated.View>
+              
+              {/* 10,000 */}
+              <Animated.View 
+                entering={FadeIn.delay(1500).duration(900)}
+                className="p-4 rounded-2xl bg-purple-900/20 border border-purple-500/20"
+              >
+                <View className="flex-row items-center justify-between">
+                  <View className="flex-1">
+                    <Text className="text-white text-base font-bold mb-0.5">10,000 Steps</Text>
+                    <Text className="text-purple-400 text-xs">Common benchmark</Text>
+                  </View>
+                  <View className="w-2.5 h-2.5 bg-purple-400 rounded-full"></View>
                 </View>
-                <View className="w-3 h-3 bg-purple-400 rounded-full"></View>
-              </View>
-            </Animated.View>
-            
-            {/* 12,000-15,000 */}
-            <Animated.View 
-              entering={FadeIn.delay(1650).duration(900)}
-              className="p-5 rounded-xl bg-orange-500/10"
-            >
-              <View className="flex-row items-center justify-between">
-                <View>
-                  <Text className="text-white text-lg font-bold mb-1">12,000-15,000 STEPS</Text>
-                  <Text className="text-orange-400 text-sm font-medium">Higher activity</Text>
+              </Animated.View>
+              
+              {/* 12,000-15,000 */}
+              <Animated.View 
+                entering={FadeIn.delay(1650).duration(900)}
+                className="p-4 rounded-2xl bg-orange-900/20 border border-orange-500/20"
+              >
+                <View className="flex-row items-center justify-between">
+                  <View className="flex-1">
+                    <Text className="text-white text-base font-bold mb-0.5">12,000-15,000 Steps</Text>
+                    <Text className="text-orange-400 text-xs">Higher activity</Text>
+                  </View>
+                  <View className="w-2.5 h-2.5 bg-orange-400 rounded-full"></View>
                 </View>
-                <View className="w-3 h-3 bg-orange-400 rounded-full"></View>
-              </View>
-            </Animated.View>
-          </View>
+              </Animated.View>
+            </View>
         </Animated.View>
 
         {/* Stats Cards - Modern Design */}
@@ -249,9 +258,9 @@ export default function StepsAnalytics() {
           {/* Yesterday */}
           <Animated.View 
             entering={FadeIn.delay(1800).duration(1000)}
-            className="p-5 rounded-2xl w-[48%] mb-4 bg-gray-900 items-center"
+            className="p-5 rounded-2xl w-[48%] mb-4 bg-indigo-900/30 items-center border border-indigo-500/20"
           >
-            <Text className="text-gray-400 font-bold mb-2">📅 Yesterday</Text>
+            <Text className="text-indigo-300 font-bold mb-2 text-sm">📅 Yesterday</Text>
             <Text className="text-white text-3xl font-black">
               {yesterdaySteps ? formatSteps(yesterdaySteps.steps) : '0'}
             </Text>
@@ -260,33 +269,33 @@ export default function StepsAnalytics() {
           {/* Daily Average */}
           <Animated.View 
             entering={FadeIn.delay(1950).duration(1000)}
-            className="p-5 rounded-2xl w-[48%] mb-4 bg-gray-900 items-center"
+            className="p-5 rounded-2xl w-[48%] mb-4 bg-teal-900/30 items-center border border-teal-500/20"
           >
-            <Text className="text-gray-400 font-bold mb-2">📊 Daily Average</Text>
+            <Text className="text-teal-300 font-bold mb-2 text-sm">📊 Daily Average</Text>
             <Text className="text-white text-3xl font-black">{getDisplaySteps()}</Text>
           </Animated.View>
 
           {/* Best Day */}
           <Animated.View 
             entering={FadeIn.delay(2100).duration(1000)}
-            className="p-5 rounded-2xl w-[48%] bg-gray-900 items-center"
+            className="p-5 rounded-2xl w-[48%] bg-amber-900/30 items-center border border-amber-500/20"
           >
-            <Text className="text-gray-400 font-bold mb-2">🏆 Best Day</Text>
+            <Text className="text-amber-300 font-bold mb-2 text-sm">🏆 Best Day</Text>
             <Text className="text-white text-3xl font-black">{getDisplaySteps()}</Text>
           </Animated.View>
 
           {/* Longest Streak */}
           <Animated.View 
             entering={FadeIn.delay(2250).duration(1000)}
-            className="p-5 rounded-2xl w-[48%] bg-gray-900 items-center"
+            className="p-5 rounded-2xl w-[48%] bg-pink-900/30 items-center border border-pink-500/20"
           >
-            <Text className="text-gray-400 font-bold mb-2">📈 Longest Streak</Text>
+            <Text className="text-pink-300 font-bold mb-2 text-sm">📈 Longest Streak</Text>
             <Text className="text-white text-3xl font-black">0 days</Text>
           </Animated.View>
         </View>
 
           </View>
-        </ScrollView>
+        </RefreshScroll>
       </SafeAreaView>
     </CelestialBackground>
   );

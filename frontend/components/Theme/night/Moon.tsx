@@ -36,8 +36,8 @@ export const Moon: React.FC<MoonProps> = ({
   const moon = useMemo(() => {
     if (!isNightTime) return null;
     return {
-      x: width * 0.10 + Math.random() * (width * 0.12),
-      y: height * 0.08 + Math.random() * (height * 0.12),
+      x: width * 0.10 + Math.random() * (width * 0.12) + 28,
+      y: height * 0.08 + Math.random() * (height * 0.12) + 11,
       size,
       phase,
     };

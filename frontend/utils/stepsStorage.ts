@@ -65,10 +65,10 @@ export class StepsStorageService implements StepsStorage {
   async getGoal(): Promise<number> {
     try {
       const savedGoal = await AsyncStorage.getItem(this.goalKey);
-      return savedGoal ? parseInt(savedGoal) : 8000; // Default goal
+      return savedGoal ? parseInt(savedGoal) : 12000; // Default goal
     } catch (error) {
       console.error('StepsStorage: Error loading step goal:', error);
-      return 8000;
+      return 12000;
     }
   }
 
