@@ -4,7 +4,7 @@ import React from "react";
 import { View, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import SunBloom from "./SunBloom";
-// Clouds removed for library selection
+import OrganicClouds from "./OrganicClouds";
 import HazeVeil from "./HazeVeil";
 
 export default function MorningBackground({ children }: { children?: React.ReactNode }) {
@@ -22,13 +22,35 @@ export default function MorningBackground({ children }: { children?: React.React
       {/* Atmospheric haze at top for depth */}
       <HazeVeil type="top" />
 
+      {/* Far clouds - background layer with slower movement */}
+      <OrganicClouds 
+        depth="far" 
+        cloudCount={6} 
+        baseOpacity={0.50} 
+        baseSpeed={0.35}
+      />
+
       {/* Sun with bloom, no animation */}
       <SunBloom size={90} disableAnimation />
+
+      {/* Mid clouds - main layer (ensures 7+ visible at all times) */}
+      <OrganicClouds 
+        depth="mid" 
+        cloudCount={10} 
+        baseOpacity={0.70} 
+        baseSpeed={0.55}
+      />
 
       {/* Horizon haze for atmospheric perspective */}
       <HazeVeil type="horizon" />
 
-      {/* Clouds temporarily removed for evaluation */}
+      {/* Near clouds - foreground layer with faster movement */}
+      <OrganicClouds 
+        depth="near" 
+        cloudCount={4} 
+        baseOpacity={0.85} 
+        baseSpeed={0.75}
+      />
 
       {/* Soft edge vignette (very subtle) */}
       <HazeVeil type="vignette" />
