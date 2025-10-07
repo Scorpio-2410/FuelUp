@@ -5,7 +5,8 @@ import { View, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { TimeBasedTheme } from '../../../constants/TimeBasedTheme';
 import SunBloom from './SunBloom';
-import CloudLayer from './CloudLayer';
+import SoftFeatheryClouds from './SoftFeatheryClouds';
+import CumulusClouds from './CumulusClouds';
 
 interface MorningBackgroundProps {
   children?: React.ReactNode;
@@ -18,25 +19,11 @@ export const MorningBackground: React.FC<MorningBackgroundProps> = ({
   theme,
   intensity = 'medium'
 }) => {
-  const [isMorningTime, setIsMorningTime] = useState(false);
-
-  // Check if current time is between 6:00 AM and 12:00 PM (morning time)
-  const checkIsMorningTime = () => {
-    const now = new Date();
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
-    const currentTime = currentHour * 60 + currentMinute; // Convert to minutes
-    
-    const morningStart = 6 * 60; // 6:00 AM = 360 minutes
-    const morningEnd = 12 * 60; // 12:00 PM = 720 minutes
-    
-    // Morning time is from 6:00 AM to 12:00 PM
-    return currentTime >= morningStart && currentTime < morningEnd;
-  };
+  const [isMorningTime, setIsMorningTime] = useState(true); // FOR TESTING: Always true
 
   // Update morning time status
   const updateMorningTimeStatus = () => {
-    setIsMorningTime(checkIsMorningTime());
+    setIsMorningTime(true); // FOR TESTING: Always true
   };
 
   // Default to morning theme with bright blue gradient
@@ -77,11 +64,12 @@ export const MorningBackground: React.FC<MorningBackgroundProps> = ({
         end={{ x: 0.5, y: 1 }}
       />
       
-      {/* Sun Bloom Effect */}
-      <SunBloom intensity={intensity} isMorningTime={isMorningTime} />
+      {/* SVG Sun Bloom Effect */}
+      <SunBloom />
       
-      {/* Cloud Layer */}
-      <CloudLayer intensity={intensity} isMorningTime={isMorningTime} />
+      {/* Cloud Layers */}
+      <SoftFeatheryClouds />
+      <CumulusClouds />
       
       {/* Content */}
       <View style={styles.content}>
