@@ -83,20 +83,27 @@ export class CloudSpawner {
           // Direction: TRUE 50/50 split - alternating pattern ensures balance
           const direction = (cloudIndex % 2 === 0) ? 1 : -1;
           
-          // CRITICAL FIX: Proper initialPosition mapping for on-screen spawning
-          // Translation ranges: L→R [-0.3w, 1.3w] | R←L [1.3w, -0.3w]
-          // To spawn in visible screen (0 to 1.0w):
-          //   - Need initialPosition where translateX maps to 0-1.0w range
-          //   - L→R: 0w needs init=0.1875, 0.5w needs init=0.5
-          //   - R←L: 0.5w needs init=0.5, 1.0w needs init=0.1875
-          // Both use same range [0.1875, 0.5] but interpret differently due to outputRange
+          // CRITICAL FIX: Use DIFFERENT ranges per direction for proper on-screen spawning
+          // Translation range: L→R [-0.3w, 1.3w] | R←L [1.3w, -0.3w] (span = 1.6w)
+          // Cloud width: ~0.5w (varies, but accounting for this)
+          // 
+          // L→R clouds (moving left to right):
+          //   Want translateX in [0, 0.5w] (left side of screen, fully visible)
+          //   - translateX = -0.3w + init * 1.6w
+          //   - For 0: init = (0 + 0.3) / 1.6 = 0.1875
+          //   - For 0.5w: init = (0.5 + 0.3) / 1.6 = 0.5
+          //   Range: [0.1875, 0.5]
+          //
+          // R←L clouds (moving right to left):
+          //   Want translateX in [0.2w, 0.6w] (right side, accounting for width ~0.5w)
+          //   - translateX = 1.3w - init * 1.6w
+          //   - For 0.6w: init = (1.3 - 0.6) / 1.6 = 0.4375
+          //   - For 0.2w: init = (1.3 - 0.2) / 1.6 = 0.6875
+          //   Range: [0.4375, 0.6875]
           
-          const minPos = 0.1875; // Maps to screen edge (0w for L→R, 1.0w for R←L)
-          const maxPos = 0.5;    // Maps to screen center (0.5w for both)
-          const randomInRange = minPos + Math.random() * (maxPos - minPos);
-          
-          // Add variation: some clouds spawn closer to edges, others to center
-          const initialPosition = randomInRange;
+          const initialPosition = direction === 1
+            ? 0.1875 + Math.random() * (0.5 - 0.1875)    // L→R: [0.1875, 0.5]
+            : 0.4375 + Math.random() * (0.6875 - 0.4375); // R←L: [0.4375, 0.6875]
 
           clouds.push({
             id: `cloud-${depth}-${mountSeed}-${cloudIndex}`,

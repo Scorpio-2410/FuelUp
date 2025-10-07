@@ -86,7 +86,7 @@ function OrganicCloud({
           useNativeDriver: true,
         }),
         Animated.timing(horizontalAnim, {
-          toValue: 0, // Reset to 0
+          toValue: cloud.initialPosition, // Reset to INITIAL POSITION, not 0!
           duration: 0, // Instant reset
           useNativeDriver: true,
         }),

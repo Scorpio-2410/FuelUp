@@ -50,6 +50,7 @@
 - Bidirectional movement with proper interpolation
 - NO stagger delay - all animations start instantly
 - Immediate horizontal and vertical animation for instant movement
+- CRITICAL: Animation resets to cloud.initialPosition, not 0
 
 ### 4. **MorningBackground.tsx** - Main Composition
 **Current Configuration**:
@@ -73,19 +74,19 @@
 **Implementation**:
 ```typescript
 const direction = (cloudIndex % 2 === 0) ? 1 : -1; // Alternating L→R, R←L
-// Correct mapping: [0.1875, 0.5] works for BOTH directions
-// L→R: 0.1875→0w (left edge), 0.5→0.5w (center)
-// R←L: 0.1875→1.0w (right edge), 0.5→0.5w (center) - reversed outputRange
-const minPos = 0.1875;
-const maxPos = 0.5;
-const initialPosition = minPos + Math.random() * (maxPos - minPos);
+
+// DIFFERENT ranges per direction to account for cloud width (~0.5w)
+const initialPosition = direction === 1
+  ? 0.1875 + Math.random() * 0.3125    // L→R: [0.1875, 0.5] → translateX [0, 0.5w]
+  : 0.4375 + Math.random() * 0.25;     // R←L: [0.4375, 0.6875] → translateX [0.6w, 0.2w]
 ```
-- **CRITICAL**: ALL clouds spawn ON SCREEN distributed across full width
-- L→R clouds spawn from left edge to center (0-0.5w)
-- R←L clouds spawn from right edge to center (1.0w-0.5w)
+- **CRITICAL**: Uses DIFFERENT initialPosition ranges per direction
+- L→R clouds: spawn on left side (translateX 0-0.5w)
+- R←L clouds: spawn on right side (translateX 0.6w-0.2w), accounting for cloud width
+- Both directions fully visible from frame 1
 - Direction alternates: even index = L→R, odd index = R←L (perfect 50/50)
 - NO STAGGER DELAY - all clouds start moving instantly
-- Uses timestamp for unique patterns per tab
+- No more 10-second wait for R←L clouds!
 
 ### 🌬️ Bidirectional Movement
 **Implementation**:
@@ -103,17 +104,19 @@ outputRange: direction === 1
 ### ♻️ Infinite Looping
 **Implementation**:
 ```typescript
+// CRITICAL: Reset to cloud.initialPosition, NOT 0!
 Animated.loop(
   Animated.sequence([
     Animated.timing(anim, { toValue: 1, duration, easing: linear }),
-    Animated.timing(anim, { toValue: 0, duration: 0 }),  // Instant reset
+    Animated.timing(anim, { toValue: cloud.initialPosition, duration: 0 }),  // Reset to spawn point
   ])
 )
 ```
-- Seamless transitions
-- Clouds never disappear
-- Automatic reset at edges
-- Continuous smooth animation
+- **CRITICAL**: Resets to `cloud.initialPosition`, NOT 0
+- Each cloud loops over its own path
+- L→R clouds: loop from left side to right, reset to left
+- R←L clouds: loop from right side to left, reset to right
+- Prevents clouds from disappearing after first cycle
 
 ### ⚡ Instant Movement on Mount
 **Implementation**:
@@ -186,12 +189,12 @@ maxAttempts: 150
 ### Randomization Strategy
 1. `mountSeed = Date.now()` - Unique per component mount
 2. `direction = (cloudIndex % 2 === 0) ? 1 : -1` - Alternating L→R/R←L
-3. `initialPosition = 0.1875 + Math.random() * (0.5 - 0.1875)` - Range [0.1875, 0.5]
-4. This range maps to:
-   - L→R: left half of screen (0-0.5w)
-   - R←L: right half of screen (1.0w-0.5w) due to reversed outputRange
+3. **Direction-specific initialPosition ranges:**
+   - L→R: `[0.1875, 0.5]` → translateX `[0, 0.5w]` (left side)
+   - R←L: `[0.4375, 0.6875]` → translateX `[0.6w, 0.2w]` (right side)
+4. This ensures both directions spawn FULLY VISIBLE accounting for cloud width (~0.5w)
 5. `x: 0` - Horizontal position fully controlled by translateX
-6. Result: All clouds visible instantly across full screen, perfect 50/50 split
+6. Result: All clouds FULLY visible instantly from frame 1, perfect 50/50 split, no off-screen spawning
 
 ## Why This Architecture?
 
@@ -220,7 +223,7 @@ maxAttempts: 150
 → Change `direction: (cloudIndex % 2 === 0) ? 1 : -1` to `direction: 1` (L→R) or `direction: -1` (R←L)
 
 **Want wider cloud distribution?**
-→ Change range from `[0.1875, 0.5]` to `[0.1, 0.6]` for more spread across screen
+→ Adjust ranges: L→R `[0.15, 0.55]`, R←L `[0.40, 0.70]` for more spread (be careful of off-screen edges)
 
 **Want different cloud distribution?**
 → Modify `CloudTypeFactory.getRandomComplexity()` percentages
