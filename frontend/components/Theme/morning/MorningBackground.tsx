@@ -1,93 +1,46 @@
-// Morning Theme Background Component
-// Orchestrates the morning sky elements: sun bloom, clouds, and sky gradient
-import React, { useEffect, useState } from 'react';
-import { View, StyleSheet } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { TimeBasedTheme } from '../../../constants/TimeBasedTheme';
-import SunBloom from './SunBloom';
-import SoftFeatheryClouds from './SoftFeatheryClouds';
-import CumulusClouds from './CumulusClouds';
+import React from "react";
+import { View, StyleSheet } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import SunBloom from "./SunBloom";
+import CloudBank from "./CloudBank";
+import HazeVeil from "./HazeVeil";
 
-interface MorningBackgroundProps {
-  children?: React.ReactNode;
-  theme?: TimeBasedTheme;
-  intensity?: 'low' | 'medium' | 'high';
-}
-
-export const MorningBackground: React.FC<MorningBackgroundProps> = ({
-  children,
-  theme,
-  intensity = 'medium'
-}) => {
-  const [isMorningTime, setIsMorningTime] = useState(true); // FOR TESTING: Always true
-
-  // Update morning time status
-  const updateMorningTimeStatus = () => {
-    setIsMorningTime(true); // FOR TESTING: Always true
-  };
-
-  // Default to morning theme with bright blue gradient
-  const currentTheme = theme || {
-    colors: {
-      gradients: {
-        background: ['#7492BA', '#1A66B4', '#548CCA'],
-        primary: ['#7492BA', '#1A66B4', '#548CCA'],
-        card: ['#1A66B4', '#548CCA'],
-      },
-      effects: {
-        sun: '#FFFFFF',
-        sunGlow: 'rgba(255, 255, 255, 0.8)',
-        shadow: 'rgba(0, 0, 0, 0.3)',
-        glow: 'rgba(116, 146, 186, 0.4)',
-      },
-    },
-  };
-
-  // Initialize and update morning time status
-  useEffect(() => {
-    updateMorningTimeStatus();
-    
-    // Check every minute to update morning time status
-    const interval = setInterval(updateMorningTimeStatus, 60000);
-    
-    return () => clearInterval(interval);
-  }, []);
-
+export default function MorningBackground({ children }: { children?: React.ReactNode }) {
   return (
     <View style={styles.container}>
-      {/* Morning Sky Gradient Background */}
+      {/* Sky: hue ~210–216°, saturation increases downward */}
       <LinearGradient
-        colors={['#7492BA', '#1A66B4', '#548CCA']}
-        locations={[0, 0.45, 1]}
-        style={StyleSheet.absoluteFillObject}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
+        colors={["#95A8C5","#8CA2BF","#5B81AF","#3A6EA6","#1D66B2","#1A68B8"]}
+        locations={[0,0.2,0.4,0.6,0.8,1]}
+        start={{x:0.5,y:0}}
+        end={{x:0.5,y:1}}
+        style={StyleSheet.absoluteFill}
       />
-      
-      {/* SVG Sun Bloom Effect */}
-      <SunBloom />
-      
-      {/* Cloud Layers */}
-      <SoftFeatheryClouds />
-      <CumulusClouds />
-      
-      {/* Content */}
-      <View style={styles.content}>
-        {children}
-      </View>
+
+      {/* High-altitude haze near top (thin veil) */}
+      <HazeVeil type="top" />
+
+      {/* Sun + bloom (behind most clouds) */}
+      <SunBloom size={260} />
+
+      {/* Horizon haze band to push depth */}
+      <HazeVeil type="horizon" />
+
+      {/* Cloud banks: far → mid → near (increasing opacity & size) */}
+      <CloudBank depth="far"   speed={0.15} opacity={0.55} tint="#F6FAFF" />
+      <CloudBank depth="mid"   speed={0.30} opacity={0.70} tint="#F6FAFF" />
+      <CloudBank depth="near"  speed={0.45} opacity={0.85} tint="#FFFFFF" />
+
+      {/* Soft edge vignette (very subtle) */}
+      <HazeVeil type="vignette" />
+
+      {/* Page content on top */}
+      <View style={styles.content} pointerEvents="box-none">{children}</View>
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    position: 'relative',
-  },
-  content: {
-    flex: 1,
-    zIndex: 4,
-  },
+  container: { flex: 1 },
+  content:   { flex: 1, zIndex: 10 },
 });
-
-export default MorningBackground;
