@@ -1,166 +1,34 @@
 // Theme Preview Tab - For Development Purposes
-// Shows both night and morning themes side by side with controls
-// Changes made here will reflect on the Homepage tab!
+// Pure theme view with no widgets - for visual testing only
 
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React from 'react';
+import { View, StyleSheet } from 'react-native';
 import CelestialBackground from '../../components/Theme/night/CelestialBackground';
 import MorningBackground from '../../components/Theme/morning/MorningBackground';
 import DynamicBackground from '../../components/Theme/DynamicBackground';
 import { useTheme } from '../../contexts/ThemeContext';
-import type { ThemeMode } from '../../constants/TimeBasedTheme';
-
-type Intensity = 'low' | 'medium' | 'high';
 
 export default function ThemePreview() {
-  const { mode, setMode, isAuto } = useTheme();
-  const [intensity, setIntensity] = useState<Intensity>('medium');
-  const [showControls, setShowControls] = useState(true);
+  const { mode } = useTheme();
 
   const renderTheme = () => {
     // If auto mode is enabled, show DynamicBackground
     if (mode === 'auto') {
-      return (
-        <DynamicBackground intensity={intensity}>
-          <ThemeInfo mode="auto" currentMode={mode} />
-        </DynamicBackground>
-      );
+      return <DynamicBackground intensity="medium" />;
     }
 
     // For morning theme, use MorningBackground
     if (mode === 'morning') {
-      return (
-        <MorningBackground>
-          <ThemeInfo mode={mode} currentMode={mode} />
-        </MorningBackground>
-      );
+      return <MorningBackground />;
     }
 
     // For all night-time themes (midnight, dawn, night, evening, day), use CelestialBackground
-    return (
-      <CelestialBackground intensity={intensity}>
-        <ThemeInfo mode={mode} currentMode={mode} />
-      </CelestialBackground>
-    );
+    return <CelestialBackground intensity="medium" />;
   };
 
   return (
     <View style={styles.container}>
       {renderTheme()}
-      
-      {/* Control Panel Overlay */}
-      {showControls && (
-        <View style={styles.controlPanel}>
-          <ScrollView 
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 10 }}
-          >
-            <View style={styles.controlHeader}>
-              <Text style={styles.controlTitle}>🎨 Theme Controls</Text>
-              <TouchableOpacity 
-                onPress={() => setShowControls(false)}
-                style={styles.closeButton}
-              >
-                <Text style={styles.closeButtonText}>✕</Text>
-              </TouchableOpacity>
-            </View>
-
-          {/* Theme Mode Selection */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Theme Mode (applies to Homepage too!)</Text>
-            <View style={styles.buttonGroup}>
-              <ThemeButton
-                label="Auto"
-                active={mode === 'auto'}
-                onPress={() => setMode('auto')}
-              />
-              <ThemeButton
-                label="Morning"
-                active={mode === 'morning'}
-                onPress={() => setMode('morning')}
-              />
-              <ThemeButton
-                label="Night"
-                active={mode === 'night'}
-                onPress={() => setMode('night')}
-              />
-            </View>
-            <View style={[styles.buttonGroup, { marginTop: 10 }]}>
-              <ThemeButton
-                label="Dawn"
-                active={mode === 'dawn'}
-                onPress={() => setMode('dawn')}
-              />
-              <ThemeButton
-                label="Day"
-                active={mode === 'day'}
-                onPress={() => setMode('day')}
-              />
-              <ThemeButton
-                label="Evening"
-                active={mode === 'evening'}
-                onPress={() => setMode('evening')}
-              />
-            </View>
-            <View style={[styles.buttonGroup, { marginTop: 10 }]}>
-              <ThemeButton
-                label="Midnight"
-                active={mode === 'midnight'}
-                onPress={() => setMode('midnight')}
-              />
-            </View>
-          </View>
-
-          {/* Intensity Selection (for non-morning themes) */}
-          {mode !== 'morning' && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Intensity (visual effect strength)</Text>
-              <View style={styles.buttonGroup}>
-                <IntensityButton
-                  label="Low"
-                  active={intensity === 'low'}
-                  onPress={() => setIntensity('low')}
-                />
-                <IntensityButton
-                  label="Medium"
-                  active={intensity === 'medium'}
-                  onPress={() => setIntensity('medium')}
-                />
-                <IntensityButton
-                  label="High"
-                  active={intensity === 'high'}
-                  onPress={() => setIntensity('high')}
-                />
-              </View>
-            </View>
-          )}
-
-          {/* Info */}
-          <View style={styles.infoSection}>
-            <Text style={styles.infoText}>
-              💡 Switch to Homepage tab to see theme with real content
-            </Text>
-            <Text style={styles.infoText}>
-              🎨 Changes here apply globally across the app
-            </Text>
-            <Text style={styles.infoText}>
-              ⚙️ This tab is for development/testing only
-            </Text>
-          </View>
-          </ScrollView>
-        </View>
-      )}
-
-      {/* Floating Toggle Button (when controls hidden) */}
-      {!showControls && (
-        <TouchableOpacity
-          style={styles.floatingButton}
-          onPress={() => setShowControls(true)}
-        >
-          <Text style={styles.floatingButtonText}>⚙️</Text>
-        </TouchableOpacity>
-      )}
     </View>
   );
 }
