@@ -12,10 +12,13 @@ const fitnessProfileRoutes = require("./routes/fitnessProfileRoutes");
 const fitnessPlanRoutes = require("./routes/fitnessPlanRoutes");
 const planExerciseRoutes = require("./routes/planExerciseRoutes"); // exercises saved to a plan
 const exerciseSearchRoutes = require("./routes/exerciseSearchRoutes"); // ExerciseDB proxy
-const nutritionRoutes = require("./routes/nutritionRoutes");
 const scheduleRoutes = require("./routes/scheduleRoutes");
 const targetQuestionRoutes = require("./routes/targetQuestionRoutes");
 const quotesRoutes = require("./routes/quotesRoutes");
+
+/* ---- NEW: FatSecret catalogs + Meal Planner ---- */
+const foodRoutes = require("./routes/foodRoutes"); // foods/recipes browse + save
+const mealPlanRoutes = require("./routes/mealPlanRoutes"); // create plan, add meal, summary
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -33,14 +36,10 @@ app.use("/api/users", userRoutes);
 // Fitness namespace
 app.use("/api/fitness", fitnessProfileRoutes); // /api/fitness/profile (GET/PUT)
 app.use("/api/fitness/plans", fitnessPlanRoutes); // CRUD plans
-// ✅ Mount plan-exercise routes at the parameterized path so req.params.id is available
 app.use("/api/fitness/plans/:id/exercises", planExerciseRoutes); // list/add/remove exercises for a plan
 
 // ExerciseDB proxy (public catalog; no caching)
 app.use("/api/exercises", exerciseSearchRoutes); // GET / (search via q/target), GET /:id, GET /:id/image
-
-// Nutrition
-app.use("/api/nutrition", nutritionRoutes); // /api/nutrition/profile
 
 // Schedule
 app.use("/api/schedule", scheduleRoutes); // /, /events, /events/:id
@@ -50,6 +49,21 @@ app.use("/api/questions", targetQuestionRoutes);
 
 // Motivational Quotes
 app.use("/api/quotes", quotesRoutes);
+
+/* ---- NEW mounts ----
+   foodRoutes defines:
+     GET  /foods/search
+     GET  /foods/:id
+     GET  /recipes/search
+     GET  /recipes/:id
+     POST /recipes/save
+   mealPlanRoutes defines:
+     POST /plans
+     POST /plans/add
+     GET  /plans/:planId/summary
+*/
+app.use("/api", foodRoutes);
+app.use("/api", mealPlanRoutes);
 
 /* ---------------- Root + health ---------------- */
 app.get("/", (req, res) => {
@@ -89,6 +103,20 @@ app.get("/", (req, res) => {
         daily: "/api/quotes/daily",
         byId: "/api/quotes/:id",
         authors: "/api/quotes/authors",
+      },
+
+      /* --- NEW docs for clients --- */
+      catalog: {
+        foodsSearch: "/api/foods/search?q=&page=",
+        foodDetail: "/api/foods/:id",
+        recipesSearch: "/api/recipes/search?q=&page=",
+        recipeDetail: "/api/recipes/:id",
+        recipeSave: "/api/recipes/save",
+      },
+      mealPlanner: {
+        createPlan: "/api/plans",
+        addMeal: "/api/plans/add",
+        planSummary: "/api/plans/:planId/summary",
       },
     },
   });

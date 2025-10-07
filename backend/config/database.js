@@ -161,6 +161,58 @@ const initializeDatabase = async () => {
       BEFORE UPDATE ON meals FOR EACH ROW EXECUTE FUNCTION set_updated_at();
     `);
 
+    /* =========== RECIPES (FatSecret-backed) & PLAN LINKS =========== */
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS recipes (
+        id                 INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        user_id            INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        source             VARCHAR(20) NOT NULL DEFAULT 'fatsecret' CHECK (source IN ('fatsecret','custom')),
+        external_id        VARCHAR(64),
+        name               VARCHAR(255) NOT NULL,
+        description        TEXT,
+        cook_time_min      INTEGER DEFAULT 0,
+        yield_servings     NUMERIC,
+        steps              JSONB DEFAULT '[]',
+        image_url          TEXT,
+        nutrition_per_serv JSONB NOT NULL DEFAULT '{}'::jsonb,
+        ingredients        JSONB NOT NULL DEFAULT '[]',
+        created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      DROP TRIGGER IF EXISTS trg_recipes_updated_at ON recipes;
+      CREATE TRIGGER trg_recipes_updated_at
+      BEFORE UPDATE ON recipes FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+      CREATE TABLE IF NOT EXISTS meal_plan_recipes (
+        id            INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        meal_plan_id  INTEGER NOT NULL REFERENCES meal_plans(id) ON DELETE CASCADE,
+        recipe_id     INTEGER NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
+        meal_type     VARCHAR(20) DEFAULT 'other'
+          CHECK (meal_type IN ('breakfast','lunch','dinner','snack','other')),
+        servings      NUMERIC NOT NULL DEFAULT 1,
+        scheduled_at  TIMESTAMPTZ,
+        notes         TEXT,
+        created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_mpr_plan ON meal_plan_recipes(meal_plan_id);
+
+      CREATE OR REPLACE FUNCTION enforce_five_plans()
+      RETURNS TRIGGER AS $$
+      BEGIN
+        IF (SELECT COUNT(*) FROM meal_plans WHERE user_id = NEW.user_id AND status <> 'archived') >= 5 THEN
+          RAISE EXCEPTION 'Plan limit reached (max 5 active/draft per user)';
+        END IF;
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+
+      DROP TRIGGER IF EXISTS trg_enforce_five_plans ON meal_plans;
+      CREATE TRIGGER trg_enforce_five_plans
+      BEFORE INSERT ON meal_plans FOR EACH ROW EXECUTE FUNCTION enforce_five_plans();
+    `);
+
     /* =========== FITNESS PROFILES & (simplified) PLANS =========== */
     await client.query(`
       CREATE TABLE IF NOT EXISTS fitness_profiles (
@@ -178,7 +230,6 @@ const initializeDatabase = async () => {
       CREATE TRIGGER trg_fitness_profiles_updated_at
       BEFORE UPDATE ON fitness_profiles FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
-      -- New simplified fitness_plans schema (unchanged)
       CREATE TABLE IF NOT EXISTS fitness_plans (
         id         INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
         user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -191,7 +242,6 @@ const initializeDatabase = async () => {
 
       CREATE INDEX IF NOT EXISTS idx_fitness_plans_user ON fitness_plans(user_id);
 
-      -- Cleanup older DBs
       DO $$
       BEGIN
         BEGIN

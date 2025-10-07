@@ -7,7 +7,8 @@ type Props = {
   value: string;
   onChangeText: (t: string) => void;
   onClear?: () => void;
-  avatarUri?: string; // optional – parent can pass profile avatar
+  avatarUri?: string; // optional – show profile avatar if provided
+  placeholder?: string; // optional – defaults to "Search"
 };
 
 export default function TopSearchBar({
@@ -15,6 +16,7 @@ export default function TopSearchBar({
   onChangeText,
   onClear,
   avatarUri,
+  placeholder = "Search",
 }: Props) {
   return (
     <View
@@ -25,6 +27,7 @@ export default function TopSearchBar({
         marginBottom: 12,
       }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+        {/* Avatar */}
         <View
           style={{
             width: 40,
@@ -50,6 +53,7 @@ export default function TopSearchBar({
           )}
         </View>
 
+        {/* Search input */}
         <View
           style={{
             flex: 1,
@@ -62,14 +66,21 @@ export default function TopSearchBar({
           }}>
           <Ionicons name="search" size={18} color="#a1a1aa" />
           <TextInput
-            placeholder="Search"
-            placeholderTextColor="#9CA3AF"
             value={value}
             onChangeText={onChangeText}
+            placeholder={placeholder}
+            placeholderTextColor="#9CA3AF"
             style={{ color: "#ffffff", marginLeft: 8, flex: 1 }}
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="search"
           />
-          {value.length > 0 ? (
-            <TouchableOpacity onPress={onClear}>
+          {value?.length ? (
+            <TouchableOpacity
+              onPress={onClear}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="Clear search">
               <Ionicons name="close" size={18} color="#a1a1aa" />
             </TouchableOpacity>
           ) : null}

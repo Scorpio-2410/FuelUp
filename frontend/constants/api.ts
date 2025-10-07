@@ -1,3 +1,4 @@
+// frontend/constants/api.ts
 import { Platform } from "react-native";
 import Constants from "expo-constants";
 import * as SecureStore from "expo-secure-store";
@@ -68,7 +69,7 @@ const EP = {
   exerciseImage: (id: string | number, res = "180") =>
     `/api/exercises/${id}/image?resolution=${encodeURIComponent(res)}`,
 
-  // Fitness plans
+  // Fitness plans (exercise)
   plansRoot: "/api/fitness/plans",
   planOne: (id: string | number) => `/api/fitness/plans/${id}`,
   planExercises: (planId: string | number) =>
@@ -87,6 +88,20 @@ const EP = {
   quotesDaily: "/api/quotes/daily",
   quotesRandom: "/api/quotes/random",
   quotesAll: "/api/quotes",
+
+  // ---------- Catalog + Meal Planner ----------
+  foodsSearch: "/api/foods/search",
+  foodDetail: (id: string | number) => `/api/foods/${id}`,
+
+  // FatSecret recipes
+  recipesSearch: "/api/recipes/search", // v3 under the hood
+  recipeDetail: (id: string | number) => `/api/recipes/${id}`, // v2 detail
+  recipeSave: "/api/recipes/save",
+
+  // Meal plans (nutrition)
+  mealPlans: "/api/plans", // GET (list) + POST (create)
+  mealPlanAdd: "/api/plans/add",
+  mealPlanSummary: (id: string | number) => `/api/plans/${id}/summary`,
 };
 
 /* -------------------- helpers -------------------- */
@@ -112,7 +127,7 @@ async function authHeaders() {
   return {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
+  } as Record<string, string>;
 }
 function safeJson(text: string) {
   try {
@@ -205,7 +220,6 @@ export async function apiResetRequest(email: string) {
   });
   return asJson<{ success: boolean; message?: string }>(res);
 }
-
 export async function apiResetConfirm(payload: {
   email: string;
   code: string;
@@ -248,14 +262,13 @@ export function getExerciseImageUri(id: string | number, res = "180") {
   return `${BASE_URL}${EP.exerciseImage(id, res)}`;
 }
 
-/* -------------------- Fitness plan APIs -------------------- */
+/* -------------------- Fitness plan APIs (exercise) -------------------- */
 export async function apiListPlans() {
   const res = await fetch(`${BASE_URL}${EP.plansRoot}`, {
     headers: await authHeaders(),
   });
   return asJson<{ success: boolean; plans: any[]; pagination?: any }>(res);
 }
-
 export async function apiCreatePlan(payload: {
   name: string;
   status?: "active" | "draft" | "archived";
@@ -268,7 +281,6 @@ export async function apiCreatePlan(payload: {
   });
   return asJson<{ success: boolean; plan: any }>(res);
 }
-
 export async function apiUpdatePlan(
   id: string | number,
   patch: Partial<{
@@ -284,7 +296,6 @@ export async function apiUpdatePlan(
   });
   return asJson<{ success: boolean; plan: any }>(res);
 }
-
 export async function apiDeletePlan(id: string | number) {
   const res = await fetch(`${BASE_URL}${EP.planOne(id)}`, {
     method: "DELETE",
@@ -292,7 +303,6 @@ export async function apiDeletePlan(id: string | number) {
   });
   return asJson<{ success: boolean }>(res);
 }
-
 export async function apiListPlanExercises(planId: string | number) {
   const res = await fetch(`${BASE_URL}${EP.planExercises(planId)}`, {
     headers: await authHeaders(),
@@ -305,7 +315,6 @@ export async function apiListPlanExercises(planId: string | number) {
     : [];
   return { success: true, items };
 }
-
 export async function apiAddExerciseToPlan(
   planId: string | number,
   externalId: string | number,
@@ -328,7 +337,6 @@ export async function apiAddExerciseToPlan(
   });
   return asJson<{ success: boolean; item: any }>(res);
 }
-
 export async function apiRemoveExerciseFromPlan(
   planId: string | number,
   itemId: string | number
@@ -347,7 +355,6 @@ export async function apiGetNutritionProfile() {
   });
   return asJson<{ profile: any | null }>(res);
 }
-
 export async function apiUpsertNutritionProfile(payload: {
   dailyCalorieTarget?: number | null;
   macros?: {
@@ -365,7 +372,6 @@ export async function apiUpsertNutritionProfile(payload: {
   });
   return asJson<{ success: boolean; profile: any }>(res);
 }
-
 export async function apiUpsertFitnessProfile(payload: {
   goal?: string | null;
   activityLevel?: string | null;
@@ -389,7 +395,6 @@ export async function apiGetSchedule() {
   });
   return asJson<{ success: boolean; schedule: any | null }>(res);
 }
-
 export async function apiListEvents(params?: { from?: string; to?: string }) {
   const q = new URLSearchParams();
   if (params?.from) q.set("from", params.from);
@@ -398,15 +403,14 @@ export async function apiListEvents(params?: { from?: string; to?: string }) {
   const res = await fetch(url, { headers: await authHeaders() });
   return asJson<{ success: boolean; events: any[] }>(res);
 }
-
 export async function apiCreateEvent(payload: {
   category: "meal" | "workout" | "work" | "other";
   title: string;
   start_at: string; // ISO
-  end_at?: string | null; // ISO or null
+  end_at?: string | null;
   notes?: string | null;
   recurrence_rule?: "none" | "daily" | "weekly" | "weekday";
-  recurrence_until?: string | null; // ISO or null
+  recurrence_until?: string | null;
 }) {
   const res = await fetch(`${BASE_URL}${EP.events}`, {
     method: "POST",
@@ -415,7 +419,6 @@ export async function apiCreateEvent(payload: {
   });
   return asJson<{ success: boolean; event: any }>(res);
 }
-
 export async function apiUpdateEvent(
   id: number | string,
   patch: Partial<{
@@ -433,7 +436,6 @@ export async function apiUpdateEvent(
   });
   return asJson<{ success: boolean; event: any }>(res);
 }
-
 export async function apiDeleteEvent(id: number | string) {
   const res = await fetch(`${BASE_URL}${EP.events}/${id}`, {
     method: "DELETE",
@@ -451,7 +453,6 @@ export async function readProfileCache(): Promise<any | null> {
     return null;
   }
 }
-
 export async function writeProfileCache(userObj: any) {
   try {
     const slim = {
@@ -468,36 +469,15 @@ export async function writeProfileCache(userObj: any) {
 
 /* -------------------- motivational quotes -------------------- */
 const K_QUOTE_CACHE = "fu_quote_cache";
-
 export async function apiGetQuoteOfTheDay() {
   const res = await fetch(`${BASE_URL}${EP.quotesDaily}`);
-  return asJson<{
-    id: number;
-    quoteText: string;
-    category: string;
-    author: {
-      name: string;
-      birthYear?: number;
-      deathYear?: number;
-    } | null;
-  }>(res);
+  return asJson(res);
 }
-
 export async function apiGetRandomQuote(category?: string) {
   const qs = category ? `?category=${encodeURIComponent(category)}` : "";
   const res = await fetch(`${BASE_URL}${EP.quotesRandom}${qs}`);
-  return asJson<{
-    id: number;
-    quoteText: string;
-    category: string;
-    author: {
-      name: string;
-      birthYear?: number;
-      deathYear?: number;
-    } | null;
-  }>(res);
+  return asJson(res);
 }
-
 export async function readQuoteCache(): Promise<{
   quote: any;
   timestamp: number;
@@ -509,23 +489,98 @@ export async function readQuoteCache(): Promise<{
     return null;
   }
 }
-
 export async function writeQuoteCache(quote: any) {
   try {
-    const data = {
-      quote,
-      timestamp: Date.now(),
-    };
+    const data = { quote, timestamp: Date.now() };
     await AsyncStorage.setItem(K_QUOTE_CACHE, JSON.stringify(data));
-  } catch (err) {
-    console.error("Failed to cache quote:", err);
-  }
+  } catch {}
 }
-
 export async function clearQuoteCache() {
   try {
     await AsyncStorage.removeItem(K_QUOTE_CACHE);
-  } catch (err) {
-    console.error("Failed to clear quote cache:", err);
-  }
+  } catch {}
+}
+
+/* -------------------- Catalog + Meal Planner (FatSecret) -------------------- */
+
+// (1) Optional foods endpoints (not used in the new UI, but kept)
+export async function apiSearchFoods(q: string, page = 0) {
+  const qs = new URLSearchParams();
+  if (q) qs.set("q", q);
+  if (page) qs.set("page", String(page));
+  const res = await fetch(`${BASE_URL}${EP.foodsSearch}?${qs}`);
+  return asJson<any>(res);
+}
+
+// (2) Recipes search v3 (THIS is what Meal tab uses)
+export async function apiSearchRecipesV3(params: {
+  q?: string;
+  page?: number; // 0-based
+  maxResults?: number; // default 25
+  recipeTypesCsv?: string; // "breakfast,baked" (optional)
+  matchAll?: boolean; // optional
+}) {
+  const qs = new URLSearchParams();
+  if (params?.q) qs.set("q", params.q);
+  qs.set("page", String(params?.page ?? 0));
+  qs.set("max_results", String(params?.maxResults ?? 25));
+  if (params?.recipeTypesCsv) qs.set("recipe_types", params.recipeTypesCsv);
+  if (typeof params?.matchAll === "boolean")
+    qs.set("recipe_types_matchall", params.matchAll ? "true" : "false");
+
+  const res = await fetch(`${BASE_URL}${EP.recipesSearch}?${qs.toString()}`);
+  return asJson<any>(res); // FatSecret v3 passthrough
+}
+
+// (3) Recipe detail (v2)
+export async function apiGetRecipeDetail(id: string | number) {
+  const res = await fetch(`${BASE_URL}${EP.recipeDetail(id)}`);
+  return asJson<any>(res);
+}
+
+// (4) Persist a recipe in our DB to use in meal plans
+export async function apiSaveRecipe(recipe_id: string | number) {
+  const res = await fetch(`${BASE_URL}${EP.recipeSave}`, {
+    method: "POST",
+    headers: await authHeaders(),
+    body: JSON.stringify({ recipe_id: String(recipe_id) }),
+  });
+  return asJson<{ ok: boolean; recipe: any }>(res);
+}
+
+// (5) Meal planner list/create/add/summary
+export async function apiListMealPlans() {
+  const res = await fetch(`${BASE_URL}${EP.mealPlans}`, {
+    headers: await authHeaders(),
+  });
+  return asJson<{ plans: any[] }>(res);
+}
+export async function apiCreateMealPlan(name: string) {
+  const res = await fetch(`${BASE_URL}${EP.mealPlans}`, {
+    method: "POST",
+    headers: await authHeaders(),
+    body: JSON.stringify({ name }),
+  });
+  return asJson<any>(res);
+}
+export async function apiAddMealToPlan(opts: {
+  meal_plan_id: number;
+  recipe_id: number;
+  servings?: number;
+  meal_type?: "breakfast" | "lunch" | "dinner" | "snack" | "other";
+  scheduled_at?: string | null;
+  notes?: string | null;
+}) {
+  const res = await fetch(`${BASE_URL}${EP.mealPlanAdd}`, {
+    method: "POST",
+    headers: await authHeaders(),
+    body: JSON.stringify(opts),
+  });
+  return asJson<{ added: any; summary: any }>(res);
+}
+export async function apiGetMealPlanSummary(planId: number) {
+  const res = await fetch(`${BASE_URL}${EP.mealPlanSummary(planId)}`, {
+    headers: await authHeaders(),
+  });
+  return asJson<any>(res);
 }
