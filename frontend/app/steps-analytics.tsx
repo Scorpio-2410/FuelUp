@@ -94,13 +94,20 @@ export default function StepsAnalytics() {
           }>
           <View className="p-6">
         {/* Header - Fixed Padding */}
-        <View className="flex-row items-center justify-between mb-6 px-2">
+        <View className="flex-row items-center justify-between mb-6 px-3 py-4 rounded-2xl bg-gray-900/30">
           <TouchableOpacity onPress={() => router.back()} className="flex-1">
-            <Text className="text-white text-lg">← Back</Text>
+            <Text className="text-white text-lg font-semibold">← Back</Text>
           </TouchableOpacity>
-          <Text className="text-white text-xl font-bold flex-2 text-center">Step Analytics</Text>
-          <TouchableOpacity onPress={refreshSteps} className="flex-1 items-end">
-            <Text className="text-white text-lg">⚙️</Text>
+          <Text className="text-white text-xl font-black flex-2 text-center tracking-wide"
+            style={{
+              textShadowColor: 'rgba(255, 255, 255, 0.2)',
+              textShadowOffset: { width: 0, height: 1 },
+              textShadowRadius: 4,
+            }}>
+            Step Analytics
+          </Text>
+          <TouchableOpacity onPress={refreshSteps} className="flex-1 items-end" activeOpacity={0.7}>
+            <Text className="text-white text-xl">🔄</Text>
           </TouchableOpacity>
         </View>
 
@@ -138,110 +145,202 @@ export default function StepsAnalytics() {
         </Animated.View>
 
         {/* Progress Bar - High Contrast & Clear */}
-        <Animated.View entering={FadeIn.delay(750).duration(900)} className="w-full mb-6">
-          <View className="flex-row justify-between items-center mb-2 px-1">
-            <Text className="text-white font-bold text-lg">
-              Progress
+        <Animated.View 
+          entering={FadeIn.delay(750).duration(900)} 
+          className="w-full mb-6 rounded-2xl overflow-hidden"
+          style={{
+            shadowColor: "#22D3EE",
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.2,
+            shadowRadius: 8,
+            elevation: 5
+          }}
+        >
+          <LinearGradient
+            colors={['rgba(17, 24, 39, 0.5)', 'rgba(31, 41, 55, 0.5)']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            className="p-5"
+          >
+            <View className="flex-row justify-between items-center mb-3 px-1">
+              <Text className="text-white font-bold text-lg">
+                Progress
+              </Text>
+              <Text className="text-cyan-400 font-bold text-lg"
+                style={{
+                  textShadowColor: 'rgba(34, 211, 238, 0.5)',
+                  textShadowOffset: { width: 0, height: 1 },
+                  textShadowRadius: 6,
+                }}>
+                {Math.round(getProgressPercentage())}%
+              </Text>
+            </View>
+            <View className="w-full h-4 bg-gray-800/60 rounded-full overflow-hidden">
+              <View 
+                className="h-4 bg-cyan-400 rounded-full"
+                style={{ 
+                  width: `${getProgressPercentage()}%`,
+                  shadowColor: "#22D3EE",
+                  shadowOffset: { width: 0, height: 0 },
+                  shadowOpacity: 0.9,
+                  shadowRadius: 10,
+                }}
+              />
+            </View>
+            <Text className="text-gray-200 text-sm font-medium mt-3 px-1">
+              {isLoading || hasError ? '...' : `${formatSteps(getRemainingSteps())} steps remaining to reach your goal`}
             </Text>
-            <Text className="text-cyan-400 font-bold text-lg">
-              {Math.round(getProgressPercentage())}%
-            </Text>
-          </View>
-          <View className="w-full h-4 bg-gray-800 rounded-full">
-            <View 
-              className="h-4 bg-cyan-400 rounded-full"
-              style={{ 
-                width: `${getProgressPercentage()}%`,
-                shadowColor: "#22D3EE",
-                shadowOffset: { width: 0, height: 0 },
-                shadowOpacity: 0.8,
-                shadowRadius: 8,
-              }}
-            />
-          </View>
-          <Text className="text-gray-400 text-sm font-medium mt-2 px-1">
-            {isLoading || hasError ? '...' : `${formatSteps(getRemainingSteps())} steps remaining to reach your goal`}
-          </Text>
+          </LinearGradient>
         </Animated.View>
 
         {/* Health Guidelines - Energetic & Modern */}
         <Animated.View 
           entering={FadeIn.delay(900).duration(1000)}
-          className="p-6 rounded-3xl mb-6 bg-gray-900"
+          className="rounded-3xl mb-6 overflow-hidden"
+          style={{
+            shadowColor: "#10b981",
+            shadowOffset: { width: 0, height: 6 },
+            shadowOpacity: 0.25,
+            shadowRadius: 10,
+            elevation: 8
+          }}
         >
-          
-          {/* Energetic Header */}
-          <Animated.View 
-            entering={FadeIn.delay(1050).duration(900)}
-            className="mb-6">
-            <View className="flex-row items-center justify-center mb-2">
-              <Text className="text-3xl mr-3">💪</Text>
-              <Text className="text-white text-2xl font-black tracking-wider">FITNESS LEVELS</Text>
-              <Text className="text-3xl ml-3">🔥</Text>
-            </View>
-            <Text className="text-green-400 text-base font-semibold text-center">
-              {getHealthGuideline()}
-            </Text>
-          </Animated.View>
+          <LinearGradient
+            colors={['rgba(17, 24, 39, 0.6)', 'rgba(31, 41, 55, 0.6)', 'rgba(17, 24, 39, 0.6)']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            className="p-6"
+          >
+            {/* Energetic Header */}
+            <Animated.View 
+              entering={FadeIn.delay(1050).duration(900)}
+              className="mb-6">
+              <View className="flex-row items-center justify-center mb-3">
+                <Text className="text-3xl mr-3">💪</Text>
+                <Text className="text-white text-2xl font-black tracking-wider">FITNESS LEVELS</Text>
+                <Text className="text-3xl ml-3">🔥</Text>
+              </View>
+              <Text className="text-green-400 text-base font-semibold text-center"
+                style={{
+                  textShadowColor: 'rgba(16, 185, 129, 0.4)',
+                  textShadowOffset: { width: 0, height: 1 },
+                  textShadowRadius: 6,
+                }}>
+                {getHealthGuideline()}
+              </Text>
+            </Animated.View>
 
-          {/* Transparent Cards with Color Progression */}
-          <View className="space-y-3">
-            {/* 7,000+ */}
-            <Animated.View 
-              entering={FadeIn.delay(1200).duration(900)}
-              className="p-5 rounded-xl bg-green-500/10"
-            >
-              <View className="flex-row items-center justify-between">
-                <View>
-                  <Text className="text-white text-lg font-bold mb-1">7,000+ STEPS</Text>
-                  <Text className="text-green-400 text-sm font-medium">Healthy baseline</Text>
+            {/* Transparent Cards with Color Progression */}
+            <View className="space-y-3">
+              {/* 7,000+ */}
+              <Animated.View 
+                entering={FadeIn.delay(1200).duration(900)}
+                className="p-5 rounded-xl bg-green-500/15"
+                style={{
+                  shadowColor: "#10b981",
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.2,
+                  shadowRadius: 4,
+                }}
+              >
+                <View className="flex-row items-center justify-between">
+                  <View>
+                    <Text className="text-white text-lg font-bold mb-1">7,000+ STEPS</Text>
+                    <Text className="text-green-400 text-sm font-medium">Healthy baseline</Text>
+                  </View>
+                  <View className="w-3 h-3 bg-green-400 rounded-full" 
+                    style={{
+                      shadowColor: "#10b981",
+                      shadowOffset: { width: 0, height: 0 },
+                      shadowOpacity: 0.6,
+                      shadowRadius: 6,
+                    }}
+                  ></View>
                 </View>
-                <View className="w-3 h-3 bg-green-400 rounded-full"></View>
-              </View>
-            </Animated.View>
-            
-            {/* 8,000-12,000 */}
-            <Animated.View 
-              entering={FadeIn.delay(1350).duration(900)}
-              className="p-5 rounded-xl bg-blue-500/10"
-            >
-              <View className="flex-row items-center justify-between">
-                <View>
-                  <Text className="text-white text-lg font-bold mb-1">8,000-12,000 STEPS</Text>
-                  <Text className="text-blue-400 text-sm font-medium">Moderate activity</Text>
+              </Animated.View>
+              
+              {/* 8,000-12,000 */}
+              <Animated.View 
+                entering={FadeIn.delay(1350).duration(900)}
+                className="p-5 rounded-xl bg-blue-500/15"
+                style={{
+                  shadowColor: "#3b82f6",
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.2,
+                  shadowRadius: 4,
+                }}
+              >
+                <View className="flex-row items-center justify-between">
+                  <View>
+                    <Text className="text-white text-lg font-bold mb-1">8,000-12,000 STEPS</Text>
+                    <Text className="text-blue-400 text-sm font-medium">Moderate activity</Text>
+                  </View>
+                  <View className="w-3 h-3 bg-blue-400 rounded-full"
+                    style={{
+                      shadowColor: "#3b82f6",
+                      shadowOffset: { width: 0, height: 0 },
+                      shadowOpacity: 0.6,
+                      shadowRadius: 6,
+                    }}
+                  ></View>
                 </View>
-                <View className="w-3 h-3 bg-blue-400 rounded-full"></View>
-              </View>
-            </Animated.View>
-            
-            {/* 10,000 */}
-            <Animated.View 
-              entering={FadeIn.delay(1500).duration(900)}
-              className="p-5 rounded-xl bg-purple-500/10"
-            >
-              <View className="flex-row items-center justify-between">
-                <View>
-                  <Text className="text-white text-lg font-bold mb-1">10,000 STEPS</Text>
-                  <Text className="text-purple-400 text-sm font-medium">Common benchmark</Text>
+              </Animated.View>
+              
+              {/* 10,000 */}
+              <Animated.View 
+                entering={FadeIn.delay(1500).duration(900)}
+                className="p-5 rounded-xl bg-purple-500/15"
+                style={{
+                  shadowColor: "#a855f7",
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.2,
+                  shadowRadius: 4,
+                }}
+              >
+                <View className="flex-row items-center justify-between">
+                  <View>
+                    <Text className="text-white text-lg font-bold mb-1">10,000 STEPS</Text>
+                    <Text className="text-purple-400 text-sm font-medium">Common benchmark</Text>
+                  </View>
+                  <View className="w-3 h-3 bg-purple-400 rounded-full"
+                    style={{
+                      shadowColor: "#a855f7",
+                      shadowOffset: { width: 0, height: 0 },
+                      shadowOpacity: 0.6,
+                      shadowRadius: 6,
+                    }}
+                  ></View>
                 </View>
-                <View className="w-3 h-3 bg-purple-400 rounded-full"></View>
-              </View>
-            </Animated.View>
-            
-            {/* 12,000-15,000 */}
-            <Animated.View 
-              entering={FadeIn.delay(1650).duration(900)}
-              className="p-5 rounded-xl bg-orange-500/10"
-            >
-              <View className="flex-row items-center justify-between">
-                <View>
-                  <Text className="text-white text-lg font-bold mb-1">12,000-15,000 STEPS</Text>
-                  <Text className="text-orange-400 text-sm font-medium">Higher activity</Text>
+              </Animated.View>
+              
+              {/* 12,000-15,000 */}
+              <Animated.View 
+                entering={FadeIn.delay(1650).duration(900)}
+                className="p-5 rounded-xl bg-orange-500/15"
+                style={{
+                  shadowColor: "#f97316",
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.2,
+                  shadowRadius: 4,
+                }}
+              >
+                <View className="flex-row items-center justify-between">
+                  <View>
+                    <Text className="text-white text-lg font-bold mb-1">12,000-15,000 STEPS</Text>
+                    <Text className="text-orange-400 text-sm font-medium">Higher activity</Text>
+                  </View>
+                  <View className="w-3 h-3 bg-orange-400 rounded-full"
+                    style={{
+                      shadowColor: "#f97316",
+                      shadowOffset: { width: 0, height: 0 },
+                      shadowOpacity: 0.6,
+                      shadowRadius: 6,
+                    }}
+                  ></View>
                 </View>
-                <View className="w-3 h-3 bg-orange-400 rounded-full"></View>
-              </View>
-            </Animated.View>
-          </View>
+              </Animated.View>
+            </View>
+          </LinearGradient>
         </Animated.View>
 
         {/* Stats Cards - Modern Design */}
@@ -249,39 +348,121 @@ export default function StepsAnalytics() {
           {/* Yesterday */}
           <Animated.View 
             entering={FadeIn.delay(1800).duration(1000)}
-            className="p-5 rounded-2xl w-[48%] mb-4 bg-gray-900 items-center"
+            className="rounded-2xl w-[48%] mb-4 overflow-hidden"
+            style={{
+              shadowColor: "#6366f1",
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.2,
+              shadowRadius: 6,
+              elevation: 6
+            }}
           >
-            <Text className="text-gray-400 font-bold mb-2">📅 Yesterday</Text>
-            <Text className="text-white text-3xl font-black">
-              {yesterdaySteps ? formatSteps(yesterdaySteps.steps) : '0'}
-            </Text>
+            <LinearGradient
+              colors={['rgba(79, 70, 229, 0.5)', 'rgba(99, 102, 241, 0.5)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              className="p-5 items-center"
+            >
+              <Text className="text-gray-200 font-bold mb-2">📅 Yesterday</Text>
+              <Text className="text-white text-3xl font-black"
+                style={{
+                  textShadowColor: 'rgba(99, 102, 241, 0.4)',
+                  textShadowOffset: { width: 0, height: 1 },
+                  textShadowRadius: 6,
+                }}>
+                {yesterdaySteps ? formatSteps(yesterdaySteps.steps) : '0'}
+              </Text>
+            </LinearGradient>
           </Animated.View>
 
           {/* Daily Average */}
           <Animated.View 
             entering={FadeIn.delay(1950).duration(1000)}
-            className="p-5 rounded-2xl w-[48%] mb-4 bg-gray-900 items-center"
+            className="rounded-2xl w-[48%] mb-4 overflow-hidden"
+            style={{
+              shadowColor: "#14b8a6",
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.2,
+              shadowRadius: 6,
+              elevation: 6
+            }}
           >
-            <Text className="text-gray-400 font-bold mb-2">📊 Daily Average</Text>
-            <Text className="text-white text-3xl font-black">{getDisplaySteps()}</Text>
+            <LinearGradient
+              colors={['rgba(20, 184, 166, 0.5)', 'rgba(6, 182, 212, 0.5)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              className="p-5 items-center"
+            >
+              <Text className="text-gray-200 font-bold mb-2">📊 Daily Average</Text>
+              <Text className="text-white text-3xl font-black"
+                style={{
+                  textShadowColor: 'rgba(20, 184, 166, 0.4)',
+                  textShadowOffset: { width: 0, height: 1 },
+                  textShadowRadius: 6,
+                }}>
+                {getDisplaySteps()}
+              </Text>
+            </LinearGradient>
           </Animated.View>
 
           {/* Best Day */}
           <Animated.View 
             entering={FadeIn.delay(2100).duration(1000)}
-            className="p-5 rounded-2xl w-[48%] bg-gray-900 items-center"
+            className="rounded-2xl w-[48%] overflow-hidden"
+            style={{
+              shadowColor: "#f59e0b",
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.2,
+              shadowRadius: 6,
+              elevation: 6
+            }}
           >
-            <Text className="text-gray-400 font-bold mb-2">🏆 Best Day</Text>
-            <Text className="text-white text-3xl font-black">{getDisplaySteps()}</Text>
+            <LinearGradient
+              colors={['rgba(245, 158, 11, 0.5)', 'rgba(251, 191, 36, 0.5)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              className="p-5 items-center"
+            >
+              <Text className="text-gray-200 font-bold mb-2">🏆 Best Day</Text>
+              <Text className="text-white text-3xl font-black"
+                style={{
+                  textShadowColor: 'rgba(245, 158, 11, 0.4)',
+                  textShadowOffset: { width: 0, height: 1 },
+                  textShadowRadius: 6,
+                }}>
+                {getDisplaySteps()}
+              </Text>
+            </LinearGradient>
           </Animated.View>
 
           {/* Longest Streak */}
           <Animated.View 
             entering={FadeIn.delay(2250).duration(1000)}
-            className="p-5 rounded-2xl w-[48%] bg-gray-900 items-center"
+            className="rounded-2xl w-[48%] overflow-hidden"
+            style={{
+              shadowColor: "#ec4899",
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.2,
+              shadowRadius: 6,
+              elevation: 6
+            }}
           >
-            <Text className="text-gray-400 font-bold mb-2">📈 Longest Streak</Text>
-            <Text className="text-white text-3xl font-black">0 days</Text>
+            <LinearGradient
+              colors={['rgba(236, 72, 153, 0.5)', 'rgba(244, 114, 182, 0.5)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              className="p-5 items-center"
+            >
+              <Text className="text-gray-200 font-bold mb-2">📈 Longest Streak</Text>
+              <Text className="text-white text-3xl font-black"
+                style={{
+                  textShadowColor: 'rgba(236, 72, 153, 0.4)',
+                  textShadowOffset: { width: 0, height: 1 },
+                  textShadowRadius: 6,
+                }}>
+                0 days
+              </Text>
+            </LinearGradient>
           </Animated.View>
         </View>
 
