@@ -4,7 +4,7 @@ import React from "react";
 import { View, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import SunBloom from "./SunBloom";
-import CloudBank from "./CloudBank";
+// Clouds removed for library selection
 import HazeVeil from "./HazeVeil";
 
 export default function MorningBackground({ children }: { children?: React.ReactNode }) {
@@ -22,16 +22,13 @@ export default function MorningBackground({ children }: { children?: React.React
       {/* Atmospheric haze at top for depth */}
       <HazeVeil type="top" />
 
-      {/* Brilliant sun positioned higher - 30% smaller, ultra-bright */}
-      <SunBloom size={90} />
+      {/* Sun with bloom, no animation */}
+      <SunBloom size={90} disableAnimation />
 
       {/* Horizon haze for atmospheric perspective */}
       <HazeVeil type="horizon" />
 
-      {/* Three cloud layers with parallax - denser with wind effects */}
-      <CloudBank depth="far"   speed={0.10} opacity={0.45} tint="#F6FAFF" />
-      <CloudBank depth="mid"   speed={0.22} opacity={0.60} tint="#F8FBFF" />
-      <CloudBank depth="near"  speed={0.35} opacity={0.75} tint="#FFFFFF" />
+      {/* Clouds temporarily removed for evaluation */}
 
       {/* Soft edge vignette (very subtle) */}
       <HazeVeil type="vignette" />

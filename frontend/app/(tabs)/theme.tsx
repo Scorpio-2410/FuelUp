@@ -1,41 +1,35 @@
-// Theme Preview Tab - For Development Purposes
-// Pure theme view with no widgets - for visual testing only
-
+// Theme Preview Tab - Morning background (clean)
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import CelestialBackground from '../../components/Theme/night/CelestialBackground';
 import MorningBackground from '../../components/Theme/morning/MorningBackground';
-import DynamicBackground from '../../components/Theme/DynamicBackground';
-import { useTheme } from '../../contexts/ThemeContext';
 
 export default function ThemePreview() {
-  const { mode } = useTheme();
-
-  const renderTheme = () => {
-    // If auto mode is enabled, show DynamicBackground
-    if (mode === 'auto') {
-      return <DynamicBackground intensity="medium" />;
-    }
-
-    // For morning theme, use MorningBackground
-    if (mode === 'morning') {
-      return <MorningBackground />;
-    }
-
-    // For all night-time themes (midnight, dawn, night, evening, day), use CelestialBackground
-    return <CelestialBackground intensity="medium" />;
-  };
-
   return (
     <View style={styles.container}>
-      {renderTheme()}
+      <MorningBackground />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  container: { flex: 1 },
+  panel: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    top: 24,
+    gap: 8,
   },
+  label: {
+    color: '#eef6ff',
+    fontWeight: '700',
+    textShadowColor: 'rgba(0,0,0,0.25)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  lottie: { width: '92%', height: 160, borderRadius: 10, opacity: 0.9 },
+  gl: { width: '100%', height: 200, borderRadius: 10 },
+  missing: { color: '#FFD4D4', fontWeight: '600' },
+  subtle: { color: '#D6E4F5' },
 });
 
