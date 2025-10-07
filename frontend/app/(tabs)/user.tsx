@@ -8,7 +8,6 @@ import RefreshScroll from "../../components/RefreshScroll";
 import { useGlobalRefresh } from "../../components/useGlobalRefresh";
 import SaveRow from "../../components/User/SaveButton";
 import ProfileForm from "../../components/User/ProfileForm";
-import CelestialBackground from "../../components/Theme/night/CelestialBackground";
 import { useTheme } from "../../contexts/ThemeContext";
 
 import {
@@ -129,69 +128,61 @@ export default function UserTabProfile() {
 
   if (loading) {
     return (
-      <CelestialBackground
-        theme={theme}
-        intensity="medium">
-        <SafeAreaView className="flex-1" edges={["top"]}>
-          <View className="flex-1 items-center justify-center">
-            <Animated.View
-              entering={FadeIn.duration(800)}
-              className="w-16 h-16 rounded-full bg-purple-600/20 items-center justify-center mb-4"
-            >
-              <Text className="text-4xl">💪</Text>
-            </Animated.View>
-            <Text className="text-white text-lg font-semibold">
-              Loading your profile...
-            </Text>
-          </View>
-        </SafeAreaView>
-      </CelestialBackground>
+      <SafeAreaView className="flex-1" edges={["top"]}>
+        <View className="flex-1 items-center justify-center">
+          <Animated.View
+            entering={FadeIn.duration(800)}
+            className="w-16 h-16 rounded-full bg-purple-600/20 items-center justify-center mb-4"
+          >
+            <Text className="text-4xl">💪</Text>
+          </Animated.View>
+          <Text className="text-white text-lg font-semibold">
+            Loading your profile...
+          </Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <CelestialBackground
-      theme={theme}
-      intensity="medium">
-      <Animated.View entering={FadeIn.duration(250)} style={{ flex: 1 }}>
-        <SafeAreaView className="flex-1" edges={["top"]}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
-            className="flex-1"
-          >
-            <RefreshScroll refreshing={refreshing} onRefresh={handleRefresh}>
-              <View className="flex-1" style={{ paddingBottom: 40 }}>
-                {/* Simple Header */}
-                <Animated.View
-                  entering={FadeInDown.duration(600).springify()}
-                  className="pt-6 pb-4 px-6"
-                >
-                  <Text className="text-white text-3xl font-black tracking-tight">
-                    Your Profile
-                  </Text>
-                </Animated.View>
+    <Animated.View entering={FadeIn.duration(250)} style={{ flex: 1 }}>
+      <SafeAreaView className="flex-1" edges={["top"]}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          className="flex-1"
+        >
+          <RefreshScroll refreshing={refreshing} onRefresh={handleRefresh}>
+            <View className="flex-1" style={{ paddingBottom: 40 }}>
+              {/* Simple Header */}
+              <Animated.View
+                entering={FadeInDown.duration(600).springify()}
+                className="pt-6 pb-4 px-6"
+              >
+                <Text className="text-white text-3xl font-black tracking-tight">
+                  Your Profile
+                </Text>
+              </Animated.View>
 
-                {/* Profile Form */}
-                <Animated.View
-                  entering={FadeIn.delay(200).duration(800)}
-                  className="px-5 mt-2"
-                >
-                  <ProfileForm profile={profile} setProfile={setProfile} />
-                </Animated.View>
+              {/* Profile Form */}
+              <Animated.View
+                entering={FadeIn.delay(200).duration(800)}
+                className="px-5 mt-2"
+              >
+                <ProfileForm profile={profile} setProfile={setProfile} />
+              </Animated.View>
 
-                {/* Save and Logout Buttons - At bottom of form */}
-                <View className="px-5 mt-6 mb-8">
-                  <SaveRow
-                    profile={profile}
-                    saving={saving}
-                    setSaving={setSaving}
-                  />
-                </View>
+              {/* Save and Logout Buttons - At bottom of form */}
+              <View className="px-5 mt-6 mb-8">
+                <SaveRow
+                  profile={profile}
+                  saving={saving}
+                  setSaving={setSaving}
+                />
               </View>
-            </RefreshScroll>
-          </KeyboardAvoidingView>
-        </SafeAreaView>
-      </Animated.View>
-    </CelestialBackground>
+            </View>
+          </RefreshScroll>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </Animated.View>
   );
 }

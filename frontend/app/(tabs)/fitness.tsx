@@ -51,7 +51,7 @@ export default function FitnessScreen() {
 
   return (
     <SafeAreaView
-      style={{ flex: 1, backgroundColor: "#1a1a1a" }}
+      style={{ flex: 1 }}
       edges={["top"]}
     >
       <RefreshScroll refreshing={refreshing} onRefresh={handleRefresh}>
