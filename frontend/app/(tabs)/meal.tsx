@@ -10,7 +10,7 @@ export default function MealScreen() {
   const [query, setQuery] = useState("");
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#1a1a1a" }}>
+    <View style={{ flex: 1 }}>
       <TopSearchBar
         value={query}
         onChangeText={setQuery}

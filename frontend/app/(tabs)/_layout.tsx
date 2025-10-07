@@ -12,6 +12,7 @@ import { useColorScheme } from "../../components/useColorScheme";
 import { useClientOnlyValue } from "../../components/useClientOnlyValue";
 import SwipeNavigate from "../../components/SwipeNavigate";
 import CustomTabBar from "../../components/CustomTabBar";
+import DynamicBackground from "../../components/Theme/DynamicTheme";
 
 // built-in icon families and icons on the web https://icons.expo.fyi/
 function TabBarIcon(props: {
@@ -70,7 +71,7 @@ export default function TabLayout() {
   };
 
   return (
-    <>
+    <DynamicBackground>
       <SwipeNavigate
         currentTabIndex={currentTabIndex}
         totalTabs={tabs.length}
@@ -90,6 +91,9 @@ export default function TabLayout() {
             },
             headerShown: useClientOnlyValue(false, true),
             animation: "shift",
+            sceneStyle: {
+              backgroundColor: "transparent", // Make tabs transparent to show theme
+            },
           }}
         >
           <Tabs.Screen
@@ -141,6 +145,6 @@ export default function TabLayout() {
         onTabPress={handleTabPress}
         tabs={tabConfigs}
       />
-    </>
+    </DynamicBackground>
   );
 }

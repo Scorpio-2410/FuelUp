@@ -19,22 +19,18 @@ export const DynamicBackground: React.FC<DynamicBackgroundProps> = ({
 }) => {
   const [isMorningTime, setIsMorningTime] = useState(false);
 
-  // Check if current time is morning (6:00 AM - 12:00 PM)
+  // Check if current time is morning (6:00 AM - 6:00 PM)
   const checkIsMorningTime = () => {
-    // FOR TESTING: Always return true to force morning theme
-    return true;
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    const currentTime = currentHour * 60 + currentMinute; // Convert to minutes
     
-    // Original time-based logic (commented out for testing)
-    // const now = new Date();
-    // const currentHour = now.getHours();
-    // const currentMinute = now.getMinutes();
-    // const currentTime = currentHour * 60 + currentMinute; // Convert to minutes
+    const morningStart = 6 * 60; // 6:00 AM = 360 minutes
+    const morningEnd = 18 * 60; // 6:00 PM = 1080 minutes
     
-    // const morningStart = 6 * 60; // 6:00 AM = 360 minutes
-    // const morningEnd = 12 * 60; // 12:00 PM = 720 minutes
-    
-    // // Morning time is from 6:00 AM to 12:00 PM
-    // return currentTime >= morningStart && currentTime < morningEnd;
+    // Morning time is from 6:00 AM to 6:00 PM
+    return currentTime >= morningStart && currentTime < morningEnd;
   };
 
   // Update morning time status
@@ -55,7 +51,7 @@ export const DynamicBackground: React.FC<DynamicBackgroundProps> = ({
   // Render appropriate background based on time
   if (isMorningTime) {
     return (
-      <MorningBackground theme={theme} intensity={intensity}>
+      <MorningBackground>
         {children}
       </MorningBackground>
     );
