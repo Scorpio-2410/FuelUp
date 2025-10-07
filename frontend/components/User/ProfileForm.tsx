@@ -3,7 +3,7 @@ import { View, Text, Switch } from "react-native";
 
 import ProfileAvatar from "./ProfileAvatar";
 import ProfileField from "./ProfileField";
-import ModalDropdown from "../Shared/ModalDropdown";
+import ProfileDropdown from "./ProfileDropdown";
 import ProfileRow from "./ProfileRow";
 
 import {
@@ -193,36 +193,27 @@ export default function ProfileForm({ profile, setProfile }: Props) {
       <ProfileField label="Date of birth (DD-MM-YYYY)">
         <View className="flex-row gap-3">
           <View style={{ flex: 1 }}>
-            <ModalDropdown
+            <ProfileDropdown
               value={dobDay}
-              options={dayItems.map((i) => ({
-                label: i.label,
-                value: i.value,
-              }))}
-              placeholder="DD"
-              onSelect={(v) => handleDobChange("d", v)}
+              items={dayItems}
+              placeholderLabel="DD"
+              onChange={(v) => handleDobChange("d", v)}
             />
           </View>
           <View style={{ flex: 1.2 }}>
-            <ModalDropdown
+            <ProfileDropdown
               value={dobMonth}
-              options={monthItems.map((i) => ({
-                label: i.label,
-                value: i.value,
-              }))}
-              placeholder="MM"
-              onSelect={(v) => handleDobChange("m", v)}
+              items={monthItems}
+              placeholderLabel="MM"
+              onChange={(v) => handleDobChange("m", v)}
             />
           </View>
           <View style={{ flex: 1.2 }}>
-            <ModalDropdown
+            <ProfileDropdown
               value={dobYear}
-              options={yearItems.map((i) => ({
-                label: i.label,
-                value: i.value,
-              }))}
-              placeholder="YYYY"
-              onSelect={(v) => handleDobChange("y", v)}
+              items={yearItems}
+              placeholderLabel="YYYY"
+              onChange={(v) => handleDobChange("y", v)}
             />
           </View>
         </View>
@@ -242,14 +233,11 @@ export default function ProfileForm({ profile, setProfile }: Props) {
 
       {/* Gender */}
       <ProfileField label="Gender">
-        <ModalDropdown
+        <ProfileDropdown
           value={profile.gender ?? ""}
-          options={GENDER_ITEMS.map((i) => ({
-            label: i.label,
-            value: i.value,
-          }))}
-          placeholder="Select Gender"
-          onSelect={(v) => setProfile({ ...profile, gender: v })}
+          items={GENDER_ITEMS}
+          placeholderLabel="Select Gender"
+          onChange={(v) => setProfile({ ...profile, gender: v })}
         />
         {errors.gender && (
           <Text
@@ -267,13 +255,11 @@ export default function ProfileForm({ profile, setProfile }: Props) {
 
       {/* Ethnicity */}
       <ProfileField label="Ethnicity">
-        <ModalDropdown
+        <ProfileDropdown
           value={profile.ethnicity ?? "not_specified"}
-          options={ETHNICITY_ITEMS.filter(
-            (i) => i.value !== "not_specified"
-          ).map((i) => ({ label: i.label, value: i.value }))}
-          placeholder="Select ethnicity"
-          onSelect={(v) => setProfile({ ...profile, ethnicity: v })}
+          items={ETHNICITY_ITEMS.filter((i) => i.value !== "not_specified")}
+          placeholderLabel="Select ethnicity"
+          onChange={(v) => setProfile({ ...profile, ethnicity: v })}
         />
         {errors.ethnicity && (
           <Text
@@ -291,14 +277,11 @@ export default function ProfileForm({ profile, setProfile }: Props) {
 
       {/* Follow-up frequency */}
       <ProfileField label="Follow-up questions frequency">
-        <ModalDropdown
+        <ProfileDropdown
           value={profile.followUpFrequency ?? "daily"}
-          options={FREQUENCY_ITEMS.map((i) => ({
-            label: i.label,
-            value: i.value,
-          }))}
-          placeholder="Choose frequency"
-          onSelect={(v) =>
+          items={FREQUENCY_ITEMS}
+          placeholderLabel="Choose frequency"
+          onChange={(v) =>
             setProfile({ ...profile, followUpFrequency: v as any })
           }
         />
