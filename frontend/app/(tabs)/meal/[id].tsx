@@ -10,7 +10,9 @@ import {
 } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { apiGetRecipeDetail } from "../../../constants/api";
+import { apiGetRecipeDetail, apiAddMealToPlan, readProfileCache, apiSaveRecipe } from "../../../constants/api";
+import PlanPicker from "../../../components/Meal/PlanPicker";
+
 
 type FSDir = { direction_description?: string; direction_number?: string };
 type FSIng = {
@@ -58,6 +60,8 @@ export default function RecipeDetail() {
   const [loading, setLoading] = useState(true);
   const [recipe, setRecipe] = useState<any | null>(null);
 
+  const [showPlanPicker, setShowPlanPicker] = useState(false);
+
   useEffect(() => {
     (async () => {
       setLoading(true);
@@ -72,6 +76,36 @@ export default function RecipeDetail() {
     })();
   }, [id]);
 
+  async function handlePlanPick(planId: number) {
+    try {
+      const profile = await readProfileCache();
+      if (!profile?.id) {
+        alert("You must be logged in to add to a plan");
+        return;
+      }
+      const saveRes = await apiSaveRecipe(id);
+      const dbRecipeId = saveRes.recipe?.id;
+
+      if (!dbRecipeId) {
+        throw new Error("Recipe save failed — no DB ID returned");
+      }
+  
+      await apiAddMealToPlan({
+        meal_plan_id: planId,
+        recipe_id: dbRecipeId,   
+        servings: 1,
+        meal_type: "other",
+      });
+  
+      alert("Recipe added to meal plan successfully!");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to add recipe to plan");
+    } finally {
+      setShowPlanPicker(false);
+    }
+  }
+  
   /* -------------------- derived fields -------------------- */
   const title = recipe?.recipe_name || (loading ? "Loading..." : "Recipe");
   const description = recipe?.recipe_description || "";
@@ -296,6 +330,18 @@ export default function RecipeDetail() {
             </View>
           ) : null}
 
+          {/* add to meal plan button */}
+          <Pressable
+          onPress={() => setShowPlanPicker(true)}
+          style={{
+            marginTop: 14,
+            backgroundColor: "#2563eb",
+            paddingVertical: 12,
+            borderRadius: 12,
+            alignItems: "center",}}>
+          <Text style={{ color: "#fff", fontWeight: "700" }}>➕ Add to Meal Plan</Text>
+        </Pressable>
+
           {/* Nutrition */}
           <View
             style={{
@@ -409,6 +455,11 @@ export default function RecipeDetail() {
           />
         </View>
       </ScrollView>
+      <PlanPicker
+      visible={showPlanPicker}
+      onClose={() => setShowPlanPicker(false)}
+      onPick={handlePlanPick}
+    />
     </>
   );
 }
