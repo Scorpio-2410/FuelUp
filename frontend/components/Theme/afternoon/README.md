@@ -13,27 +13,36 @@ Main orchestrator component that assembles all afternoon theme elements.
 
 ### 2. **GoldenSky.tsx**
 Creates the multi-layered sky gradient using two LinearGradients:
-- **Layer 1 (Base)**: Warm orange → yellow → cool blue
-  - `#FFB347` (0%) - Warm orange
-  - `#FFC463` (30%) - Golden orange
-  - `#FFD66B` (55%) - Golden yellow
-  - `#FFE89D` (72%) - Light yellow
+- **Layer 1 (Base)**: Orange-red → cool blue
+  - `#FF6B35` (0%) - Orange-red
+  - `#FF7F4A` (30%) - Orange-red light
+  - `#FF8C5A` (55%) - Orange-red lighter
+  - `#FF9B6B` (72%) - Orange-red lightest
   - `#D8EAFE` (90%) - Cool sky blue
   - `#A7CCFF` (100%) - Light cool blue
 
-- **Layer 2 (Night Cap)**: Twilight fade at top
-  - `#2B364B` (0%) - Night carryover
-  - `#262E4D` (10%) - Twilight
-  - `rgba(38,46,77,0)` (14%) - Transparent
+- **Layer 2 (Extended Night Cap)**: Extended twilight fade at top
+  - `#1A1F2E` (0%) - Darker night carryover
+  - `#2B364B` (15%) - Night carryover
+  - `#262E4D` (25%) - Twilight
+  - `rgba(38,46,77,0)` (30%) - Transparent
 
-### 3. **HorizonSun.tsx**
-Renders a sun positioned at the horizon (80% down the screen) with:
+### 3. **AfternoonStarField.tsx**
+Shows stars only in the top 40% of the screen for twilight atmosphere:
+- **Star count**: Light: 40, Medium: 60, Strong: 80
+- **Size**: 0.8-2.6px (smaller than night theme)
+- **Opacity**: 0.2-0.6 (dimmer for twilight)
+- **Animation**: Gentle twinkling with 2-5 second cycles
+- **Position**: Only in top 40% of screen height
+
+### 4. **HorizonSun.tsx**
+Renders a sun positioned at the horizon (80% down the screen, moved up 40px) with:
 - **Sun Disc**: Radial gradient from `#FFF8E6` (center) to `#FFE39E` (edge)
 - **Tight Glow**: `rgba(255,228,160,0.45)` fading outward
 - **Wide Horizon Bloom**: Elliptical bloom `rgba(255,210,120,0.18)` spanning 62% of screen width
 - **Subtle pulse animation**: 3.5 second cycle for realism
 
-### 4. **AfternoonClouds.tsx**
+### 5. **AfternoonClouds.tsx**
 Generates fewer clouds than morning theme (40% reduction):
 - **Cloud counts**: Far: 4, Mid: 5, Near: 3
 - **Cloud types**: 60% mild (thin cirrus), 40% heavy (defined)
@@ -56,12 +65,13 @@ Generates fewer clouds than morning theme (40% reduction):
 ## Color Palette
 | Color | Hex | Usage |
 |-------|-----|-------|
-| Night Cap Dark | `#2B364B` | Top edge (twilight) |
+| Dark Night Cap | `#1A1F2E` | Top edge (darker twilight) |
+| Night Cap Dark | `#2B364B` | Night carryover |
 | Night Cap Light | `#262E4D` | Twilight transition |
-| Warm Orange | `#FFB347` | Upper warm body |
-| Golden Orange | `#FFC463` | Mid-upper warm body |
-| Golden Yellow | `#FFD66B` | Mid warm body |
-| Light Yellow | `#FFE89D` | Mid-lower warm body |
+| Orange-Red | `#FF6B35` | Upper warm body |
+| Orange-Red Light | `#FF7F4A` | Mid-upper warm body |
+| Orange-Red Lighter | `#FF8C5A` | Mid warm body |
+| Orange-Red Lightest | `#FF9B6B` | Mid-lower warm body |
 | Cool Sky Blue | `#D8EAFE` | Lower transition |
 | Light Cool Blue | `#A7CCFF` | Bottom edge |
 | Sun Center | `#FFF8E6` | Sun disc center |

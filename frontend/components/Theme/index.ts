@@ -12,3 +12,5 @@ export { default as StarField } from './night/StarField';
 export { default as GoldenSky } from './afternoon/GoldenSky';
 export { default as HorizonSun } from './afternoon/HorizonSun';
 export { default as AfternoonClouds } from './afternoon/AfternoonClouds';
+export { default as AfternoonStarField } from './afternoon/AfternoonStarField';
+export { default as BeachSunset } from './afternoon/BeachSunset';

@@ -28,8 +28,8 @@ const HorizonSun: React.FC = () => {
     ).start();
   }, []);
 
-  // Sun positioned at 80% of screen height (bottom area)
-  const sunY = height * 0.80;
+  // Sun positioned at 80% of screen height, moved up 80px total (40px + 40px more)
+  const sunY = height * 0.80 - 80;
   const sunX = width / 2;
   const sunRadius = Math.min(width, height) * 0.14; // ~14% of smaller dimension
 
@@ -74,13 +74,21 @@ const HorizonSun: React.FC = () => {
           </Svg>
         </Animated.View>
 
-        {/* Sun disc (half-visible, only upper half shown) */}
+        {/* Sun disc (50-60% visible, clipped at horizon) */}
         <Circle
           cx={sunX}
           cy={sunY}
           r={sunRadius}
           fill="url(#sunDisc)"
         />
+        
+        {/* Clip mask to show only 50-60% of sun */}
+        <View style={[styles.sunClip, { 
+          top: sunY - sunRadius * 0.2, // Show 60% of sun (40% clipped)
+          left: sunX - sunRadius,
+          width: sunRadius * 2,
+          height: sunRadius * 1.2 // Only show upper 60%
+        }]} />
       </Svg>
     </View>
   );
@@ -99,6 +107,13 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     left: 0,
+  },
+  sunClip: {
+    position: 'absolute',
+    backgroundColor: 'transparent',
+    borderTopLeftRadius: 1000,
+    borderTopRightRadius: 1000,
+    overflow: 'hidden',
   },
 });
 

@@ -15,13 +15,13 @@ const GoldenSky: React.FC<GoldenSkyProps> = ({ intensity = 'medium' }) => {
   // Use layered gradient for richer visual effect
   return (
     <View style={styles.container}>
-      {/* Layer 1: Base warm→cool gradient */}
+      {/* Layer 1: Base warm→cool gradient (more orange-red) */}
       <LinearGradient
         colors={[
-          '#FFB347', // Warm orange
-          '#FFC463', // Golden orange
-          '#FFD66B', // Golden yellow
-          '#FFE89D', // Light yellow
+          '#FF6B35', // Orange-red
+          '#FF7F4A', // Orange-red light
+          '#FF8C5A', // Orange-red lighter
+          '#FF9B6B', // Orange-red lightest
           '#D8EAFE', // Cool sky blue
           '#A7CCFF', // Lighter cool blue
         ]}
@@ -29,14 +29,16 @@ const GoldenSky: React.FC<GoldenSkyProps> = ({ intensity = 'medium' }) => {
         style={styles.baseGradient}
       />
       
-      {/* Layer 2: Night cap at top (fades to transparent) */}
+      {/* Layer 2: More extended night cap at top (fades to transparent) */}
       <LinearGradient
         colors={[
-          '#2B364B',           // Night carryover (top)
+          '#0F1419',           // Very dark night (top)
+          '#1A1F2E',           // Darker night carryover
+          '#2B364B',           // Night carryover
           '#262E4D',           // Twilight
           'rgba(38,46,77,0)',  // Fade to transparent
         ]}
-        locations={[0, 0.10, 0.14]}
+        locations={[0, 0.12, 0.22, 0.32, 0.40]}
         style={styles.nightCap}
       />
     </View>
@@ -67,7 +69,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: height * 0.15, // Only affects top ~15%
+    height: height * 0.40, // More extended to affect top ~40%
     width: width,
   },
 });
