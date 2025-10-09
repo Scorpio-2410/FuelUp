@@ -1,11 +1,113 @@
 //Assembles all morning theme elements into a cohesive sky scene.
 
-import React from "react";
-import { View, StyleSheet } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, StyleSheet, Animated, Dimensions } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import SunBloom from "./SunBloom";
 import OrganicClouds from "./OrganicCloudsRender";
 import HazeVeil from "./HazeVeil";
+
+const { width, height } = Dimensions.get('window');
+
+// Morning Star Field Component
+// Shows stars only in upper 40% of screen where sun is located
+const MorningStarField = () => {
+  const [stars, setStars] = useState<Array<{
+    id: number;
+    x: number;
+    y: number;
+    size: number;
+    opacity: number;
+    animationDelay: number;
+  }>>([]);
+  const starAnimatedValues = React.useRef<Animated.Value[]>([]);
+
+  // Generate stars only in upper 40% of screen
+  const generateStars = () => {
+    const starCount = 60; // Reduced count for morning
+    const stars = [];
+    const upperScreenHeight = height * 0.5; // Only upper 40% of screen
+    
+    for (let i = 0; i < starCount; i++) {
+      stars.push({
+        id: i,
+        x: Math.random() * width,
+        y: Math.random() * upperScreenHeight, // Only in upper 40%
+        size: Math.random() * 2 + 1, // Smaller stars for morning
+        opacity: Math.random() * 0.4 + 0.2, // More subtle opacity
+        animationDelay: Math.random() * 3000,
+      });
+    }
+    
+    return stars;
+  };
+
+  useEffect(() => {
+    const generatedStars = generateStars();
+    setStars(generatedStars);
+    
+    // Create animated values for each star
+    starAnimatedValues.current = generatedStars.map(() => 
+      new Animated.Value(0)
+    );
+    
+    // Animate stars with staggered delays
+    starAnimatedValues.current.forEach((animatedValue, index) => {
+      const star = generatedStars[index];
+      
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(star.animationDelay),
+          Animated.timing(animatedValue, {
+            toValue: 1,
+            duration: 4000 + Math.random() * 2000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(animatedValue, {
+            toValue: 0,
+            duration: 4000 + Math.random() * 2000,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    });
+  }, []);
+
+  return (
+    <View style={styles.starField}>
+      {stars.map((star, index) => {
+        const animatedValue = starAnimatedValues.current[index];
+        
+        return (
+          <Animated.View
+            key={star.id}
+            style={[
+              styles.star,
+              {
+                left: star.x,
+                top: star.y,
+                width: star.size,
+                height: star.size,
+                opacity: animatedValue.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [star.opacity * 0.3, star.opacity],
+                }),
+                transform: [
+                  {
+                    scale: animatedValue.interpolate({
+                      inputRange: [0, 0.5, 1],
+                      outputRange: [0.8, 1.1, 0.8],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          />
+        );
+      })}
+    </View>
+  );
+};
 
 export default function MorningBackground({ children }: { children?: React.ReactNode }) {
   return (
@@ -22,38 +124,41 @@ export default function MorningBackground({ children }: { children?: React.React
       {/* Atmospheric haze at top for depth */}
       <HazeVeil type="top" />
 
-      {/* Far clouds - background layer with slower movement, increased for more coverage */}
+      {/* Far clouds - background layer with lighter clouds, reduced count by 30% */}
       <OrganicClouds 
         depth="far" 
-        cloudCount={10} 
-        baseOpacity={0.50} 
-        baseSpeed={0.35}
+        cloudCount={6} 
+        baseOpacity={0.40} 
+        baseSpeed={0.7}
       />
 
       {/* Sun with bloom, no animation */}
       <SunBloom size={90} disableAnimation />
 
-      {/* Mid clouds - main layer with high density for natural sky coverage */}
+      {/* Mid clouds - main layer with balanced density, reduced count by 30% */}
       <OrganicClouds 
         depth="mid" 
-        cloudCount={15} 
-        baseOpacity={0.70} 
-        baseSpeed={0.55}
+        cloudCount={10} 
+        baseOpacity={0.65} 
+        baseSpeed={1.01}
       />
 
       {/* Horizon haze for atmospheric perspective */}
       <HazeVeil type="horizon" />
 
-      {/* Near clouds - foreground layer with more clouds for depth and realism */}
+      {/* Near clouds - foreground layer with fewer clouds for cleaner look, reduced count by 15% */}
       <OrganicClouds 
         depth="near" 
-        cloudCount={8} 
-        baseOpacity={0.85} 
-        baseSpeed={0.75}
+        cloudCount={7} 
+        baseOpacity={0.80} 
+        baseSpeed={1.68}
       />
 
       {/* Soft edge vignette (very subtle) */}
       <HazeVeil type="vignette" />
+
+      {/* Morning star field - only in upper 40% where sun is */}
+      <MorningStarField />
 
       {/* Page content on top */}
       <View style={styles.content} pointerEvents="box-none">{children}</View>
@@ -63,5 +168,23 @@ export default function MorningBackground({ children }: { children?: React.React
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content:   { flex: 1, zIndex: 10 },
+  content: { flex: 1, zIndex: 10 },
+  starField: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: height * 0.4, // Only upper 40% of screen
+    zIndex: 2,
+  },
+  star: {
+    position: 'absolute',
+    backgroundColor: '#ffffff',
+    borderRadius: 50,
+    shadowColor: 'rgba(255, 255, 255, 0.6)',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1.0,
+    shadowRadius: 3,
+    elevation: 3,
+  },
 });

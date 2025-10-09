@@ -207,9 +207,9 @@ export class CloudTypeFactory {
 
   static getRandomComplexity(): CloudComplexity {
     const rand = Math.random();
-    // 30% light, 45% mild, 25% heavy
-    if (rand < 0.30) return "light";
-    if (rand < 0.75) return "mild";
+    // 70% light, 25% mild, 5% heavy - reduced mild/heavy by 15% for cleaner look
+    if (rand < 0.70) return "light";
+    if (rand < 0.95) return "mild";
     return "heavy";
   }
 }
