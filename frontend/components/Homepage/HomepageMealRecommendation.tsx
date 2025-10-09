@@ -31,6 +31,7 @@ const HomepageMealRecommendation = forwardRef<any, HomepageMealRecommendationPro
   const [currentRecipe, setCurrentRecipe] = useState<RecipeData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [recentRecipeIds, setRecentRecipeIds] = useState<Set<string>>(new Set());
+  const [imageError, setImageError] = useState(false);
 
   // Fallback meal suggestions if API fails
   const fallbackMeals = [
@@ -120,10 +121,13 @@ const HomepageMealRecommendation = forwardRef<any, HomepageMealRecommendationPro
         setRecentRecipeIds(newRecentIds);
         
         // Store the full recipe data for navigation
+        const imageUrl = randomRecipe.recipe_image || randomRecipe.recipe_images?._500 || null;
+        console.log('Recipe image URL:', imageUrl); // Debug log
+        
         setCurrentRecipe({
           recipe_id: randomRecipe.recipe_id,
           recipe_name: randomRecipe.recipe_name,
-          recipe_image: randomRecipe.recipe_image || randomRecipe.recipe_images?._500 || null,
+          recipe_image: imageUrl,
           nutrition: {
             calories: randomRecipe.recipe_nutrition?.calories || randomRecipe.calories,
             protein: randomRecipe.recipe_nutrition?.protein || randomRecipe.protein,
@@ -131,6 +135,9 @@ const HomepageMealRecommendation = forwardRef<any, HomepageMealRecommendationPro
             fat: randomRecipe.recipe_nutrition?.fat || randomRecipe.fat,
           },
         });
+        
+        // Reset image error state when new recipe is loaded
+        setImageError(false);
         
         const timeMessage = getRecommendationMessage();
         setMealRecommendation(`${timeMessage} ${recipeName}`);
@@ -186,11 +193,11 @@ const HomepageMealRecommendation = forwardRef<any, HomepageMealRecommendationPro
         style={{
           borderRadius: 20,
           padding: 16,
-          backgroundColor: "#bbf246",
-          opacity: 0.8,
+          backgroundColor: "#4A4A6A",
+          opacity: 0.9,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.15,
+          shadowOpacity: 0.25,
           shadowRadius: 8,
           elevation: 6,
           position: 'relative',
@@ -198,58 +205,72 @@ const HomepageMealRecommendation = forwardRef<any, HomepageMealRecommendationPro
         }}
       >
         {/* Background meal image */}
-        {currentRecipe?.recipe_image && (
+        {currentRecipe?.recipe_image && !imageError && (
           <View style={{
             position: 'absolute',
-            top: 0,
-            right: 0,
-            width: 120,
-            height: '100%',
-            opacity: 0.3,
-            borderRadius: 20,
+            top: 1,
+            right: 1,
+            width: 130,
+            bottom: 1,
+            borderRadius: 19,
             overflow: 'hidden',
+            backgroundColor: 'rgba(255, 255, 255, 0.1)',
           }}>
             <Image
               source={{ uri: currentRecipe.recipe_image }}
               style={{ 
                 width: '100%', 
                 height: '100%',
-                transform: [{ scale: 1.2 }]
               }}
               resizeMode="cover"
+              onError={(error) => {
+                console.log('Image failed to load:', currentRecipe.recipe_image, error);
+                setImageError(true);
+              }}
+              onLoad={() => {
+                console.log('Image loaded successfully:', currentRecipe.recipe_image);
+              }}
             />
           </View>
         )}
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, zIndex: 1 }}>
+        
+        {/* Fallback when image fails to load */}
+        {currentRecipe?.recipe_image && imageError && (
+          <View style={{
+            position: 'absolute',
+            top: 1,
+            right: 1,
+            width: 130,
+            bottom: 1,
+            borderRadius: 19,
+            overflow: 'hidden',
+            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}>
+            <Text style={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: 24 }}>
+              🍽️
+            </Text>
+          </View>
+        )}
+        <View style={{ marginBottom: 8, zIndex: 1, marginRight: 130 }}>
           <Text style={{ 
-            color: '#000000', 
+            color: '#ffffff', 
             fontSize: 18, 
             fontWeight: 'bold',
-            flex: 1 
           }}>
             🍽️ Meal Recommendation
           </Text>
-          {currentRecipe && (
-            <View style={{
-              backgroundColor: 'rgba(0, 0, 0, 0.1)',
-              paddingHorizontal: 8,
-              paddingVertical: 4,
-              borderRadius: 12,
-            }}>
-              <Text style={{ color: '#000000', fontSize: 12, fontWeight: '600' }}>
-                View →
-              </Text>
-            </View>
-          )}
         </View>
 
         <Text style={{ 
-          color: '#000000', 
+          color: '#ffffff', 
           fontSize: 16, 
           fontWeight: '600',
           textAlign: 'left',
           lineHeight: 22,
           zIndex: 1,
+          marginRight: 130,
         }}>
           {isLoading ? "Finding a great meal..." : mealRecommendation}
         </Text>
@@ -259,46 +280,47 @@ const HomepageMealRecommendation = forwardRef<any, HomepageMealRecommendationPro
             marginTop: 12,
             paddingTop: 12,
             borderTopWidth: 1,
-            borderTopColor: 'rgba(0, 0, 0, 0.1)',
+            borderTopColor: 'rgba(255, 255, 255, 0.2)',
             zIndex: 1,
+            marginRight: 130,
           }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               {currentRecipe.nutrition.calories && (
                 <View style={{ alignItems: 'center', flex: 1 }}>
-                  <Text style={{ color: '#000000', fontSize: 16, fontWeight: 'bold' }}>
+                  <Text style={{ color: '#ffffff', fontSize: 16, fontWeight: 'bold' }}>
                     {Math.round(currentRecipe.nutrition.calories)}
                   </Text>
-                  <Text style={{ color: 'rgba(0, 0, 0, 0.7)', fontSize: 11, fontWeight: '500' }}>
+                  <Text style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: 11, fontWeight: '500' }}>
                     CAL
                   </Text>
                 </View>
               )}
               {currentRecipe.nutrition.protein && (
                 <View style={{ alignItems: 'center', flex: 1 }}>
-                  <Text style={{ color: '#000000', fontSize: 16, fontWeight: 'bold' }}>
+                  <Text style={{ color: '#ffffff', fontSize: 16, fontWeight: 'bold' }}>
                     {Math.round(currentRecipe.nutrition.protein)}g
                   </Text>
-                  <Text style={{ color: 'rgba(0, 0, 0, 0.7)', fontSize: 11, fontWeight: '500' }}>
+                  <Text style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: 11, fontWeight: '500' }}>
                     PROTEIN
                   </Text>
                 </View>
               )}
               {currentRecipe.nutrition.carbs && (
                 <View style={{ alignItems: 'center', flex: 1 }}>
-                  <Text style={{ color: '#000000', fontSize: 16, fontWeight: 'bold' }}>
+                  <Text style={{ color: '#ffffff', fontSize: 16, fontWeight: 'bold' }}>
                     {Math.round(currentRecipe.nutrition.carbs)}g
                   </Text>
-                  <Text style={{ color: 'rgba(0, 0, 0, 0.7)', fontSize: 11, fontWeight: '500' }}>
+                  <Text style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: 11, fontWeight: '500' }}>
                     CARBS
                   </Text>
                 </View>
               )}
               {currentRecipe.nutrition.fat && (
                 <View style={{ alignItems: 'center', flex: 1 }}>
-                  <Text style={{ color: '#000000', fontSize: 16, fontWeight: 'bold' }}>
+                  <Text style={{ color: '#ffffff', fontSize: 16, fontWeight: 'bold' }}>
                     {Math.round(currentRecipe.nutrition.fat)}g
                   </Text>
-                  <Text style={{ color: 'rgba(0, 0, 0, 0.7)', fontSize: 11, fontWeight: '500' }}>
+                  <Text style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: 11, fontWeight: '500' }}>
                     FAT
                   </Text>
                 </View>
