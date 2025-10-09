@@ -1,24 +1,23 @@
 // Theme Dev Testing Tab
-// Temporary tab for testing morning and night themes
+// Temporary tab for testing morning, afternoon, and night themes
 // TODO: Delete before production - for dev testing only
 import React, { useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import MorningBackground from '../../components/Theme/morning/MorningBackground';
+import AfternoonBackground from '../../components/Theme/afternoon/AfternoonBackground';
 import CelestialBackground from '../../components/Theme/night/CelestialBackground';
 
-type ThemeMode = 'morning' | 'night';
+type ThemeMode = 'morning' | 'afternoon' | 'night';
 
 export default function ThemePreview() {
-  const [activeTheme, setActiveTheme] = useState<ThemeMode>('morning');
+  const [activeTheme, setActiveTheme] = useState<ThemeMode>('afternoon');
 
   return (
     <View style={styles.container}>
       {/* Full screen theme background - no blockers */}
-      {activeTheme === 'morning' ? (
-        <MorningBackground />
-      ) : (
-        <CelestialBackground intensity="medium" forceNightMode={true} />
-      )}
+      {activeTheme === 'morning' && <MorningBackground />}
+      {activeTheme === 'afternoon' && <AfternoonBackground intensity="medium" />}
+      {activeTheme === 'night' && <CelestialBackground intensity="medium" forceNightMode={true} />}
 
       {/* Small toggle buttons at top */}
       <View style={styles.buttonContainer}>
@@ -34,6 +33,21 @@ export default function ThemePreview() {
             activeTheme === 'morning' && styles.activeButtonText
           ]}>
             ☀️ Morning
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.button,
+            activeTheme === 'afternoon' && styles.activeButton
+          ]}
+          onPress={() => setActiveTheme('afternoon')}
+        >
+          <Text style={[
+            styles.buttonText,
+            activeTheme === 'afternoon' && styles.activeButtonText
+          ]}>
+            🌅 Afternoon
           </Text>
         </TouchableOpacity>
 

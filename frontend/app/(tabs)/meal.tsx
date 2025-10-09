@@ -26,7 +26,7 @@ function useDebounce<T>(value: T, delay = 400) {
 }
 
 /* -------------------- types -------------------- */
-type FSRecipeLite = {
+type FSRecipeLite = { // this is the type for the recipes from FatSecret
   recipe_id: string;
   recipe_name: string;
   recipe_image?: string | null;
@@ -49,7 +49,7 @@ export default function MealScreen() {
   async function fetchPage(p: number, qStr: string) {
     setLoading(true);
     try {
-      const data = await apiSearchRecipesV3({
+      const data = await apiSearchRecipesV3({ // this is the API call to FatSecret
         q: qStr,
         page: p,
         maxResults,
