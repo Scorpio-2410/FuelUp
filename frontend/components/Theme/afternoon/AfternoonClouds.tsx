@@ -2,7 +2,7 @@
 // Fewer clouds than morning theme, mild and heavy types only
 // Thin cirrus streaks with soft opacity for golden hour atmosphere
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Dimensions, Animated } from 'react-native';
+import { View, StyleSheet, Dimensions, Animated, Easing } from 'react-native';
 import Svg, { G, Ellipse } from 'react-native-svg';
 
 const { width, height } = Dimensions.get('window');
@@ -27,83 +27,68 @@ const AfternoonClouds: React.FC<AfternoonCloudsProps> = ({ intensity = 'medium' 
   const [clouds, setClouds] = useState<Cloud[]>([]);
 
   useEffect(() => {
-    // Generate fewer clouds than morning (40% reduction)
-    const cloudCounts = {
-      far: 4,   // Reduced from 6-7
-      mid: 5,   // Reduced from 7-8
-      near: 3,  // Reduced from 5-6
-    };
+    // Only generate heavy near clouds for dramatic effect
+    const cloudCount = 4; // Small number of heavy near clouds
 
     const generatedClouds: Cloud[] = [];
 
-    Object.entries(cloudCounts).forEach(([depth, count]) => {
-      for (let i = 0; i < count; i++) {
-        const cloud: Cloud = {
-          id: `${depth}-${i}-${Date.now()}`,
-          x: Math.random() * (width - 100) + 50,
-          y: Math.random() * (height * 0.6), // Top 60% of screen
-          type: Math.random() < 0.6 ? 'mild' : 'heavy', // 60% mild, 40% heavy
-          depth: depth as 'far' | 'mid' | 'near',
-          translateX: new Animated.Value(0),
-          direction: Math.random() < 0.5 ? 1 : -1,
-          speed: depth === 'far' ? 0.4 : depth === 'mid' ? 0.6 : 0.9,
-          opacity: depth === 'far' ? 0.25 : depth === 'mid' ? 0.35 : 0.45, // Softer opacity
-        };
+    for (let i = 0; i < cloudCount; i++) {
+      const cloud: Cloud = {
+        id: `near-heavy-${i}-${Date.now()}`,
+        x: Math.random() * (width - 120) + 60,
+        y: Math.random() * (height * 0.5) + height * 0.1, // Middle to upper-middle area
+        type: 'heavy', // Only heavy clouds
+        depth: 'near', // Only near clouds
+        translateX: new Animated.Value(0),
+        direction: Math.random() < 0.5 ? 1 : -1,
+        speed: 0.8, // Moderate speed for near clouds
+        opacity: 0.5, // More visible than far/mid clouds
+      };
 
-        generatedClouds.push(cloud);
-        startCloudAnimation(cloud);
-      }
-    });
+      generatedClouds.push(cloud);
+      startCloudAnimation(cloud);
+    }
 
     setClouds(generatedClouds);
   }, []);
 
   const startCloudAnimation = (cloud: Cloud) => {
-    const distance = width * 0.3 * cloud.direction;
+    const distance = width * 0.4 * cloud.direction; // Slightly longer distance for near clouds
     
     Animated.loop(
       Animated.sequence([
         Animated.timing(cloud.translateX, {
           toValue: distance,
-          duration: 35000 / cloud.speed,
+          duration: 45000 / cloud.speed, // Slower for graceful movement
           useNativeDriver: true,
+          easing: Easing.inOut(Easing.ease),
         }),
         Animated.timing(cloud.translateX, {
           toValue: 0,
-          duration: 35000 / cloud.speed,
+          duration: 45000 / cloud.speed,
           useNativeDriver: true,
+          easing: Easing.inOut(Easing.ease),
         }),
       ])
     ).start();
   };
 
-  // Render cloud bubbles based on type
+  // Render heavy near clouds only
   const renderCloud = (cloud: Cloud) => {
-    const baseSize = cloud.depth === 'far' ? 32 : cloud.depth === 'mid' ? 42 : 54;
+    const baseSize = 54; // Near cloud size
     
-    if (cloud.type === 'mild') {
-      // Mild: 4-5 bubbles, thin cirrus-like
-      return (
-        <G key={cloud.id}>
-          <Ellipse cx={0} cy={0} rx={baseSize * 1.1} ry={baseSize * 0.5} fill="#FFFFFF" />
-          <Ellipse cx={baseSize * 0.8} cy={-baseSize * 0.2} rx={baseSize * 0.9} ry={baseSize * 0.45} fill="#FFFFFF" />
-          <Ellipse cx={-baseSize * 0.7} cy={baseSize * 0.1} rx={baseSize * 0.85} ry={baseSize * 0.4} fill="#FFFFFF" />
-          <Ellipse cx={baseSize * 1.6} cy={baseSize * 0.15} rx={baseSize * 0.7} ry={baseSize * 0.35} fill="#FFFFFF" />
-        </G>
-      );
-    } else {
-      // Heavy: 6-7 bubbles, more defined
-      return (
-        <G key={cloud.id}>
-          <Ellipse cx={0} cy={0} rx={baseSize * 1.2} ry={baseSize * 0.7} fill="#FFFFFF" />
-          <Ellipse cx={baseSize * 0.9} cy={-baseSize * 0.3} rx={baseSize * 1.0} ry={baseSize * 0.65} fill="#FFFFFF" />
-          <Ellipse cx={-baseSize * 0.8} cy={baseSize * 0.15} rx={baseSize * 0.95} ry={baseSize * 0.6} fill="#FFFFFF" />
-          <Ellipse cx={baseSize * 1.8} cy={baseSize * 0.2} rx={baseSize * 0.85} ry={baseSize * 0.55} fill="#FFFFFF" />
-          <Ellipse cx={baseSize * 2.5} cy={-baseSize * 0.1} rx={baseSize * 0.75} ry={baseSize * 0.5} fill="#FFFFFF" />
-          <Ellipse cx={-baseSize * 1.5} cy={-baseSize * 0.2} rx={baseSize * 0.7} ry={baseSize * 0.45} fill="#FFFFFF" />
-        </G>
-      );
-    }
+    // Heavy clouds: 6-7 bubbles, more defined and dramatic
+    return (
+      <G key={cloud.id}>
+        <Ellipse cx={0} cy={0} rx={baseSize * 1.3} ry={baseSize * 0.8} fill="#FFFFFF" />
+        <Ellipse cx={baseSize * 1.0} cy={-baseSize * 0.4} rx={baseSize * 1.1} ry={baseSize * 0.7} fill="#FFFFFF" />
+        <Ellipse cx={-baseSize * 0.9} cy={baseSize * 0.2} rx={baseSize * 1.0} ry={baseSize * 0.65} fill="#FFFFFF" />
+        <Ellipse cx={baseSize * 1.9} cy={baseSize * 0.25} rx={baseSize * 0.9} ry={baseSize * 0.6} fill="#FFFFFF" />
+        <Ellipse cx={baseSize * 2.6} cy={-baseSize * 0.15} rx={baseSize * 0.8} ry={baseSize * 0.55} fill="#FFFFFF" />
+        <Ellipse cx={-baseSize * 1.6} cy={-baseSize * 0.25} rx={baseSize * 0.75} ry={baseSize * 0.5} fill="#FFFFFF" />
+        <Ellipse cx={baseSize * 0.5} cy={baseSize * 0.4} rx={baseSize * 0.6} ry={baseSize * 0.4} fill="#FFFFFF" />
+      </G>
+    );
   };
 
   return (

@@ -15,30 +15,34 @@ const GoldenSky: React.FC<GoldenSkyProps> = ({ intensity = 'medium' }) => {
   // Use layered gradient for richer visual effect
   return (
     <View style={styles.container}>
-      {/* Layer 1: Base warm→cool gradient (more orange-red) */}
+      {/* Layer 1: Purple to orange gradient (beautiful sunset transition) */}
       <LinearGradient
         colors={[
-          '#FF6B35', // Orange-red
-          '#FF7F4A', // Orange-red light
-          '#FF8C5A', // Orange-red lighter
-          '#FF9B6B', // Orange-red lightest
-          '#D8EAFE', // Cool sky blue
-          '#A7CCFF', // Lighter cool blue
+          '#2B364B', // Night top
+          '#262E4D', // Twilight start
+          '#343A63', // Indigo
+          '#4B3F78', // Violet
+          '#65498E', // Purple
+          '#7D4F93', // Dusty purple → magenta
+          '#A45E8A', // Rose-mauve (bridges warm/cool)
+          '#C96E74', // Rose-gold
+          '#E67E62', // Warm orange
+          '#FFB659', // Golden
+          '#FFE089', // Pale yellow
+          '#D8EAFE', // Cool footer blend
+          '#A7CCFF', // Cool footer
         ]}
-        locations={[0, 0.30, 0.55, 0.72, 0.90, 1.0]}
+        locations={[0, 0.06, 0.12, 0.22, 0.32, 0.42, 0.52, 0.60, 0.68, 0.78, 0.86, 0.94, 1.0]}
         style={styles.baseGradient}
       />
       
-      {/* Layer 2: More extended night cap at top (fades to transparent) */}
+      {/* Layer 2: Subtle top enhancement (optional dark overlay) */}
       <LinearGradient
         colors={[
           '#0F1419',           // Very dark night (top)
-          '#1A1F2E',           // Darker night carryover
-          '#2B364B',           // Night carryover
-          '#262E4D',           // Twilight
-          'rgba(38,46,77,0)',  // Fade to transparent
+          'rgba(15,20,25,0)',  // Fade to transparent quickly
         ]}
-        locations={[0, 0.12, 0.22, 0.32, 0.40]}
+        locations={[0, 0.15]}
         style={styles.nightCap}
       />
     </View>
@@ -69,7 +73,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: height * 0.40, // More extended to affect top ~40%
+    height: height * 0.15, // Reduced since main gradient handles the transition
     width: width,
   },
 });

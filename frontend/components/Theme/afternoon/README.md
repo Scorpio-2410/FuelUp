@@ -12,20 +12,25 @@ Main orchestrator component that assembles all afternoon theme elements.
 - Supports children content rendering
 
 ### 2. **GoldenSky.tsx**
-Creates the multi-layered sky gradient using two LinearGradients:
-- **Layer 1 (Base)**: Orange-red → cool blue
-  - `#FF6B35` (0%) - Orange-red
-  - `#FF7F4A` (30%) - Orange-red light
-  - `#FF8C5A` (55%) - Orange-red lighter
-  - `#FF9B6B` (72%) - Orange-red lightest
-  - `#D8EAFE` (90%) - Cool sky blue
-  - `#A7CCFF` (100%) - Light cool blue
+Creates a beautiful purple-to-orange sunset gradient:
+- **Layer 1 (Main Gradient)**: Purple twilight → orange sunset → cool blue
+  - `#2B364B` (0%) - Night top
+  - `#262E4D` (6%) - Twilight start
+  - `#343A63` (12%) - Indigo
+  - `#4B3F78` (22%) - Violet
+  - `#65498E` (32%) - Purple
+  - `#7D4F93` (42%) - Dusty purple → magenta
+  - `#A45E8A` (52%) - Rose-mauve (bridges warm/cool)
+  - `#C96E74` (60%) - Rose-gold
+  - `#E67E62` (68%) - Warm orange
+  - `#FFB659` (78%) - Golden
+  - `#FFE089` (86%) - Pale yellow
+  - `#D8EAFE` (94%) - Cool footer blend
+  - `#A7CCFF` (100%) - Cool footer
 
-- **Layer 2 (Extended Night Cap)**: Extended twilight fade at top
-  - `#1A1F2E` (0%) - Darker night carryover
-  - `#2B364B` (15%) - Night carryover
-  - `#262E4D` (25%) - Twilight
-  - `rgba(38,46,77,0)` (30%) - Transparent
+- **Layer 2 (Subtle Top Enhancement)**: Optional dark overlay
+  - `#0F1419` (0%) - Very dark night
+  - `rgba(15,20,25,0)` (15%) - Transparent
 
 ### 3. **AfternoonStarField.tsx**
 Shows stars only in the top 40% of the screen for twilight atmosphere:
@@ -43,12 +48,13 @@ Renders a sun positioned at the horizon (80% down the screen, moved up 40px) wit
 - **Subtle pulse animation**: 3.5 second cycle for realism
 
 ### 5. **AfternoonClouds.tsx**
-Generates fewer clouds than morning theme (40% reduction):
-- **Cloud counts**: Far: 4, Mid: 5, Near: 3
-- **Cloud types**: 60% mild (thin cirrus), 40% heavy (defined)
-- **Opacity**: Far: 0.25, Mid: 0.35, Near: 0.45 (softer than morning)
-- **Movement**: Slow horizontal drift with back-and-forth animation
-- **Distribution**: Random positioning in top 60% of screen
+Generates dramatic heavy near clouds only:
+- **Cloud count**: 4 heavy near clouds (dramatic effect)
+- **Cloud types**: 100% heavy (large, defined clouds)
+- **Positioning**: Middle to upper-middle area (10%-60% of screen)
+- **Movement**: Graceful back-and-forth animation with easing
+- **Opacity**: 50% (more visible than far/mid clouds)
+- **Size**: Large near-cloud size (54px base) with 7 elliptical bubbles
 
 ## Time-Based Activation
 - **Active period**: 4:00 PM (16:00) - 6:30 PM (18:30)
@@ -65,15 +71,19 @@ Generates fewer clouds than morning theme (40% reduction):
 ## Color Palette
 | Color | Hex | Usage |
 |-------|-----|-------|
-| Dark Night Cap | `#1A1F2E` | Top edge (darker twilight) |
-| Night Cap Dark | `#2B364B` | Night carryover |
-| Night Cap Light | `#262E4D` | Twilight transition |
-| Orange-Red | `#FF6B35` | Upper warm body |
-| Orange-Red Light | `#FF7F4A` | Mid-upper warm body |
-| Orange-Red Lighter | `#FF8C5A` | Mid warm body |
-| Orange-Red Lightest | `#FF9B6B` | Mid-lower warm body |
-| Cool Sky Blue | `#D8EAFE` | Lower transition |
-| Light Cool Blue | `#A7CCFF` | Bottom edge |
+| Night Top | `#2B364B` | Very top edge |
+| Twilight Start | `#262E4D` | Early twilight |
+| Indigo | `#343A63` | Deep twilight |
+| Violet | `#4B3F78` | Purple twilight |
+| Purple | `#65498E` | Rich purple |
+| Dusty Purple | `#7D4F93` | Purple-magenta transition |
+| Rose-Mauve | `#A45E8A` | Warm/cool bridge |
+| Rose-Gold | `#C96E74` | Rose-gold transition |
+| Warm Orange | `#E67E62` | Orange start |
+| Golden | `#FFB659` | Rich golden |
+| Pale Yellow | `#FFE089` | Light yellow |
+| Cool Footer Blend | `#D8EAFE` | Cool transition |
+| Cool Footer | `#A7CCFF` | Bottom edge |
 | Sun Center | `#FFF8E6` | Sun disc center |
 | Sun Edge | `#FFE39E` | Sun disc edge |
 
