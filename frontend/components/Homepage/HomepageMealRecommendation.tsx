@@ -3,8 +3,9 @@
 // Encourages exploration of meal planning features with authentic recipe data
 
 import React, { useState, forwardRef, useImperativeHandle, useEffect } from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { View, Text, Pressable, Image } from 'react-native';
 import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { apiSearchRecipesV3 } from '../../constants/api';
 
 interface HomepageMealRecommendationProps {
@@ -16,6 +17,12 @@ type RecipeData = {
   recipe_id: string;
   recipe_name: string;
   recipe_image?: string | null;
+  nutrition?: {
+    calories?: number;
+    protein?: number;
+    carbs?: number;
+    fat?: number;
+  };
 };
 
 const HomepageMealRecommendation = forwardRef<any, HomepageMealRecommendationProps>(({ className, onRefresh }, ref) => {
@@ -46,16 +53,30 @@ const HomepageMealRecommendation = forwardRef<any, HomepageMealRecommendationPro
     const hour = new Date().getHours();
     if (hour >= 6 && hour < 11) {
       // Morning - breakfast items
-      return ['breakfast', 'pancake', 'waffle', 'cereal', 'muffin', 'toast', 'egg', 'smoothie', 'yogurt'];
+      return ['breakfast', 'pancake', 'waffle', 'cereal', 'muffin', 'toast', 'egg', 'smoothie', 'yogurt', 'coffee', 'bagel'];
     } else if (hour >= 11 && hour < 16) {
       // Lunch time - lighter meals
-      return ['salad', 'sandwich', 'soup', 'wrap', 'quinoa', 'chicken', 'fish', 'vegetarian'];
+      return ['salad', 'sandwich', 'soup', 'wrap', 'quinoa', 'chicken', 'fish', 'vegetarian', 'lunch', 'healthy'];
     } else if (hour >= 16 && hour < 20) {
       // Dinner time - hearty meals
-      return ['pasta', 'rice', 'pizza', 'burger', 'steak', 'roast', 'curry', 'stir', 'casserole'];
+      return ['pasta', 'rice', 'pizza', 'burger', 'steak', 'roast', 'curry', 'stir', 'casserole', 'dinner', 'main'];
     } else {
       // Evening/night - snacks and desserts
-      return ['dessert', 'cake', 'cookie', 'snack', 'trail', 'nuts', 'fruit', 'chocolate'];
+      return ['dessert', 'cake', 'cookie', 'snack', 'trail', 'nuts', 'fruit', 'chocolate', 'ice cream', 'treat'];
+    }
+  };
+
+  // Get recommendation message based on time
+  const getRecommendationMessage = () => {
+    const hour = new Date().getHours();
+    if (hour >= 6 && hour < 11) {
+      return "Good morning! Try this breakfast:";
+    } else if (hour >= 11 && hour < 16) {
+      return "Lunch time! Here's a great option:";
+    } else if (hour >= 16 && hour < 20) {
+      return "Dinner inspiration:";
+    } else {
+      return "Late night treat:";
     }
   };
 
@@ -103,9 +124,16 @@ const HomepageMealRecommendation = forwardRef<any, HomepageMealRecommendationPro
           recipe_id: randomRecipe.recipe_id,
           recipe_name: randomRecipe.recipe_name,
           recipe_image: randomRecipe.recipe_image || randomRecipe.recipe_images?._500 || null,
+          nutrition: {
+            calories: randomRecipe.recipe_nutrition?.calories || randomRecipe.calories,
+            protein: randomRecipe.recipe_nutrition?.protein || randomRecipe.protein,
+            carbs: randomRecipe.recipe_nutrition?.carbs || randomRecipe.carbs,
+            fat: randomRecipe.recipe_nutrition?.fat || randomRecipe.fat,
+          },
         });
         
-        setMealRecommendation(`Hey, try out this ${recipeName}`);
+        const timeMessage = getRecommendationMessage();
+        setMealRecommendation(`${timeMessage} ${recipeName}`);
       } else {
         // Use fallback if no recipes found
         const fallback = fallbackMeals[Math.floor(Math.random() * fallbackMeals.length)];
@@ -150,23 +178,135 @@ const HomepageMealRecommendation = forwardRef<any, HomepageMealRecommendationPro
     <Pressable
       onPress={handleMealPress}
       disabled={!currentRecipe}
-      className={`flex-1 p-4 rounded-2xl ${className}`}
+      className={`${className}`}
       style={{ 
-        backgroundColor: "#bbf246", 
-        opacity: 0.7,
-        transform: [{ scale: currentRecipe ? 1 : 1 }] // Visual feedback for clickable state
+        opacity: currentRecipe ? 1 : 0.8,
       }}>
-      <Text className="text-black text-xl font-bold mb-1">
-        Meal Recommendation
-      </Text>
-      <Text className="text-black text-base font-medium">
-        {isLoading ? "Finding a great meal..." : mealRecommendation}
-      </Text>
-      {currentRecipe && (
-        <Text className="text-black text-xs mt-2 opacity-60">
-          Tap to view recipe details →
+      <View
+        style={{
+          borderRadius: 20,
+          padding: 16,
+          backgroundColor: "#bbf246",
+          opacity: 0.8,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.15,
+          shadowRadius: 8,
+          elevation: 6,
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Background meal image */}
+        {currentRecipe?.recipe_image && (
+          <View style={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            width: 120,
+            height: '100%',
+            opacity: 0.3,
+            borderRadius: 20,
+            overflow: 'hidden',
+          }}>
+            <Image
+              source={{ uri: currentRecipe.recipe_image }}
+              style={{ 
+                width: '100%', 
+                height: '100%',
+                transform: [{ scale: 1.2 }]
+              }}
+              resizeMode="cover"
+            />
+          </View>
+        )}
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, zIndex: 1 }}>
+          <Text style={{ 
+            color: '#000000', 
+            fontSize: 18, 
+            fontWeight: 'bold',
+            flex: 1 
+          }}>
+            🍽️ Meal Recommendation
+          </Text>
+          {currentRecipe && (
+            <View style={{
+              backgroundColor: 'rgba(0, 0, 0, 0.1)',
+              paddingHorizontal: 8,
+              paddingVertical: 4,
+              borderRadius: 12,
+            }}>
+              <Text style={{ color: '#000000', fontSize: 12, fontWeight: '600' }}>
+                View →
+              </Text>
+            </View>
+          )}
+        </View>
+
+        <Text style={{ 
+          color: '#000000', 
+          fontSize: 16, 
+          fontWeight: '600',
+          textAlign: 'left',
+          lineHeight: 22,
+          zIndex: 1,
+        }}>
+          {isLoading ? "Finding a great meal..." : mealRecommendation}
         </Text>
-      )}
+
+        {currentRecipe?.nutrition && (
+          <View style={{
+            marginTop: 12,
+            paddingTop: 12,
+            borderTopWidth: 1,
+            borderTopColor: 'rgba(0, 0, 0, 0.1)',
+            zIndex: 1,
+          }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              {currentRecipe.nutrition.calories && (
+                <View style={{ alignItems: 'center', flex: 1 }}>
+                  <Text style={{ color: '#000000', fontSize: 16, fontWeight: 'bold' }}>
+                    {Math.round(currentRecipe.nutrition.calories)}
+                  </Text>
+                  <Text style={{ color: 'rgba(0, 0, 0, 0.7)', fontSize: 11, fontWeight: '500' }}>
+                    CAL
+                  </Text>
+                </View>
+              )}
+              {currentRecipe.nutrition.protein && (
+                <View style={{ alignItems: 'center', flex: 1 }}>
+                  <Text style={{ color: '#000000', fontSize: 16, fontWeight: 'bold' }}>
+                    {Math.round(currentRecipe.nutrition.protein)}g
+                  </Text>
+                  <Text style={{ color: 'rgba(0, 0, 0, 0.7)', fontSize: 11, fontWeight: '500' }}>
+                    PROTEIN
+                  </Text>
+                </View>
+              )}
+              {currentRecipe.nutrition.carbs && (
+                <View style={{ alignItems: 'center', flex: 1 }}>
+                  <Text style={{ color: '#000000', fontSize: 16, fontWeight: 'bold' }}>
+                    {Math.round(currentRecipe.nutrition.carbs)}g
+                  </Text>
+                  <Text style={{ color: 'rgba(0, 0, 0, 0.7)', fontSize: 11, fontWeight: '500' }}>
+                    CARBS
+                  </Text>
+                </View>
+              )}
+              {currentRecipe.nutrition.fat && (
+                <View style={{ alignItems: 'center', flex: 1 }}>
+                  <Text style={{ color: '#000000', fontSize: 16, fontWeight: 'bold' }}>
+                    {Math.round(currentRecipe.nutrition.fat)}g
+                  </Text>
+                  <Text style={{ color: 'rgba(0, 0, 0, 0.7)', fontSize: 11, fontWeight: '500' }}>
+                    FAT
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+        )}
+      </View>
     </Pressable>
   );
 });

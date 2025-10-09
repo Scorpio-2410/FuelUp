@@ -22,7 +22,7 @@ function TabBarIcon(props: {
   return <FontAwesome size={28} style={{ marginBottom: -3 }} {...props} />;
 }
 
-  const tabs = ["homepage", "meal", "fitness", "user"];
+  const tabs = ["homepage", "meal", "fitness", "user", "theme"];
 
 const tabConfigs = [
   {
@@ -48,6 +48,12 @@ const tabConfigs = [
     label: "Profile",
     icon: "person-outline" as keyof typeof Ionicons.glyphMap,
     activeIcon: "person" as keyof typeof Ionicons.glyphMap,
+  },
+  {
+    name: "theme",
+    label: "Theme",
+    icon: "color-palette-outline" as keyof typeof Ionicons.glyphMap,
+    activeIcon: "color-palette" as keyof typeof Ionicons.glyphMap,
   },
 ];
 
