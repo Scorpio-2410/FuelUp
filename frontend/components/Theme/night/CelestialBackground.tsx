@@ -12,15 +12,20 @@ interface CelestialBackgroundProps {
   children?: React.ReactNode;
   theme?: TimeBasedTheme;
   intensity?: 'low' | 'medium' | 'high';
+  forceNightMode?: boolean; // Dev testing: bypass time-based check
 }
 
 export const CelestialBackground: React.FC<CelestialBackgroundProps> = ({
   children,
   theme,
-  intensity = 'medium'
+  intensity = 'medium',
+  forceNightMode = false
 }) => {
   // Check if current time is between 6:00 PM and 6:00 AM (night time)
   const checkIsNightTime = () => {
+    // Dev testing override: force night mode regardless of time
+    if (forceNightMode) return true;
+    
     const now = new Date();
     const currentHour = now.getHours();
     const currentMinute = now.getMinutes();
@@ -62,11 +67,14 @@ export const CelestialBackground: React.FC<CelestialBackgroundProps> = ({
   useEffect(() => {
     updateNightTimeStatus();
     
+    // Skip interval if force mode is enabled (dev testing)
+    if (forceNightMode) return;
+    
     // Check every minute to update night time status
     const interval = setInterval(updateNightTimeStatus, 60000);
     
     return () => clearInterval(interval);
-  }, []);
+  }, [forceNightMode]);
 
 
   return (
