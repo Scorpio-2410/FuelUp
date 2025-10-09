@@ -1,5 +1,7 @@
+// Displays a loading screen with a progress bar and a logo
 import React, { useEffect, useState } from 'react';
-import { View, Image, StyleSheet } from 'react-native';
+import { View, Image, StyleSheet, Text } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -8,14 +10,17 @@ import Animated, {
   withSequence,
   Easing,
 } from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
+import AppPreloader, { PreloadProgress } from '../services/AppPreloader';
 
 export default function AppLoadingScreen() {
   const [progress, setProgress] = useState(0);
+  const [loadingMessage, setLoadingMessage] = useState('Getting ready...');
   
   // Pulse animation for logo
   const scale = useSharedValue(1);
   const opacity = useSharedValue(0);
+  // Shine animation for progress bar
+  const shineTranslateX = useSharedValue(-100);
 
   useEffect(() => {
     // Fade in animation
@@ -31,22 +36,21 @@ export default function AppLoadingScreen() {
       false
     );
 
-    // Simulate loading progress - 7 seconds total
-    const totalDuration = 7000; // 7 seconds
-    const intervalTime = 50; // Update every 50ms
-    const incrementPerStep = (100 / totalDuration) * intervalTime;
-    
-    const interval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          return 100;
-        }
-        return Math.min(prev + incrementPerStep, 100);
-      });
-    }, intervalTime);
+    // Continuous shine animation for progress bar
+    shineTranslateX.value = withRepeat(
+      withTiming(400, { duration: 2000, easing: Easing.linear }),
+      -1,
+      false
+    );
 
-    return () => clearInterval(interval);
+    // Set up progress callback to receive updates from _layout.tsx
+    const preloader = AppPreloader.getInstance();
+    
+    // Set up progress callback
+    preloader.setProgressCallback((progressData: PreloadProgress) => {
+      setProgress(progressData.progress);
+      setLoadingMessage(progressData.message);
+    });
   }, []);
 
   const logoAnimatedStyle = useAnimatedStyle(() => ({
@@ -56,6 +60,10 @@ export default function AppLoadingScreen() {
 
   const containerAnimatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
+  }));
+
+  const shineAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: shineTranslateX.value }],
   }));
 
   return (
@@ -76,24 +84,25 @@ export default function AppLoadingScreen() {
           />
         </Animated.View>
 
-        {/* Modern Progress Bar */}
+        {/* Loading Message */}
+        <Text style={styles.loadingMessage}>{loadingMessage}</Text>
+
+        {/* Enhanced Progress Bar */}
         <View style={styles.progressContainer}>
           <View style={styles.progressTrack}>
             <Animated.View style={[styles.progressFill, { width: `${progress}%` }]}>
               <LinearGradient
-                colors={['#8B5CF6', '#6366F1', '#3B82F6']}
+                colors={['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.progressGradient}
               />
-              <LinearGradient
-                colors={['transparent', 'rgba(255,255,255,0.3)', 'transparent']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.shimmer}
-              />
+              {/* Animated shine effect */}
+              <Animated.View style={[styles.shineEffect, shineAnimatedStyle]} />
             </Animated.View>
           </View>
+          {/* Progress percentage */}
+          <Text style={styles.progressText}>{Math.round(progress)}%</Text>
         </View>
       </Animated.View>
     </View>
@@ -112,7 +121,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
   },
   logoContainer: {
-    marginBottom: 60,
+    marginBottom: 40,
+  },
+  loadingMessage: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 30,
+    fontWeight: '500',
   },
   logo: {
     width: 180,
@@ -121,26 +137,46 @@ const styles = StyleSheet.create({
   },
   progressContainer: {
     width: '100%',
-    maxWidth: 280,
+    maxWidth: 320,
+    alignItems: 'center',
   },
   progressTrack: {
-    height: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 10,
+    width: '100%',
+    height: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 12,
     overflow: 'hidden',
     position: 'relative',
+    shadowColor: 'rgba(0, 0, 0, 0.3)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 4,
+    elevation: 5,
   },
   progressFill: {
     height: '100%',
-    borderRadius: 10,
+    borderRadius: 12,
     overflow: 'hidden',
     position: 'relative',
   },
   progressGradient: {
     ...StyleSheet.absoluteFillObject,
   },
-  shimmer: {
-    ...StyleSheet.absoluteFillObject,
+  shineEffect: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: 60,
+    height: '100%',
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    transform: [{ skewX: '-20deg' }],
+  },
+  progressText: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 12,
+    letterSpacing: 0.5,
   },
 });
 

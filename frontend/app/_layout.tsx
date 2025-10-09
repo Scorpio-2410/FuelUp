@@ -14,6 +14,7 @@ import { useEffect, useState } from "react";
 import { useColorScheme } from "../components/useColorScheme";
 import AppLoadingScreen from "../components/AppLoadingScreen";
 import { ThemeProvider } from "../contexts/ThemeContext";
+import AppPreloader from "../services/AppPreloader";
 
 export { ErrorBoundary } from "expo-router";
 
@@ -26,6 +27,7 @@ export default function RootLayout() {
     ...FontAwesome.font,
   });
   const [showCustomSplash, setShowCustomSplash] = useState(true);
+  const [preloadingComplete, setPreloadingComplete] = useState(false);
 
   useEffect(() => {
     if (error) throw error;
@@ -34,14 +36,41 @@ export default function RootLayout() {
   useEffect(() => {
     if (loaded) {
       SplashScreen.hideAsync();
-      // Show custom loading screen for full progress bar duration
-      setTimeout(() => {
-        setShowCustomSplash(false);
-      }, 7000); // 7 seconds to match progress bar
+      // Mark fonts as loaded in preloader
+      const preloader = AppPreloader.getInstance();
+      preloader.markFontsLoaded();
     }
   }, [loaded]);
 
-  // Show custom loading screen while fonts load or during minimum display time
+  useEffect(() => {
+    // Start preloading when fonts are loaded
+    if (loaded) {
+      const preloader = AppPreloader.getInstance();
+      
+      // Set up completion callback
+      preloader.setProgressCallback((progressData) => {
+        if (progressData.progress >= 100) {
+          // Small delay to ensure smooth transition
+          setTimeout(() => {
+            setPreloadingComplete(true);
+            setShowCustomSplash(false);
+          }, 500);
+        }
+      });
+
+      // Start preloading
+      preloader.preloadAll().catch((error) => {
+        console.error('Preloading failed:', error);
+        // Still proceed even if preloading fails
+        setTimeout(() => {
+          setPreloadingComplete(true);
+          setShowCustomSplash(false);
+        }, 500);
+      });
+    }
+  }, [loaded]);
+
+  // Show custom loading screen while fonts load or data preloading
   if (!loaded || showCustomSplash) {
     return <AppLoadingScreen />;
   }
