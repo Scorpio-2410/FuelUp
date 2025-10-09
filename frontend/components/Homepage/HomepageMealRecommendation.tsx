@@ -33,80 +33,52 @@ const HomepageMealRecommendation = forwardRef<any, HomepageMealRecommendationPro
   const [recentRecipeIds, setRecentRecipeIds] = useState<Set<string>>(new Set());
   const [imageError, setImageError] = useState(false);
 
-  // Fallback meal suggestions if API fails
-  const fallbackMeals = [
-    "Hey, try out this Chocolate Banana Bread",
-    "Hey, try out this Grilled Salmon Bowl",
-    "Hey, try out this Mediterranean Quinoa Salad",
-    "Hey, try out this Spicy Thai Basil Chicken",
-    "Hey, try out this Creamy Mushroom Risotto",
-    "Hey, try out this Honey Glazed Chicken Wings",
-    "Hey, try out this Fresh Berry Smoothie Bowl",
-    "Hey, try out this Garlic Butter Shrimp Pasta",
-    "Hey, try out this Avocado Toast Deluxe",
-    "Hey, try out this Beef Teriyaki Stir Fry",
-    "Hey, try out this Caprese Stuffed Chicken",
-    "Hey, try out this Chocolate Chip Pancakes",
+  // Random search terms for variety
+  const randomSearchTerms = [
+    'chicken', 'pasta', 'salad', 'rice', 'fish', 'beef', 'soup', 'sandwich',
+    'pizza', 'burger', 'steak', 'curry', 'noodles', 'breakfast', 'dessert',
+    'cake', 'smoothie', 'tacos', 'sushi', 'eggs', 'vegetarian', 'shrimp',
+    'salmon', 'pork', 'cheese', 'chocolate', 'bread', 'potato', 'beans'
   ];
 
-  // Smart recommendation categories based on time of day
-  const getTimeBasedSearchTerms = () => {
-    const hour = new Date().getHours();
-    if (hour >= 6 && hour < 11) {
-      // Morning - breakfast items
-      return ['breakfast', 'pancake', 'waffle', 'cereal', 'muffin', 'toast', 'egg', 'smoothie', 'yogurt', 'coffee', 'bagel'];
-    } else if (hour >= 11 && hour < 16) {
-      // Lunch time - lighter meals
-      return ['salad', 'sandwich', 'soup', 'wrap', 'quinoa', 'chicken', 'fish', 'vegetarian', 'lunch', 'healthy'];
-    } else if (hour >= 16 && hour < 20) {
-      // Dinner time - hearty meals
-      return ['pasta', 'rice', 'pizza', 'burger', 'steak', 'roast', 'curry', 'stir', 'casserole', 'dinner', 'main'];
-    } else {
-      // Evening/night - snacks and desserts
-      return ['dessert', 'cake', 'cookie', 'snack', 'trail', 'nuts', 'fruit', 'chocolate', 'ice cream', 'treat'];
-    }
-  };
-
-  // Get recommendation message based on time
-  const getRecommendationMessage = () => {
-    const hour = new Date().getHours();
-    if (hour >= 6 && hour < 11) {
-      return "Good morning! Try this breakfast:";
-    } else if (hour >= 11 && hour < 16) {
-      return "Lunch time! Here's a great option:";
-    } else if (hour >= 16 && hour < 20) {
-      return "Dinner inspiration:";
-    } else {
-      return "Late night treat:";
-    }
-  };
-
-  // Fetch random meal from API with smart recommendations
+  // Fetch random meal from API
   const fetchRandomMeal = async () => {
     setIsLoading(true);
     try {
-      // Use time-based recommendations for better UX
-      const searchTerms = getTimeBasedSearchTerms();
-      const randomTerm = searchTerms[Math.floor(Math.random() * searchTerms.length)];
-      const randomPage = Math.floor(Math.random() * 3); // Reduced pages for better results
+      let recipesWithImages: any[] = [];
+      let attempts = 0;
+      const maxAttempts = 3;
       
-      const data = await apiSearchRecipesV3({
-        q: randomTerm,
-        page: randomPage,
-        maxResults: 25,
-      });
+      // Try multiple search terms until we find recipes with images
+      while (recipesWithImages.length === 0 && attempts < maxAttempts) {
+        const randomTerm = randomSearchTerms[Math.floor(Math.random() * randomSearchTerms.length)];
+        const randomPage = Math.floor(Math.random() * 3);
+        
+        const data = await apiSearchRecipesV3({
+          q: randomTerm,
+          page: randomPage,
+          maxResults: 25,
+        });
 
-      const recipes = data?.recipes?.recipe ?? [];
-      const recipeList = Array.isArray(recipes) ? recipes : recipes ? [recipes] : [];
+        const recipes = data?.recipes?.recipe ?? [];
+        const recipeList = Array.isArray(recipes) ? recipes : recipes ? [recipes] : [];
+        
+        // Filter to only recipes with images
+        recipesWithImages = recipeList.filter(recipe => 
+          recipe.recipe_image || recipe.recipe_images?._500
+        );
+        
+        attempts++;
+      }
       
-      if (recipeList.length > 0) {
+      if (recipesWithImages.length > 0) {
         // Filter out recently shown recipes to avoid repetition
-        const availableRecipes = recipeList.filter(recipe => 
+        const availableRecipes = recipesWithImages.filter(recipe => 
           !recentRecipeIds.has(String(recipe.recipe_id))
         );
         
         // If all recipes were recently shown, reset the cache
-        const recipesToChooseFrom = availableRecipes.length > 0 ? availableRecipes : recipeList;
+        const recipesToChooseFrom = availableRecipes.length > 0 ? availableRecipes : recipesWithImages;
         
         const randomRecipe = recipesToChooseFrom[Math.floor(Math.random() * recipesToChooseFrom.length)];
         const recipeName = randomRecipe.recipe_name || 'delicious meal';
@@ -122,7 +94,6 @@ const HomepageMealRecommendation = forwardRef<any, HomepageMealRecommendationPro
         
         // Store the full recipe data for navigation
         const imageUrl = randomRecipe.recipe_image || randomRecipe.recipe_images?._500 || null;
-        console.log('Recipe image URL:', imageUrl); // Debug log
         
         setCurrentRecipe({
           recipe_id: randomRecipe.recipe_id,
@@ -139,20 +110,14 @@ const HomepageMealRecommendation = forwardRef<any, HomepageMealRecommendationPro
         // Reset image error state when new recipe is loaded
         setImageError(false);
         
-        const timeMessage = getRecommendationMessage();
-        setMealRecommendation(`${timeMessage} ${recipeName}`);
+        setMealRecommendation(`Hey, try out this ${recipeName}`);
       } else {
-        // Use fallback if no recipes found
-        const fallback = fallbackMeals[Math.floor(Math.random() * fallbackMeals.length)];
-        setMealRecommendation(fallback);
-        setCurrentRecipe(null); // No navigation for fallback
+        // Keep current recipe if we can't find new ones
+        setMealRecommendation("Finding your next meal...");
       }
     } catch (error) {
-      console.warn('Failed to fetch random meal:', error);
-      // Use fallback on error
-      const fallback = fallbackMeals[Math.floor(Math.random() * fallbackMeals.length)];
-      setMealRecommendation(fallback);
-      setCurrentRecipe(null); // No navigation for fallback
+      // Silently fail and keep showing current recipe
+      setMealRecommendation("Finding your next meal...");
     } finally {
       setIsLoading(false);
     }
@@ -223,12 +188,8 @@ const HomepageMealRecommendation = forwardRef<any, HomepageMealRecommendationPro
                 height: '100%',
               }}
               resizeMode="cover"
-              onError={(error) => {
-                console.log('Image failed to load:', currentRecipe.recipe_image, error);
+              onError={() => {
                 setImageError(true);
-              }}
-              onLoad={() => {
-                console.log('Image loaded successfully:', currentRecipe.recipe_image);
               }}
             />
           </View>
