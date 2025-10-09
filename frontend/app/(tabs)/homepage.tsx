@@ -29,6 +29,7 @@ export default function HomePageScreen() {
   const { theme } = useTheme();
 
   const [profile, setProfile] = useState<Profile>({ username: "" });
+  const [stepsWidgetHeight, setStepsWidgetHeight] = useState(0);
 
   // Refs to drive pull-to-refresh updates
   const stepsRef = useRef<{ updateSteps: () => void }>(null);
@@ -115,9 +116,50 @@ export default function HomePageScreen() {
           {/* Quote */}
           <HomepageMotivationalQuotes ref={quotesRef} className="mb-8" />
 
-          {/* Steps */}
-          <View style={{ width: '45%' }}>
-            <HomepageSteps ref={stepsRef} className="mb-8" />
+          {/* Steps and Background GIFs section */}
+          <View style={{ marginBottom: 32, position: 'relative' }}>
+            {/* Steps Widget - 45% (Foreground) */}
+            <View
+              style={{ width: '45%', zIndex: 1 }}
+              onLayout={(event) => {
+                const { height } = event.nativeEvent.layout;
+                setStepsWidgetHeight(height);
+              }}
+            >
+              <HomepageSteps ref={stepsRef} />
+            </View>
+
+            {/* Background GIF Section - 55% */}
+            {stepsWidgetHeight > 0 && (
+              <View
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: '45%',
+                  width: '55%',
+                  height: stepsWidgetHeight,
+                  flexDirection: 'row',
+                  gap: 3,
+                  zIndex: 0,
+                  paddingLeft: 4,
+                }}
+              >
+                <View style={{ flex: 1.1, borderRadius: 16, overflow: 'hidden' }}>
+                  <Image
+                    source={require('../../assets/images/Cowboy-Bebop-Love.gif')}
+                    style={{ width: '100%', height: '100%' }}
+                    resizeMode="cover"
+                  />
+                </View>
+                <View style={{ flex: 0.8, borderRadius: 16, overflow: 'hidden' }}>
+                  <Image
+                    source={require('../../assets/images/Art-Running.gif')}
+                    style={{ width: '100%', height: '100%' }}
+                    resizeMode="cover"
+                  />
+                </View>
+              </View>
+            )}
           </View>
 
           {/* Meal Recommendation */}
