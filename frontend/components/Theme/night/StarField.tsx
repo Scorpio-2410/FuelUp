@@ -1,4 +1,3 @@
-// Night Theme Star Field Component
 // Responsible for generating and animating stars during night time
 import React, { useEffect, useRef } from 'react';
 import { View, Animated, Dimensions, StyleSheet } from 'react-native';
@@ -23,7 +22,8 @@ export const StarField: React.FC<StarFieldProps> = ({
   intensity = 'medium',
   isNightTime
 }) => {
-  const starsRef = useRef<Star[]>([]);
+  // Use state to ensure re-render when stars are generated
+  const [stars, setStars] = React.useState<Star[]>([]);
   const starAnimatedValues = useRef<Animated.Value[]>([]);
 
   // Generate stars based on intensity
@@ -47,16 +47,17 @@ export const StarField: React.FC<StarFieldProps> = ({
 
   useEffect(() => {
     if (isNightTime) {
-      starsRef.current = generateStars();
+      const generatedStars = generateStars();
+      setStars(generatedStars);
       
       // Create animated values for each star
-      starAnimatedValues.current = starsRef.current.map(() => 
+      starAnimatedValues.current = generatedStars.map(() => 
         new Animated.Value(0)
       );
       
       // Animate stars with staggered delays
       starAnimatedValues.current.forEach((animatedValue, index) => {
-        const star = starsRef.current[index];
+        const star = generatedStars[index];
         
         Animated.loop(
           Animated.sequence([
@@ -74,6 +75,8 @@ export const StarField: React.FC<StarFieldProps> = ({
           ])
         ).start();
       });
+    } else {
+      setStars([]);
     }
   }, [intensity, isNightTime]);
 
@@ -81,7 +84,7 @@ export const StarField: React.FC<StarFieldProps> = ({
 
   return (
     <View style={styles.container}>
-      {starsRef.current.map((star, index) => {
+      {stars.map((star, index) => {
         const animatedValue = starAnimatedValues.current[index];
         
         return (

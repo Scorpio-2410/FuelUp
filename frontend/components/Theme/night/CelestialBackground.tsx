@@ -19,21 +19,22 @@ export const CelestialBackground: React.FC<CelestialBackgroundProps> = ({
   theme,
   intensity = 'medium'
 }) => {
-  const [isNightTime, setIsNightTime] = useState(false);
-
-  // Check if current time is between 6:30 PM and 6:00 AM (night time)
+  // Check if current time is between 6:00 PM and 6:00 AM (night time)
   const checkIsNightTime = () => {
     const now = new Date();
     const currentHour = now.getHours();
     const currentMinute = now.getMinutes();
     const currentTime = currentHour * 60 + currentMinute; // Convert to minutes
     
-    const nightStart = 18 * 60 + 30; // 6:30 PM = 1110 minutes
+    const nightStart = 18 * 60; // 6:00 PM = 1080 minutes
     const nightEnd = 6 * 60; // 6:00 AM = 360 minutes
     
-    // Night time is from 6:30 PM to 6:00 AM (next day)
+    // Night time is from 6:00 PM to 6:00 AM (next day)
     return currentTime >= nightStart || currentTime < nightEnd;
   };
+
+  // Initialize with the correct value immediately
+  const [isNightTime, setIsNightTime] = useState(checkIsNightTime());
 
   // Update night time status
   const updateNightTimeStatus = () => {

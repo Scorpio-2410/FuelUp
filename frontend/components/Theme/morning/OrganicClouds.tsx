@@ -145,7 +145,7 @@ function OrganicCloud({
     <Animated.View
       style={{
         position: "absolute",
-        left: 0, // Base position - horizontal positioning fully controlled by translateX
+        left: width * 0.5, // Center the container to accommodate full translation range
         top: cloud.y - cloud.size * 1.2,
         width: cloud.size * 3,
         height: cloud.size * 2.4,
