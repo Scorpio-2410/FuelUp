@@ -14,7 +14,7 @@ import Animated, {
   withSpring
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import CelestialBackground from '../components/Theme/night/CelestialBackground';
+import DynamicBackground from '../components/Theme/DynamicTheme';
 import { useTheme } from '../contexts/ThemeContext';
 import RefreshScroll from '../components/RefreshScroll';
 
@@ -89,7 +89,7 @@ export default function StepsAnalytics() {
   };
 
   return (
-    <CelestialBackground
+    <DynamicBackground
       theme={theme}
       intensity="medium">
       <SafeAreaView className="flex-1">
@@ -297,6 +297,6 @@ export default function StepsAnalytics() {
           </View>
         </RefreshScroll>
       </SafeAreaView>
-    </CelestialBackground>
+    </DynamicBackground>
   );
 }

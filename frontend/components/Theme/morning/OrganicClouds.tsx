@@ -74,19 +74,23 @@ function OrganicCloud({
     horizontalAnim.setValue(cloud.initialPosition);
     verticalAnim.setValue(Math.random());
 
-    // Continuous horizontal drift - INFINITE LOOP with proper reset
+    // Continuous horizontal drift - INFINITE LOOP with seamless reset
     const duration = CloudAnimationController.getAnimationDuration(baseSpeed, cloud.speed);
+    
+    // Determine start and end positions based on direction for seamless looping
+    const startPos = cloud.direction === 1 ? 0 : 1; // L→R starts at 0, R→L starts at 1
+    const endPos = cloud.direction === 1 ? 1 : 0;   // L→R ends at 1, R→L ends at 0
     
     const horizontalLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(horizontalAnim, {
-          toValue: 1, // Always animate to 1
+          toValue: endPos, // Animate to opposite edge
           duration,
           easing: Easing.linear,
           useNativeDriver: true,
         }),
         Animated.timing(horizontalAnim, {
-          toValue: cloud.initialPosition, // Reset to INITIAL POSITION, not 0!
+          toValue: startPos, // Reset to starting edge (off-screen)
           duration: 0, // Instant reset
           useNativeDriver: true,
         }),

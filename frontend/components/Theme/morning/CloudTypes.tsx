@@ -1,4 +1,3 @@
-// Defines three distinct cloud complexity classes:
 // Light: Simple, wispy clouds (5-10 bubbles)
 // Mild: Medium complexity clouds (10-18 bubbles)
 // Heavy: Complex, detailed clouds (18-30 bubbles)
@@ -44,6 +43,7 @@ export class LightCloud {
       });
     }
 
+
     // Top layer: 1-2 small puffs
     const topCount = 1 + Math.floor(Math.random() * 2);
     for (let i = 0; i < topCount; i++) {
@@ -59,6 +59,7 @@ export class LightCloud {
     return bubbles;
   }
 }
+
 
 /**
  * Mild Cloud Generator
@@ -118,6 +119,7 @@ export class MildCloud {
     return bubbles;
   }
 }
+
 
 /**
  * Heavy Cloud Generator
@@ -190,7 +192,7 @@ export class HeavyCloud {
 }
 
 /**
- * Cloud Type Factory (Factory Pattern)
+ * Cloud Type Factory
  * Generates appropriate cloud type based on complexity
  */
 export class CloudTypeFactory {

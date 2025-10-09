@@ -1,4 +1,4 @@
-// contexts/ThemeContext.tsx
+// Manages the theme of the app
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { TimeBasedTheme, ThemeMode, getCurrentTheme, getThemeByTime } from '../constants/TimeBasedTheme';
 

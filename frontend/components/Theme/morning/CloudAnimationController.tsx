@@ -1,8 +1,6 @@
 /**
- * Cloud Animation Controller (Single Responsibility Principle)
- * 
  * Handles all animation and spawning logic for clouds
- * Separates concerns: animation behavior vs. cloud rendering
+ * animation behavior vs. cloud rendering
  */
 
 import { Dimensions } from "react-native";
@@ -25,7 +23,7 @@ export interface CloudConfig {
 }
 
 /**
- * Cloud Spawner (Strategy Pattern)
+ * Cloud Spawner
  * Handles random cloud placement across the screen
  */
 export class CloudSpawner {
@@ -50,13 +48,13 @@ export class CloudSpawner {
     // Add timestamp-based seed for truly unique randomization per mount
     const mountSeed = Date.now();
 
-    // Vertical distribution based on depth
+    // Vertical distribution based on depth - adjusted to prevent top/bottom clipping
     const yRange =
       depth === "far"
-        ? { min: 0.0, max: 0.6 }
+        ? { min: 0.05, max: 0.55 }  // Moved away from top edge
         : depth === "mid"
-        ? { min: 0.1, max: 0.75 }
-        : { min: 0.2, max: 0.85 };
+        ? { min: 0.15, max: 0.70 }  // Moved away from top/bottom edges
+        : { min: 0.25, max: 0.80 }; // Moved away from bottom edge
 
     for (let cloudIndex = 0; cloudIndex < count; cloudIndex++) {
       let attempts = 0;
@@ -82,28 +80,11 @@ export class CloudSpawner {
           
           // Direction: TRUE 50/50 split - alternating pattern ensures balance
           const direction = (cloudIndex % 2 === 0) ? 1 : -1;
-          
-          // CRITICAL FIX: Use DIFFERENT ranges per direction for proper on-screen spawning
-          // Translation range: L→R [-0.3w, 1.3w] | R←L [1.3w, -0.3w] (span = 1.6w)
-          // Cloud width: ~0.5w (varies, but accounting for this)
-          // 
-          // L→R clouds (moving left to right):
-          //   Want translateX in [0, 0.5w] (left side of screen, fully visible)
-          //   - translateX = -0.3w + init * 1.6w
-          //   - For 0: init = (0 + 0.3) / 1.6 = 0.1875
-          //   - For 0.5w: init = (0.5 + 0.3) / 1.6 = 0.5
-          //   Range: [0.1875, 0.5]
-          //
-          // R←L clouds (moving right to left):
-          //   Want translateX in [0.2w, 0.6w] (right side, accounting for width ~0.5w)
-          //   - translateX = 1.3w - init * 1.6w
-          //   - For 0.6w: init = (1.3 - 0.6) / 1.6 = 0.4375
-          //   - For 0.2w: init = (1.3 - 0.2) / 1.6 = 0.6875
-          //   Range: [0.4375, 0.6875]
-          
+
+          // Updated initial positions with more buffer to prevent edge clipping
           const initialPosition = direction === 1
-            ? 0.1875 + Math.random() * (0.5 - 0.1875)    // L→R: [0.1875, 0.5]
-            : 0.4375 + Math.random() * (0.6875 - 0.4375); // R←L: [0.4375, 0.6875]
+            ? 0.25 + Math.random() * (0.4 - 0.25)    // L→R: [0.25, 0.4] - spawn further from left edge
+            : 0.6 + Math.random() * (0.75 - 0.6);    // R←L: [0.6, 0.75] - spawn further from right edge
 
           clouds.push({
             id: `cloud-${depth}-${mountSeed}-${cloudIndex}`,
@@ -146,15 +127,16 @@ export class CloudAnimationController {
    * Maps 0-1 animation value to actual screen X coordinates
    */
   static getTranslationRange(direction: number): [number, number] {
-    // Reduced buffer: -30%w to 130%w (was -60%w to 160%w)
-    const startOffset = -width * 0.3;
-    const endOffset = width * 1.3;
+    // Increased buffer to ensure full cloud rendering
+    // This accounts for cloud width (up to 3x size) and ensures complete visibility
+    const startOffset = -width * 0.5;
+    const endOffset = width * 1.5;
     
     if (direction === 1) {
-      // Left to right: -30%w → 130%w
+      // Left to right: -50%w → 150%w
       return [startOffset, endOffset];
     } else {
-      // Right to left: 130%w → -30%w
+      // Right to left: 150%w → -50%w
       return [endOffset, startOffset];
     }
   }
