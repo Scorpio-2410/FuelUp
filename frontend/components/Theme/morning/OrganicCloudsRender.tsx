@@ -1,20 +1,4 @@
-/**
- * Organic Clouds - Realistic cloud system for Expo Go
- * 
- * Refactored following SOLID Principles:
- * - CloudTypes.tsx: Single Responsibility - Cloud structure generation
- * - CloudAnimationController.tsx: Single Responsibility - Animation logic
- * - OrganicClouds.tsx: Presentation layer - Rendering only
- * 
- * Features:
- * - 3 cloud complexity classes: Light, Mild, Heavy
- * - Random spawn positions across screen
- * - Bidirectional movement (50/50 split)
- * - Infinite looping with seamless transitions
- * 
- * Compatible with: Expo Go (SVG + Animated only)
- * Performance: Native driver enabled for 60fps
- */
+// Organic Clouds - Realistic cloud rendering
 
 import React, { useEffect, useRef } from "react";
 import { Animated, Dimensions, Easing, StyleSheet, View } from "react-native";
@@ -54,9 +38,7 @@ export default function OrganicClouds({
   );
 }
 
-/**
- * Individual organic cloud with realistic rendering
- */
+// Individual organic cloud component with realistic SVG rendering
 function OrganicCloud({
   cloud,
   baseOpacity,

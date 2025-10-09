@@ -11,10 +11,9 @@ export interface CloudBubble {
   ry: number;
 }
 
-/**
- * Light Cloud Generator
- * Simple, wispy clouds with minimal detail
- */
+// Light Cloud Generator Class
+// Generates simple, wispy clouds with minimal detail (5-10 bubbles)
+// Best used for background/far layers for atmospheric depth
 export class LightCloud {
   static generate(cloudSize: number): CloudBubble[] {
     const bubbles: CloudBubble[] = [];
@@ -61,10 +60,9 @@ export class LightCloud {
 }
 
 
-/**
- * Mild Cloud Generator
- * Medium complexity with good detail balance
- */
+// Mild Cloud Generator Class
+// Generates medium complexity clouds with balanced detail (10-18 bubbles)
+// Ideal for mid-layer clouds, provides good visual weight
 export class MildCloud {
   static generate(cloudSize: number): CloudBubble[] {
     const bubbles: CloudBubble[] = [];
@@ -121,10 +119,9 @@ export class MildCloud {
 }
 
 
-/**
- * Heavy Cloud Generator
- * Complex, highly detailed clouds with multiple layers
- */
+// Heavy Cloud Generator Class
+// Generates complex, highly detailed clouds with multiple layers (18-30 bubbles)
+// Perfect for foreground/near layers, creates dramatic depth
 export class HeavyCloud {
   static generate(cloudSize: number): CloudBubble[] {
     const bubbles: CloudBubble[] = [];
@@ -191,10 +188,9 @@ export class HeavyCloud {
   }
 }
 
-/**
- * Cloud Type Factory
- * Generates appropriate cloud type based on complexity
- */
+// Cloud Type Factory Class
+// Generates appropriate cloud type based on complexity using Factory Pattern
+// Encapsulates cloud creation logic for better maintainability
 export class CloudTypeFactory {
   static createCloud(complexity: CloudComplexity, size: number): CloudBubble[] {
     switch (complexity) {
