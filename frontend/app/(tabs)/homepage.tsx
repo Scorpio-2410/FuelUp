@@ -7,7 +7,7 @@ import { useTheme } from "../../contexts/ThemeContext";
 import RealTimeCalendar from "../../components/Homepage/RealTimeCalendar";
 import RefreshScroll from "../../components/RefreshScroll";
 import HomepageMotivationalQuotes from "../../components/Homepage/HomepageMotivationalQuotes";
-import HomepageGoalsMessage from "../../components/Homepage/HomepageGoalsMessage";
+import HomepageGoalsMessage from "../../components/Homepage/HomepageMealRecommendation";
 import HomepageSteps from "../../components/Homepage/HomepageSteps";
 import HomepageCaloriesTracking from "../../components/Homepage/HomepageCaloriesTracking";
 import { useGlobalRefresh } from "../../components/useGlobalRefresh";
