@@ -115,11 +115,13 @@ export default function HomePageScreen() {
           {/* Quote */}
           <HomepageMotivationalQuotes ref={quotesRef} className="mb-8" />
 
-          {/* Stats row */}
-          <View className="flex-row gap-6 mb-8">
-            <HomepageSteps ref={stepsRef} />
-            <HomepageGoalsMessage ref={goalsRef} />
+          {/* Steps */}
+          <View style={{ width: '45%' }}>
+            <HomepageSteps ref={stepsRef} className="mb-8" />
           </View>
+
+          {/* Meal Recommendation */}
+          <HomepageGoalsMessage ref={goalsRef} className="mb-8" />
 
           {/* Calories */}
           <HomepageCaloriesTracking ref={caloriesRef} className="mb-6" />
