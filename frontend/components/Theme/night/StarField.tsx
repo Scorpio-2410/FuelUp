@@ -26,9 +26,9 @@ export const StarField: React.FC<StarFieldProps> = ({
   const [stars, setStars] = React.useState<Star[]>([]);
   const starAnimatedValues = useRef<Animated.Value[]>([]);
 
-  // Generate stars based on intensity
+  // Generate stars based on intensity (100% count with mixed animations)
   const generateStars = (): Star[] => {
-    const starCount = intensity === 'low' ? 80 : intensity === 'medium' ? 120 : 180;
+    const starCount = intensity === 'low' ? 80 : intensity === 'medium' ? 120 : 180; // Full count
     const stars: Star[] = [];
     
     for (let i = 0; i < starCount; i++) {
@@ -55,26 +55,50 @@ export const StarField: React.FC<StarFieldProps> = ({
         new Animated.Value(0)
       );
       
-      // Animate stars with staggered delays
-      starAnimatedValues.current.forEach((animatedValue, index) => {
-        const star = generatedStars[index];
-        
-        Animated.loop(
-          Animated.sequence([
-            Animated.delay(star.animationDelay),
-            Animated.timing(animatedValue, {
-              toValue: 1,
-              duration: 3000 + Math.random() * 3000, // 3-6s for slower, more realistic twinkling
-              useNativeDriver: true,
-            }),
-            Animated.timing(animatedValue, {
-              toValue: 0,
-              duration: 3000 + Math.random() * 3000,
-              useNativeDriver: true,
-            }),
-          ])
-        ).start();
-      });
+        // Mix of animation styles for diversity (20% afternoon-style)
+        starAnimatedValues.current.forEach((animatedValue, index) => {
+          const star = generatedStars[index];
+          
+          // 20% get afternoon-style animation (more noticeable blinking)
+          // 80% keep original night-style animation (subtle twinkling)
+          const useAfternoonStyle = Math.random() < 0.2;
+          
+          if (useAfternoonStyle) {
+            // Afternoon-style: more noticeable blinking
+            Animated.loop(
+              Animated.sequence([
+                Animated.delay(star.animationDelay),
+                Animated.timing(animatedValue, {
+                  toValue: 1,
+                  duration: 2000 + Math.random() * 3000, // 2-5 seconds (faster)
+                  useNativeDriver: true,
+                }),
+                Animated.timing(animatedValue, {
+                  toValue: 0.3, // More dramatic fade
+                  duration: 1000 + Math.random() * 2000, // 1-3 seconds
+                  useNativeDriver: true,
+                }),
+              ])
+            ).start();
+          } else {
+            // Original night-style: subtle twinkling
+            Animated.loop(
+              Animated.sequence([
+                Animated.delay(star.animationDelay),
+                Animated.timing(animatedValue, {
+                  toValue: 1,
+                  duration: 3000 + Math.random() * 3000, // 3-6s for slower, more realistic twinkling
+                  useNativeDriver: true,
+                }),
+                Animated.timing(animatedValue, {
+                  toValue: 0,
+                  duration: 3000 + Math.random() * 3000,
+                  useNativeDriver: true,
+                }),
+              ])
+            ).start();
+          }
+        });
     } else {
       setStars([]);
     }
@@ -99,7 +123,7 @@ export const StarField: React.FC<StarFieldProps> = ({
                 height: star.size,
                 opacity: animatedValue.interpolate({
                   inputRange: [0, 1],
-                  outputRange: [star.opacity * 0.6, star.opacity],
+                  outputRange: [star.opacity * 0.6, star.opacity], // Works for both styles
                 }),
                 transform: [
                   {

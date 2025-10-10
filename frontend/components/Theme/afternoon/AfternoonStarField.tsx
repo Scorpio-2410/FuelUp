@@ -52,25 +52,48 @@ export const AfternoonStarField: React.FC<AfternoonStarFieldProps> = ({
     // Initialize animated values for each star
     starAnimatedValues.current = generatedStars.map(() => new Animated.Value(0));
     
-    // Start animations for each star
+    // Mix of animation styles for diversity (10% night-style)
     generatedStars.forEach((star, index) => {
       const animatedValue = starAnimatedValues.current[index];
       
+      // 10% get night-style animation (subtle twinkling)
+      // 90% keep afternoon-style animation (more noticeable blinking)
+      const useNightStyle = Math.random() < 0.1;
+      
       const animateStar = () => {
-        Animated.loop(
-          Animated.sequence([
-            Animated.timing(animatedValue, {
-              toValue: 1,
-              duration: 2000 + Math.random() * 3000, // 2-5 seconds
-              useNativeDriver: true,
-            }),
-            Animated.timing(animatedValue, {
-              toValue: 0.3,
-              duration: 1000 + Math.random() * 2000, // 1-3 seconds
-              useNativeDriver: true,
-            }),
-          ])
-        ).start();
+        if (useNightStyle) {
+          // Night-style: subtle twinkling
+          Animated.loop(
+            Animated.sequence([
+              Animated.timing(animatedValue, {
+                toValue: 1,
+                duration: 3000 + Math.random() * 3000, // 3-6 seconds (slower)
+                useNativeDriver: true,
+              }),
+              Animated.timing(animatedValue, {
+                toValue: 0,
+                duration: 3000 + Math.random() * 3000, // 3-6 seconds (slower)
+                useNativeDriver: true,
+              }),
+            ])
+          ).start();
+        } else {
+          // Afternoon-style: more noticeable blinking
+          Animated.loop(
+            Animated.sequence([
+              Animated.timing(animatedValue, {
+                toValue: 1,
+                duration: 2000 + Math.random() * 3000, // 2-5 seconds (faster)
+                useNativeDriver: true,
+              }),
+              Animated.timing(animatedValue, {
+                toValue: 0.3, // More dramatic fade
+                duration: 1000 + Math.random() * 2000, // 1-3 seconds
+                useNativeDriver: true,
+              }),
+            ])
+          ).start();
+        }
       };
       
       // Start animation after delay
@@ -95,8 +118,16 @@ export const AfternoonStarField: React.FC<AfternoonStarFieldProps> = ({
                 height: star.size,
                 opacity: animatedValue.interpolate({
                   inputRange: [0, 1],
-                  outputRange: [star.opacity * 0.3, star.opacity],
+                  outputRange: [star.opacity * 0.6, star.opacity], // Works for both styles
                 }),
+                transform: [
+                  {
+                    scale: animatedValue.interpolate({
+                      inputRange: [0, 0.5, 1],
+                      outputRange: [0.9, 1.1, 0.9], // Subtle scale animation like night
+                    }),
+                  },
+                ],
               },
             ]}
           />

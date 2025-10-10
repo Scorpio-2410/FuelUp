@@ -1,11 +1,10 @@
 // Afternoon Theme Background Component
-// Orchestrates all afternoon/golden hour elements: gradient sky, sunset, clouds
+// Orchestrates all afternoon/golden hour elements: gradient sky, sunset, stars
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import GoldenSky from './GoldenSky';
 import HorizonSun from './HorizonSun';
-import AfternoonClouds from './AfternoonClouds';
 import AfternoonStarField from './AfternoonStarField';
 import BeachSunset from './BeachSunset';
 
@@ -32,8 +31,6 @@ const AfternoonBackground: React.FC<AfternoonBackgroundProps> = ({
       {/* Sun at the horizon (50-60% visible, moved up 80px total) */}
       <HorizonSun />
       
-      {/* Cirrus clouds (fewer than morning, mild/heavy only) */}
-      <AfternoonClouds intensity={intensity} />
       
       {/* Children content */}
       {children}
