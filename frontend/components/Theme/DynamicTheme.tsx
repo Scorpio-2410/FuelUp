@@ -66,10 +66,9 @@ export const DynamicBackground: React.FC<DynamicBackgroundProps> = ({
 
   if (currentTheme === 'afternoon') {
     return (
-      <View style={{ flex: 1 }}>
-        <AfternoonBackground intensity={intensity as 'light' | 'medium' | 'strong'} />
+      <AfternoonBackground intensity={intensity as 'light' | 'medium' | 'strong'}>
         {children}
-      </View>
+      </AfternoonBackground>
     );
   }
 

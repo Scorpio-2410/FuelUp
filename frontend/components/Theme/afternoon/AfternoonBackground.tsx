@@ -33,7 +33,9 @@ const AfternoonBackground: React.FC<AfternoonBackgroundProps> = ({
       
       
       {/* Children content */}
-      {children}
+      <View style={styles.content} pointerEvents="box-none">
+        {children}
+      </View>
     </View>
   );
 };
@@ -43,6 +45,10 @@ const styles = StyleSheet.create({
     flex: 1,
     position: 'relative',
     overflow: 'hidden',
+  },
+  content: {
+    flex: 1,
+    zIndex: 10,
   },
 });
 
