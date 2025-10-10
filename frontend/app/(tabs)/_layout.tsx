@@ -155,12 +155,14 @@ export default function TabLayout() {
         </Tabs>
       </SwipeNavigate>
 
-      {/* Custom Tab Bar */}
-      <CustomTabBar
-        activeTab={currentTabName}
-        onTabPress={handleTabPress}
-        tabs={tabConfigs}
-      />
+      {/* Custom Tab Bar - Hidden on theme tab */}
+      {currentTabName !== "theme" && (
+        <CustomTabBar
+          activeTab={currentTabName}
+          onTabPress={handleTabPress}
+          tabs={tabConfigs}
+        />
+      )}
     </DynamicBackground>
   );
 }
