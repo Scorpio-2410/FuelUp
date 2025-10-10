@@ -124,10 +124,10 @@ export default function MorningBackground({ children }: { children?: React.React
       {/* Atmospheric haze at top for depth */}
       <HazeVeil type="top" />
 
-      {/* Far clouds - background layer with lighter clouds, reduced count by 30% */}
+      {/* Far clouds - background layer with lighter clouds */}
       <OrganicClouds 
         depth="far" 
-        cloudCount={6} 
+        cloudCount={4} 
         baseOpacity={0.40} 
         baseSpeed={0.7}
       />
@@ -135,10 +135,10 @@ export default function MorningBackground({ children }: { children?: React.React
       {/* Sun with bloom, no animation */}
       <SunBloom size={90} disableAnimation />
 
-      {/* Mid clouds - main layer with balanced density, reduced count by 30% */}
+      {/* Mid clouds - main layer with balanced density */}
       <OrganicClouds 
         depth="mid" 
-        cloudCount={10} 
+        cloudCount={6} 
         baseOpacity={0.65} 
         baseSpeed={1.01}
       />
@@ -146,10 +146,10 @@ export default function MorningBackground({ children }: { children?: React.React
       {/* Horizon haze for atmospheric perspective */}
       <HazeVeil type="horizon" />
 
-      {/* Near clouds - foreground layer with fewer clouds for cleaner look, reduced count by 15% */}
+      {/* Near clouds - foreground layer with fewer clouds for cleaner look */}
       <OrganicClouds 
         depth="near" 
-        cloudCount={7} 
+        cloudCount={5} 
         baseOpacity={0.80} 
         baseSpeed={1.68}
       />

@@ -30,58 +30,88 @@ export class CloudSpawner {
     return (Math.random() + Date.now() % 1000) % 1;
   }
 
-  // Generate clouds with Poisson disk sampling for natural distribution
+  // Generate clouds with improved grid-based positioning for better distribution
   static generateClouds(count: number, depth: string): CloudConfig[] {
     const clouds: CloudConfig[] = [];
     const mountSeed = Date.now();
     
-    // Minimum distance between clouds (allows natural overlap but prevents excessive stacking)
-    const minDistance = depth === "far" ? 40 : depth === "mid" ? 50 : 60;
-    const maxAttempts = 50; // Try up to 50 times to place each cloud
+    // Improved grid system with better spacing
+    const totalWidth = width + 400; // Include off-screen buffer
+    const totalHeight = height + 200;
     
-    for (let cloudIndex = 0; cloudIndex < count; cloudIndex++) {
+    // Calculate optimal grid dimensions based on cloud count and screen ratio
+    const aspectRatio = totalWidth / totalHeight;
+    const gridCols = Math.ceil(Math.sqrt(count * aspectRatio));
+    const gridRows = Math.ceil(count / gridCols);
+    
+    const cellWidth = totalWidth / gridCols;
+    const cellHeight = totalHeight / gridRows;
+    
+    // Create grid with minimum distance enforcement
+    const minDistance = Math.min(cellWidth, cellHeight) * 0.3; // 30% of smaller cell dimension
+    
+    // Generate positions with distance checking
+    const positions: {x: number, y: number}[] = [];
+    const maxAttempts = count * 10; // Prevent infinite loops
+    
+    for (let i = 0; i < count; i++) {
       let attempts = 0;
       let validPosition = false;
-      let x = 0, y = 0;
+      let newX = 0, newY = 0;
       
-      // Keep trying to find a valid position
-      while (attempts < maxAttempts && !validPosition) {
-        // Generate random position with margins
-        x = 60 + Math.random() * (width - 120);
-        y = 60 + Math.random() * (height - 120);
+      while (!validPosition && attempts < maxAttempts) {
+        // Choose random grid cell
+        const col = Math.floor(Math.random() * gridCols);
+        const row = Math.floor(Math.random() * gridRows);
         
-        // Check if this position is far enough from existing clouds
+        // Base position in cell center
+        const baseX = col * cellWidth + cellWidth / 2 - 200;
+        const baseY = row * cellHeight + cellHeight / 2 - 100;
+        
+        // Add smaller random offset (max 40% of cell size)
+        const offsetX = (Math.random() - 0.5) * cellWidth * 0.4;
+        const offsetY = (Math.random() - 0.5) * cellHeight * 0.4;
+        
+        newX = baseX + offsetX;
+        newY = baseY + offsetY;
+        
+        // Check minimum distance from existing clouds
         validPosition = true;
-        for (const existingCloud of clouds) {
-          const distance = Math.sqrt(
-            Math.pow(x - existingCloud.x, 2) + Math.pow(y - existingCloud.y, 2)
-          );
+        for (const pos of positions) {
+          const distance = Math.sqrt((newX - pos.x) ** 2 + (newY - pos.y) ** 2);
           if (distance < minDistance) {
             validPosition = false;
             break;
           }
         }
-        
         attempts++;
       }
       
-      // If we couldn't find a valid position, use the last attempted position
-      // This ensures we always generate the requested number of clouds
+      // If we couldn't find a valid position, use the last attempt anyway
+      positions.push({x: newX, y: newY});
+    }
+    
+    for (let cloudIndex = 0; cloudIndex < count; cloudIndex++) {
+      const {x, y} = positions[cloudIndex];
       
-      // Create cloud with random properties
+      // Create cloud with random properties (20% smaller)
       const complexity = CloudTypeFactory.getRandomComplexity();
-      const baseSize = depth === "far" ? 55 : depth === "mid" ? 70 : 85;
-      const size = baseSize + Math.random() * 35;
+      const baseSize = depth === "far" ? 44 : depth === "mid" ? 56 : 68; // 20% reduction
+      const size = baseSize + Math.random() * 28; // Also reduce random range
       
       // Random direction - true 50/50 split for natural movement
       const direction = Math.random() < 0.5 ? 1 : -1;
+
+      // Increase speed by 10% for mild clouds (reduced from 15%)
+      const baseSpeed = 0.8 + Math.random() * 0.6;
+      const adjustedSpeed = complexity === "mild" ? baseSpeed * 1.10 : baseSpeed;
 
       clouds.push({
         id: `cloud-${depth}-${mountSeed}-${cloudIndex}`,
         x,
         y,
         size,
-        speed: 0.8 + Math.random() * 0.6,
+        speed: adjustedSpeed,
         opacity: (depth === "far" ? 0.50 : depth === "mid" ? 0.66 : 0.78) + Math.random() * 0.10,
         windSway: 3 + Math.random() * 7,
         bubbles: CloudTypeFactory.createCloud(complexity, size),
@@ -103,17 +133,17 @@ export class CloudAnimationController {
     return Math.random() < 0.5 ? 1 : -1;
   }
 
-  // Calculate translation range - minimal movement to prevent clipping
+  // Calculate translation range - full screen movement for natural cloud drift
   static getTranslationRange(direction: number): [number, number] {
-    // Reduced movement range to prevent edge clipping
-    const moveDistance = width * 0.25; // Clouds move 25% of screen width (reduced from 40%)
+    // Full screen width movement for complete left-right crossing
+    const moveDistance = width + 400; // Move across entire screen plus buffer
     
     if (direction === 1) {
-      // Left to right: move right
-      return [0, moveDistance];
+      // Left to right: move from left edge to right edge
+      return [-width - 200, width + 200];
     } else {
-      // Right to left: move left
-      return [0, -moveDistance];
+      // Right to left: move from right edge to left edge
+      return [width + 200, -width - 200];
     }
   }
 

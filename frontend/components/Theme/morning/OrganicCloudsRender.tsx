@@ -52,38 +52,33 @@ function OrganicCloud({
   const verticalAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Set initial position - clouds start at center of their movement range
-    horizontalAnim.setValue(0); // Start at center (0) of movement range
+    // Set initial position based on direction
+    const [startPos, endPos] = CloudAnimationController.getTranslationRange(cloud.direction);
+    horizontalAnim.setValue(startPos); // Start from edge
     verticalAnim.setValue(Math.random());
 
-    // Continuous horizontal drift - INFINITE LOOP with seamless reset
+    // Simple linear movement across screen
     const duration = CloudAnimationController.getAnimationDuration(baseSpeed, cloud.speed);
     
-    // Simple back-and-forth movement from center
+    // Continuous linear movement from one edge to the other
     const horizontalLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(horizontalAnim, {
-          toValue: 1, // Move to end of range
-          duration: duration / 2, // Half duration for one direction
-          easing: Easing.inOut(Easing.sin),
+          toValue: endPos, // Move to other edge
+          duration: duration,
+          easing: Easing.linear, // Linear movement like stars
           useNativeDriver: true,
         }),
+        // Reset to start position instantly for seamless loop
         Animated.timing(horizontalAnim, {
-          toValue: -1, // Move to other end
-          duration: duration / 2, // Half duration for return
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-        Animated.timing(horizontalAnim, {
-          toValue: 0, // Return to center
-          duration: 1000, // Quick return to center
-          easing: Easing.out(Easing.quad),
+          toValue: startPos,
+          duration: 0,
           useNativeDriver: true,
         }),
       ])
     );
     
-    // Start immediately - NO DELAY for instant visibility
+    // Start immediately
     horizontalLoop.start();
 
     // Gentle vertical wind sway with randomization
@@ -115,12 +110,8 @@ function OrganicCloud({
     };
   }, [cloud.direction, cloud.initialPosition, baseSpeed, cloud.speed]);
 
-  // Use CloudAnimationController for translation logic
-  const [start, end] = CloudAnimationController.getTranslationRange(cloud.direction);
-  const translateX = horizontalAnim.interpolate({
-    inputRange: [-1, 0, 1],
-    outputRange: [start, 0, end],
-  });
+  // Direct translation - no interpolation needed for linear movement
+  const translateX = horizontalAnim;
 
   const translateY = verticalAnim.interpolate({
     inputRange: [0, 0.5, 1],
@@ -131,15 +122,15 @@ function OrganicCloud({
     <Animated.View
       style={{
         position: "absolute",
-        left: cloud.x - cloud.size * 1.4, // Increased buffer to prevent edge clipping
-        top: cloud.y - cloud.size * 1.2,  // Increased buffer to prevent edge clipping
-        width: cloud.size * 2.8,          // Slightly larger container
-        height: cloud.size * 2.4,         // Slightly larger container
+        left: cloud.x - cloud.size * 2.3, // Slightly larger buffer to prevent edge clipping
+        top: cloud.y - cloud.size * 2.1,  // Slightly larger buffer to prevent edge clipping
+        width: cloud.size * 4.6,          // Slightly larger container
+        height: cloud.size * 4.2,         // Slightly larger container
         transform: [{ translateX }, { translateY }],
         opacity: cloud.opacity * baseOpacity,
       }}
     >
-      <Svg width={cloud.size * 2.8} height={cloud.size * 2.4}>
+      <Svg width={cloud.size * 4.6} height={cloud.size * 4.2}>
         <Defs>
           {/* Main cloud gradient - enhanced realism */}
           <RadialGradient id={`mainGrad-${cloud.id}`} cx="50%" cy="30%" r="70%">
@@ -192,16 +183,16 @@ function OrganicCloud({
         {cloud.bubbles.map((bubble, i) => (
           <G key={`shadow-${i}`}>
             <Ellipse
-              cx={cloud.size * 1.4 + bubble.x + 2}
-              cy={cloud.size * 1.2 + bubble.y + 6}
+              cx={cloud.size * 2.3 + bubble.x + 2}
+              cy={cloud.size * 2.1 + bubble.y + 6}
               rx={bubble.rx}
               ry={bubble.ry}
               fill="#1A3A5A"
               opacity="0.08"
             />
             <Ellipse
-              cx={cloud.size * 1.4 + bubble.x + 1}
-              cy={cloud.size * 1.2 + bubble.y + 3}
+              cx={cloud.size * 2.3 + bubble.x + 1}
+              cy={cloud.size * 2.1 + bubble.y + 3}
               rx={bubble.rx}
               ry={bubble.ry}
               fill="#2A4A6A"
@@ -214,8 +205,8 @@ function OrganicCloud({
         {cloud.bubbles.map((bubble, i) => (
           <Ellipse
             key={`main-${i}`}
-            cx={cloud.size * 1.4 + bubble.x}
-            cy={cloud.size * 1.2 + bubble.y}
+            cx={cloud.size * 2.3 + bubble.x}
+            cy={cloud.size * 2.1 + bubble.y}
             rx={bubble.rx * 1.05}
             ry={bubble.ry * 1.05}
             fill={`url(#mainGrad-${cloud.id})`}
@@ -226,15 +217,15 @@ function OrganicCloud({
         {cloud.bubbles.map((bubble, i) => (
           <G key={`shade-group-${i}`}>
             <Ellipse
-              cx={cloud.size * 1.4 + bubble.x}
-              cy={cloud.size * 1.2 + bubble.y}
+              cx={cloud.size * 2.0 + bubble.x}
+              cy={cloud.size * 1.8 + bubble.y}
               rx={bubble.rx}
               ry={bubble.ry}
               fill={`url(#shadow-${cloud.id})`}
             />
             <Ellipse
-              cx={cloud.size * 1.4 + bubble.x}
-              cy={cloud.size * 1.2 + bubble.y}
+              cx={cloud.size * 2.0 + bubble.x}
+              cy={cloud.size * 1.8 + bubble.y}
               rx={bubble.rx}
               ry={bubble.ry}
               fill={`url(#highlight2-${cloud.id})`}
@@ -246,8 +237,8 @@ function OrganicCloud({
         {cloud.bubbles.map((bubble, i) => (
           <Ellipse
             key={`inner-${i}`}
-            cx={cloud.size * 1.4 + bubble.x}
-            cy={cloud.size * 1.2 + bubble.y}
+            cx={cloud.size * 2.3 + bubble.x}
+            cy={cloud.size * 2.1 + bubble.y}
             rx={bubble.rx}
             ry={bubble.ry}
             fill={`url(#innerShadow-${cloud.id})`}
@@ -258,8 +249,8 @@ function OrganicCloud({
         {cloud.bubbles.slice(0, Math.ceil(cloud.bubbles.length * 0.55)).map((bubble, i) => (
           <Ellipse
             key={`highlight-${i}`}
-            cx={cloud.size * 1.4 + bubble.x}
-            cy={cloud.size * 1.2 + bubble.y}
+            cx={cloud.size * 2.3 + bubble.x}
+            cy={cloud.size * 2.1 + bubble.y}
             rx={bubble.rx * 0.75}
             ry={bubble.ry * 0.65}
             fill={`url(#highlight-${cloud.id})`}
@@ -270,8 +261,8 @@ function OrganicCloud({
         {cloud.bubbles.slice(0, Math.ceil(cloud.bubbles.length * 0.3)).map((bubble, i) => (
           <Ellipse
             key={`bright-${i}`}
-            cx={cloud.size * 1.4 + bubble.x - bubble.rx * 0.2}
-            cy={cloud.size * 1.2 + bubble.y - bubble.ry * 0.2}
+            cx={cloud.size * 2.3 + bubble.x - bubble.rx * 0.2}
+            cy={cloud.size * 2.1 + bubble.y - bubble.ry * 0.2}
             rx={bubble.rx * 0.4}
             ry={bubble.ry * 0.35}
             fill="#FFFFFF"
@@ -283,8 +274,8 @@ function OrganicCloud({
         {cloud.bubbles.map((bubble, i) => (
           <Ellipse
             key={`glow-${i}`}
-            cx={cloud.size * 1.4 + bubble.x}
-            cy={cloud.size * 1.2 + bubble.y}
+            cx={cloud.size * 2.3 + bubble.x}
+            cy={cloud.size * 2.1 + bubble.y}
             rx={bubble.rx * 1.15}
             ry={bubble.ry * 1.15}
             fill={`url(#glow-${cloud.id})`}
@@ -296,8 +287,8 @@ function OrganicCloud({
                 {cloud.bubbles.map((bubble, i) => (
                   <Ellipse
                     key={`blend-${i}`}
-                    cx={cloud.size * 1.4 + bubble.x}
-                    cy={cloud.size * 1.2 + bubble.y}
+                    cx={cloud.size * 2.0 + bubble.x}
+                    cy={cloud.size * 1.8 + bubble.y}
                     rx={bubble.rx * 1.18}
                     ry={bubble.ry * 1.18}
                     fill="#FFFFFF"
@@ -309,8 +300,8 @@ function OrganicCloud({
                 {cloud.bubbles.map((bubble, i) => (
                   <Ellipse
                     key={`soft-blend-${i}`}
-                    cx={cloud.size * 1.4 + bubble.x}
-                    cy={cloud.size * 1.2 + bubble.y}
+                    cx={cloud.size * 2.0 + bubble.x}
+                    cy={cloud.size * 1.8 + bubble.y}
                     rx={bubble.rx * 1.25}
                     ry={bubble.ry * 1.25}
                     fill={`url(#glow-${cloud.id})`}
