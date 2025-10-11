@@ -20,7 +20,7 @@ export default function LogMealButton({ onSuccess, onError }: Props) {
           flexDirection: "row",
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor: "#22c55e",
+          backgroundColor: "#57B9FF",
           paddingVertical: 16,
           paddingHorizontal: 24,
           borderRadius: 16,

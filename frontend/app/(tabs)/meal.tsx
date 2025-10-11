@@ -10,7 +10,7 @@ import LoggedMealsList, {
   LoggedMealsListRef,
 } from "../../components/Meal/LoggedMealsList";
 import RefreshScroll from "../../components/RefreshScroll";
-import Toast from "../../components/Shared/Toast";
+import Toast from "../../components/Onboarding/Toast";
 import { useGlobalRefresh } from "../../components/useGlobalRefresh";
 import { apiSearchRecipesV3 } from "../../constants/api";
 import DynamicBackground from "../../components/Theme/DynamicTheme";
@@ -200,6 +200,15 @@ export default function MealScreen() {
             onClear={() => setQuery("")}
             placeholder="Search"
           />
+
+          {/* Header */}
+          <View
+            style={{ paddingHorizontal: 24, marginTop: 10, marginBottom: 4 }}
+          >
+            <Text style={{ color: "#fff", fontSize: 40, fontWeight: "800" }}>
+              Nutrition
+            </Text>
+          </View>
 
           {/* Card Container for Pagination and Grid */}
           <View
