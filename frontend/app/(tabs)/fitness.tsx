@@ -6,6 +6,7 @@ import { Ionicons } from "@expo/vector-icons";
 import RefreshScroll from "../../components/RefreshScroll";
 import { useGlobalRefresh } from "../../components/useGlobalRefresh";
 import TopSearchBar from "../../components/TopSearchBar";
+import FitnessProfile from "../../components/Fitness/FitnessProfile";
 import ExerciseGrid from "../../components/Fitness/ExerciseGrid";
 import {
   useExerciseAPI,
@@ -34,6 +35,7 @@ export default function FitnessScreen() {
   );
   const [plansOpen, setPlansOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
 
   const debouncedQuery = useDebounced(query.trim().toLowerCase(), 300);
   const { list, loading, error, refresh } = useExerciseAPI(
@@ -60,6 +62,7 @@ export default function FitnessScreen() {
             value={query}
             onChangeText={setQuery}
             onClear={() => setQuery("")}
+            onAvatarPress={() => setProfileOpen(true)}
           />
 
           {/* Header */}
@@ -161,6 +164,13 @@ export default function FitnessScreen() {
       <WeeklySchedulePopUp
         visible={scheduleOpen}
         onClose={() => setScheduleOpen(false)}
+      />
+
+      {/* Fitness profile modal */}
+
+      <FitnessProfile
+        visible={profileOpen}
+        onClose={() => setProfileOpen(false)}
       />
 
       <View style={{ paddingBottom: 120, opacity: 0.2 }} />
