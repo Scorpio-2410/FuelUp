@@ -4,7 +4,6 @@ import React, { useEffect, useState } from "react";
 import { View, StyleSheet, Animated, Dimensions } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import SunBloom from "./SunBloom";
-import OrganicClouds from "./OrganicCloudsRender";
 import HazeVeil from "./HazeVeil";
 
 const { width, height } = Dimensions.get('window');
@@ -124,35 +123,11 @@ export default function MorningBackground({ children }: { children?: React.React
       {/* Atmospheric haze at top for depth */}
       <HazeVeil type="top" />
 
-      {/* Far clouds - background layer with lighter clouds */}
-      <OrganicClouds 
-        depth="far" 
-        cloudCount={4} 
-        baseOpacity={0.40} 
-        baseSpeed={0.7}
-      />
-
       {/* Sun with bloom, no animation */}
       <SunBloom size={90} disableAnimation />
 
-      {/* Mid clouds - main layer with balanced density */}
-      <OrganicClouds 
-        depth="mid" 
-        cloudCount={6} 
-        baseOpacity={0.65} 
-        baseSpeed={1.01}
-      />
-
       {/* Horizon haze for atmospheric perspective */}
       <HazeVeil type="horizon" />
-
-      {/* Near clouds - foreground layer with fewer clouds for cleaner look */}
-      <OrganicClouds 
-        depth="near" 
-        cloudCount={5} 
-        baseOpacity={0.80} 
-        baseSpeed={1.68}
-      />
 
       {/* Soft edge vignette (very subtle) */}
       <HazeVeil type="vignette" />
