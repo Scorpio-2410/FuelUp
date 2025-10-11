@@ -3,12 +3,11 @@
 import React, { useEffect, useState } from "react";
 import { View, StyleSheet, Animated, Dimensions } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import SunBloom from "./SunBloom";
+import MorningSun from "./MorningSun";
 import HazeVeil from "./HazeVeil";
 
 const { width, height } = Dimensions.get('window');
 
-// Morning Star Field Component
 // Shows stars only in upper 40% of screen where sun is located
 const MorningStarField = () => {
   const [stars, setStars] = useState<Array<{
@@ -124,7 +123,7 @@ export default function MorningBackground({ children }: { children?: React.React
       <HazeVeil type="top" />
 
       {/* Sun with bloom, no animation */}
-      <SunBloom size={90} disableAnimation />
+      <MorningSun size={90} disableAnimation />
 
       {/* Horizon haze for atmospheric perspective */}
       <HazeVeil type="horizon" />

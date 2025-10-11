@@ -4,8 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { TimeBasedTheme } from '../../../constants/TimeBasedTheme';
-import StarField from './StarField';
-import CloudLayer from './CloudLayer';
+import NightStarField from './NightStarField';
 import Moon from './Moon';
 
 interface CelestialBackgroundProps {
@@ -88,14 +87,12 @@ export const CelestialBackground: React.FC<CelestialBackgroundProps> = ({
         end={{ x: 0.5, y: 1 }}
       />
       
-      {/* Cloud Layer */}
-      <CloudLayer intensity={intensity} isNightTime={isNightTime} />
       
       {/* Moon */}
       <Moon isNightTime={isNightTime} />
       
       {/* Star Field */}
-      <StarField intensity={intensity} isNightTime={isNightTime} />
+      <NightStarField intensity={intensity} isNightTime={isNightTime} />
       
       {/* Content */}
       <View style={styles.content}>

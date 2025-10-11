@@ -1,3 +1,4 @@
+// Night StarField Component
 // Responsible for generating and animating stars during night time
 import React, { useEffect, useRef } from 'react';
 import { View, Animated, Dimensions, StyleSheet } from 'react-native';
@@ -13,12 +14,12 @@ interface Star {
   animationDelay: number;
 }
 
-interface StarFieldProps {
+interface NightStarFieldProps {
   intensity?: 'low' | 'medium' | 'high';
   isNightTime: boolean;
 }
 
-export const StarField: React.FC<StarFieldProps> = ({
+export const NightStarField: React.FC<NightStarFieldProps> = ({
   intensity = 'medium',
   isNightTime
 }) => {
@@ -28,7 +29,7 @@ export const StarField: React.FC<StarFieldProps> = ({
 
   // Generate stars based on intensity (100% count with mixed animations)
   const generateStars = (): Star[] => {
-    const starCount = intensity === 'low' ? 80 : intensity === 'medium' ? 120 : 180; // Full count
+    const starCount = intensity === 'low' ? 92 : intensity === 'medium' ? 130 : 190; // Full count + 15%
     const stars: Star[] = [];
     
     for (let i = 0; i < starCount; i++) {
@@ -50,57 +51,59 @@ export const StarField: React.FC<StarFieldProps> = ({
       const generatedStars = generateStars();
       setStars(generatedStars);
       
-      // Create animated values for each star
-      starAnimatedValues.current = generatedStars.map(() => 
-        new Animated.Value(0)
-      );
+      // Initialize animated values for each star
+      starAnimatedValues.current = generatedStars.map(() => new Animated.Value(0));
       
-        // Mix of animation styles for diversity (20% afternoon-style)
-        starAnimatedValues.current.forEach((animatedValue, index) => {
-          const star = generatedStars[index];
-          
-          // 20% get afternoon-style animation (more noticeable blinking)
-          // 80% keep original night-style animation (subtle twinkling)
-          const useAfternoonStyle = Math.random() < 0.2;
-          
-          if (useAfternoonStyle) {
-            // Afternoon-style: more noticeable blinking
+      // Mix of animation styles for diversity (20% twinkling, 80% steady)
+      generatedStars.forEach((star, index) => {
+        const animatedValue = starAnimatedValues.current[index];
+        
+        // 20% get twinkling animation, 80% stay steady
+        const useTwinkling = Math.random() < 0.2;
+        
+        const animateStar = () => {
+          if (useTwinkling) {
+            // Twinkling stars
             Animated.loop(
               Animated.sequence([
-                Animated.delay(star.animationDelay),
                 Animated.timing(animatedValue, {
                   toValue: 1,
-                  duration: 2000 + Math.random() * 3000, // 2-5 seconds (faster)
+                  duration: 2000 + Math.random() * 2000, // 2-4 seconds
                   useNativeDriver: true,
                 }),
                 Animated.timing(animatedValue, {
-                  toValue: 0.3, // More dramatic fade
-                  duration: 1000 + Math.random() * 2000, // 1-3 seconds
+                  toValue: 0.3,
+                  duration: 1000 + Math.random() * 1000, // 1-2 seconds
                   useNativeDriver: true,
                 }),
               ])
             ).start();
           } else {
-            // Original night-style: subtle twinkling
+            // Steady stars with subtle variation
             Animated.loop(
               Animated.sequence([
-                Animated.delay(star.animationDelay),
                 Animated.timing(animatedValue, {
                   toValue: 1,
-                  duration: 3000 + Math.random() * 3000, // 3-6s for slower, more realistic twinkling
+                  duration: 4000 + Math.random() * 2000, // 4-6 seconds (slower)
                   useNativeDriver: true,
                 }),
                 Animated.timing(animatedValue, {
-                  toValue: 0,
-                  duration: 3000 + Math.random() * 3000,
+                  toValue: 0.8, // Less dramatic fade for steady stars
+                  duration: 2000 + Math.random() * 2000, // 2-4 seconds
                   useNativeDriver: true,
                 }),
               ])
             ).start();
           }
-        });
+        };
+        
+        // Start animation after delay
+        setTimeout(animateStar, star.animationDelay);
+      });
     } else {
+      // Clear stars when not night time
       setStars([]);
+      starAnimatedValues.current = [];
     }
   }, [intensity, isNightTime]);
 
@@ -123,7 +126,7 @@ export const StarField: React.FC<StarFieldProps> = ({
                 height: star.size,
                 opacity: animatedValue.interpolate({
                   inputRange: [0, 1],
-                  outputRange: [star.opacity * 0.6, star.opacity], // Works for both styles
+                  outputRange: [star.opacity * 0.6, star.opacity],
                 }),
                 transform: [
                   {
@@ -149,18 +152,18 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    zIndex: 3,
+    zIndex: 2,
   },
   star: {
     position: 'absolute',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FFFFFF',
     borderRadius: 50,
-    shadowColor: 'rgba(255, 255, 255, 0.9)',
+    shadowColor: '#FFFFFF',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 1.0,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowOpacity: 0.8,
+    shadowRadius: 3,
+    elevation: 3,
   },
 });
 
-export default StarField;
+export default NightStarField;

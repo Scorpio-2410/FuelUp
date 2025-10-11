@@ -63,21 +63,12 @@ export const Moon: React.FC<MoonProps> = ({
   const isLeftLit = litSide === 'left';
   const dir = isLeftLit ? -1 : 1;
 
-  // Crescent math:
-  // we subtract a same-radius circle whose center is shifted toward the dark side.
-  // Shift is close to the diameter for a thin crescent.
-  // shiftFactor 1.6–2.2 ≈ very thin; 0.9–1.1 ≈ thick.
+  // Full moon
   const shiftFactor = 1.6 + (1.0 - crescentThickness) * 1.2; // much higher for thinner crescent
   const crescentShift = r * shiftFactor * dir;
 
   // Gibbous uses a small subtract on the *lit* side to leave a thin dark sliver.
   const gibbousShift = r * 0.55 * -dir;
-
-  // IDs (no longer used for SVG, but might be useful for keys)
-  const ids = {
-    litGrad: 'litGrad',
-    crater: 'crater',
-  };
 
   return (
     <Animated.View
@@ -153,7 +144,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     borderRadius: 100,
-    backgroundColor: '#04040B', // Should match the top color of your CelestialBackground
+    backgroundColor: '#04040B', 
     position: 'absolute',
   },
   crater: {

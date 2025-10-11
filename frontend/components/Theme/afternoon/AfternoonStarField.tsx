@@ -27,7 +27,7 @@ export const AfternoonStarField: React.FC<AfternoonStarFieldProps> = ({
 
   // Generate stars only in top 40% of screen
   const generateStars = (): Star[] => {
-    const starCount = intensity === 'light' ? 40 : intensity === 'medium' ? 60 : 80;
+    const starCount = intensity === 'light' ? 46 : intensity === 'medium' ? 69 : 92;
     const stars: Star[] = [];
     const topAreaHeight = height * 0.4; // Only top 40% of screen
     

@@ -1,3 +1,4 @@
+// Morning Sun Component
 // Renders an animated sun with a bright glowing bloom effect.
 // Features subtle pulsing animation and radial gradient for realistic lighting.
 // Sun size optimized for background visibility - bright but not overwhelming
@@ -8,7 +9,7 @@ import Svg, { Defs, RadialGradient, Stop, Circle, Rect, LinearGradient as SvgLin
 
 const { width, height } = Dimensions.get("window");
 
-export default function Sun({
+export default function MorningSun({
   x = "18%",
   y = "8%",   // Moved higher (was 12%, now 8%)
   size = 90,  // 30% smaller than 128 (128 * 0.7 = 89.6 ≈ 90)

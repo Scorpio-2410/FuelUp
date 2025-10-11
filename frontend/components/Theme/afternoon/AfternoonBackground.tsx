@@ -4,9 +4,8 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import GoldenSky from './GoldenSky';
-import HorizonSun from './HorizonSun';
+import AfternoonSun from './AfternoonSun';
 import AfternoonStarField from './AfternoonStarField';
-import BeachSunset from './BeachSunset';
 
 interface AfternoonBackgroundProps {
   intensity?: 'light' | 'medium' | 'strong';
@@ -25,11 +24,8 @@ const AfternoonBackground: React.FC<AfternoonBackgroundProps> = ({
       {/* Stars in top 40% (twilight stars) */}
       <AfternoonStarField intensity={intensity} />
       
-      {/* Beach sunset effect with water reflection */}
-      <BeachSunset />
-      
       {/* Sun at the horizon (50-60% visible, moved up 80px total) */}
-      <HorizonSun />
+      <AfternoonSun />
       
       
       {/* Children content */}
