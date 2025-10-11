@@ -21,11 +21,12 @@ export default function TopSearchBar({
   return (
     <View
       style={{
-        backgroundColor: "#121212",
+        backgroundColor: "transparent",
         paddingHorizontal: 16,
         paddingVertical: 12,
         marginBottom: 12,
-      }}>
+      }}
+    >
       <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
         {/* Avatar */}
         <View
@@ -35,7 +36,8 @@ export default function TopSearchBar({
             borderRadius: 20,
             overflow: "hidden",
             backgroundColor: "#2a2a2a",
-          }}>
+          }}
+        >
           {avatarUri ? (
             <Image
               source={{ uri: avatarUri }}
@@ -47,7 +49,8 @@ export default function TopSearchBar({
                 flex: 1,
                 alignItems: "center",
                 justifyContent: "center",
-              }}>
+              }}
+            >
               <Ionicons name="person" size={20} color="#a1a1aa" />
             </View>
           )}
@@ -63,7 +66,8 @@ export default function TopSearchBar({
             paddingVertical: 10,
             flexDirection: "row",
             alignItems: "center",
-          }}>
+          }}
+        >
           <Ionicons name="search" size={18} color="#a1a1aa" />
           <TextInput
             value={value}
@@ -80,7 +84,8 @@ export default function TopSearchBar({
               onPress={onClear}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               accessibilityRole="button"
-              accessibilityLabel="Clear search">
+              accessibilityLabel="Clear search"
+            >
               <Ionicons name="close" size={18} color="#a1a1aa" />
             </TouchableOpacity>
           ) : null}
