@@ -177,7 +177,13 @@ export default function MealScreen() {
 
   return (
     <DynamicBackground theme={theme}>
-      <View style={{ flex: 1, paddingTop: insets.top }}>
+      <View
+        style={{
+          flex: 1,
+          paddingTop: insets.top,
+          paddingBottom: insets.bottom,
+        }}
+      >
         {/* Toast Notification */}
         <Toast
           visible={showToast}
