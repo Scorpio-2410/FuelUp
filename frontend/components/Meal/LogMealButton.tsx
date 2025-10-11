@@ -7,9 +7,22 @@ import LogMealModal from "./LogMealModal";
 type Props = {
   onSuccess?: () => void;
   onError?: (error: string) => void;
+  prefillData?: {
+    name?: string;
+    calories?: number;
+    protein_g?: number;
+    carbs_g?: number;
+    fat_g?: number;
+    serving_size?: number;
+    serving_unit?: string;
+  };
 };
 
-export default function LogMealButton({ onSuccess, onError }: Props) {
+export default function LogMealButton({
+  onSuccess,
+  onError,
+  prefillData,
+}: Props) {
   const [modalVisible, setModalVisible] = useState(false);
 
   return (
@@ -42,7 +55,7 @@ export default function LogMealButton({ onSuccess, onError }: Props) {
             fontWeight: "800",
           }}
         >
-          Log a Meal
+          {prefillData?.name ? "Log This Meal" : "Log a Meal"}
         </Text>
       </Pressable>
 
@@ -56,6 +69,7 @@ export default function LogMealButton({ onSuccess, onError }: Props) {
         onError={(error) => {
           onError?.(error);
         }}
+        prefillData={prefillData}
       />
     </>
   );

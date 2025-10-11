@@ -11,6 +11,8 @@ import {
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { apiGetRecipeDetail } from "../../../constants/api";
+import LogMealButton from "../../../components/Meal/LogMealButton";
+import Toast from "../../../components/Shared/Toast";
 
 type FSDir = { direction_description?: string; direction_number?: string };
 type FSIng = {
@@ -57,6 +59,11 @@ export default function RecipeDetail() {
 
   const [loading, setLoading] = useState(true);
   const [recipe, setRecipe] = useState<any | null>(null);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+  const [toastType, setToastType] = useState<"success" | "error" | "info">(
+    "success"
+  );
 
   useEffect(() => {
     (async () => {
@@ -127,6 +134,24 @@ export default function RecipeDetail() {
 
   const recipeUrl: string | null = recipe?.recipe_url || null;
 
+  // Prepare prefill data for meal logging
+  const prefillData = useMemo(() => {
+    if (!recipe) return undefined;
+
+    const nut = serving || simpleNut;
+    if (!nut) return undefined;
+
+    return {
+      name: recipe.recipe_name,
+      calories: Number(nut.calories) || undefined,
+      protein_g: Number(nut.protein) || undefined,
+      carbs_g: Number(nut.carbohydrate) || undefined,
+      fat_g: Number(nut.fat) || undefined,
+      serving_size: gramsPerPortion ? Number(gramsPerPortion) : undefined,
+      serving_unit: gramsPerPortion ? "g" : "serving",
+    };
+  }, [recipe, serving, simpleNut, gramsPerPortion]);
+
   /* -------------------- UI helpers -------------------- */
   function Row({
     label,
@@ -142,7 +167,8 @@ export default function RecipeDetail() {
           flexDirection: "row",
           justifyContent: "space-between",
           marginBottom: 6,
-        }}>
+        }}
+      >
         <Text style={{ color: "#9ca3af" }}>{label}</Text>
         <Text style={{ color: "#fff", fontWeight: "600" }}>{value}</Text>
       </View>
@@ -161,7 +187,8 @@ export default function RecipeDetail() {
           borderColor: "#374151",
           marginRight: 8,
           marginBottom: 8,
-        }}>
+        }}
+      >
         <Text style={{ color: "#e5e7eb", fontSize: 12 }}>{text}</Text>
       </View>
     );
@@ -171,9 +198,19 @@ export default function RecipeDetail() {
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
+
+      {/* Toast Notification */}
+      <Toast
+        visible={showToast}
+        message={toastMessage}
+        type={toastType}
+        onHide={() => setShowToast(false)}
+      />
+
       <ScrollView
         style={{ flex: 1, backgroundColor: "#0f0f0f" }}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}>
+        contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
+      >
         {/* Compact back button, clear of the notch */}
         <View style={{ paddingTop: insets.top + 8, paddingHorizontal: 16 }}>
           <Pressable
@@ -193,7 +230,8 @@ export default function RecipeDetail() {
               backgroundColor: "#18181b",
               borderWidth: 1,
               borderColor: "#27272a",
-            }}>
+            }}
+          >
             <Text style={{ color: "#e5e7eb", fontWeight: "700" }}>◀ Back</Text>
           </Pressable>
         </View>
@@ -207,14 +245,16 @@ export default function RecipeDetail() {
               justifyContent: "space-between",
               gap: 12,
               marginBottom: 4,
-            }}>
+            }}
+          >
             <Text
               style={{
                 color: "#fff",
                 fontSize: 28,
                 fontWeight: "800",
                 flexShrink: 1,
-              }}>
+              }}
+            >
               {title}
             </Text>
 
@@ -226,7 +266,8 @@ export default function RecipeDetail() {
                   paddingVertical: 8,
                   borderRadius: 10,
                   backgroundColor: "#0b4da2",
-                }}>
+                }}
+              >
                 <Text style={{ color: "#fff", fontWeight: "700" }}>
                   Open in browser
                 </Text>
@@ -249,7 +290,8 @@ export default function RecipeDetail() {
               borderWidth: 1,
               borderColor: "#262626",
               padding: 12,
-            }}>
+            }}
+          >
             <Row label="Servings" value={servings} />
             <Row label="Grams per portion" value={gramsPerPortion} />
             <Row label="Rating" value={rating} />
@@ -265,7 +307,8 @@ export default function RecipeDetail() {
                       color: "#fff",
                       fontWeight: "800",
                       marginBottom: 8,
-                    }}>
+                    }}
+                  >
                     Categories
                   </Text>
                   <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
@@ -283,7 +326,8 @@ export default function RecipeDetail() {
                       fontWeight: "800",
                       marginTop: 12,
                       marginBottom: 8,
-                    }}>
+                    }}
+                  >
                     Types
                   </Text>
                   <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
@@ -305,7 +349,8 @@ export default function RecipeDetail() {
               borderWidth: 1,
               borderColor: "#262626",
               padding: 12,
-            }}>
+            }}
+          >
             <Text style={{ color: "#fff", fontWeight: "800", marginBottom: 8 }}>
               Nutrition (per serving)
             </Text>
@@ -350,7 +395,8 @@ export default function RecipeDetail() {
               borderWidth: 1,
               borderColor: "#262626",
               padding: 12,
-            }}>
+            }}
+          >
             <Text style={{ color: "#fff", fontWeight: "800", marginBottom: 8 }}>
               Ingredients
             </Text>
@@ -378,7 +424,8 @@ export default function RecipeDetail() {
               borderWidth: 1,
               borderColor: "#262626",
               padding: 12,
-            }}>
+            }}
+          >
             <Text style={{ color: "#fff", fontWeight: "800", marginBottom: 8 }}>
               How to make it
             </Text>
@@ -391,7 +438,8 @@ export default function RecipeDetail() {
                 {directions.map((s, idx) => (
                   <View
                     key={`${idx}-${s.slice(0, 10)}`}
-                    style={{ flexDirection: "row" }}>
+                    style={{ flexDirection: "row" }}
+                  >
                     <Text style={{ color: "#9ca3af", marginRight: 8 }}>
                       {idx + 1}.
                     </Text>
@@ -401,6 +449,25 @@ export default function RecipeDetail() {
               </View>
             )}
           </View>
+
+          {/* Log This Meal Button */}
+          {!loading && recipe && prefillData && (
+            <View style={{ marginTop: 24, marginBottom: 16 }}>
+              <LogMealButton
+                prefillData={prefillData}
+                onSuccess={() => {
+                  setToastType("success");
+                  setToastMessage("Meal logged successfully! 🎉");
+                  setShowToast(true);
+                }}
+                onError={(error) => {
+                  setToastType("error");
+                  setToastMessage(error);
+                  setShowToast(true);
+                }}
+              />
+            </View>
+          )}
 
           <View
             style={{

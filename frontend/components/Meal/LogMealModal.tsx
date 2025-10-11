@@ -1,5 +1,5 @@
 // frontend/components/Meal/LogMealModal.tsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Modal,
   View,
@@ -19,6 +19,15 @@ type Props = {
   onClose: () => void;
   onSuccess?: () => void;
   onError?: (error: string) => void;
+  prefillData?: {
+    name?: string;
+    calories?: number;
+    protein_g?: number;
+    carbs_g?: number;
+    fat_g?: number;
+    serving_size?: number;
+    serving_unit?: string;
+  };
 };
 
 const MEAL_TYPES = [
@@ -48,6 +57,7 @@ export default function LogMealModal({
   onClose,
   onSuccess,
   onError,
+  prefillData,
 }: Props) {
   const [name, setName] = useState("");
   const [mealType, setMealType] = useState<
@@ -62,6 +72,20 @@ export default function LogMealModal({
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
   const [showUnitPicker, setShowUnitPicker] = useState(false);
+
+  // Prefill form when modal opens with prefill data
+  useEffect(() => {
+    if (visible && prefillData) {
+      if (prefillData.name) setName(prefillData.name);
+      if (prefillData.calories) setCalories(String(prefillData.calories));
+      if (prefillData.protein_g) setProtein(String(prefillData.protein_g));
+      if (prefillData.carbs_g) setCarbs(String(prefillData.carbs_g));
+      if (prefillData.fat_g) setFat(String(prefillData.fat_g));
+      if (prefillData.serving_size)
+        setServingSize(String(prefillData.serving_size));
+      if (prefillData.serving_unit) setServingUnit(prefillData.serving_unit);
+    }
+  }, [visible, prefillData]);
 
   const handleSubmit = async () => {
     if (!name.trim()) {
