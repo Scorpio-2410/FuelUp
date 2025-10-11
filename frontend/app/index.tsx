@@ -1,21 +1,18 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Redirect } from "expo-router";
-import * as SecureStore from "expo-secure-store";
+import AppPreloader from "../services/AppPreloader";
 
-const K_TOKEN = "fu_token";
 type Dest = "/(tabs)/homepage" | "/authlogin";
 
 export default function Index() {
-  const [dest, setDest] = useState<Dest | null>(null);
-
-  useEffect(() => {
-    (async () => {
-      const token = await SecureStore.getItemAsync(K_TOKEN);
-      setDest(token ? "/(tabs)/homepage" : "/authlogin");
-    })();
-  }, []);
-
-  if (!dest) return null;
-  // Cast avoids TS complaining when route type cache hasn't updated yet
+  // Get preloaded auth data (already checked during loading screen)
+  // No need for async - data is already loaded!
+  const preloader = AppPreloader.getInstance();
+  const preloadedData = preloader.getPreloadedData();
+  
+  // Use preloaded auth status to determine destination
+  const dest: Dest = preloadedData.isAuthenticated ? "/(tabs)/homepage" : "/authlogin";
+  
+  // Instant redirect - no white screen!
   return <Redirect href={dest as any} />;
 }
