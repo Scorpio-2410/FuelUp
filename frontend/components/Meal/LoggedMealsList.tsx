@@ -26,6 +26,174 @@ export type LoggedMealsListRef = {
   refresh: () => void;
 };
 
+// Meal Card Component
+const MealCard = ({
+  meal,
+  timeOnly,
+}: {
+  meal: LoggedMeal;
+  timeOnly?: boolean;
+}) => {
+  const getMealTypeIcon = (type: string) => {
+    switch (type) {
+      case "breakfast":
+        return "sunny";
+      case "lunch":
+        return "restaurant";
+      case "dinner":
+        return "moon";
+      case "snack":
+        return "fast-food";
+      default:
+        return "nutrition";
+    }
+  };
+
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const formatFullDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString([], {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  return (
+    <View
+      style={{
+        backgroundColor: "#1f2937",
+        borderRadius: 12,
+        padding: 12,
+        marginBottom: 10,
+        borderWidth: 1,
+        borderColor: "#374151",
+      }}
+    >
+      {/* Meal Header */}
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 8,
+          marginBottom: 8,
+        }}
+      >
+        <Ionicons
+          name={getMealTypeIcon(meal.meal_type) as any}
+          size={18}
+          color="#a3e635"
+        />
+        <Text
+          style={{
+            color: "#fff",
+            fontSize: 15,
+            fontWeight: "700",
+            flex: 1,
+          }}
+        >
+          {meal.name}
+        </Text>
+      </View>
+
+      {/* Nutrition Info */}
+      {(meal.calories || meal.protein_g || meal.carbs_g || meal.fat_g) && (
+        <View
+          style={{
+            flexDirection: "row",
+            flexWrap: "wrap",
+            gap: 8,
+            marginBottom: 6,
+          }}
+        >
+          {meal.calories && (
+            <View
+              style={{
+                backgroundColor: "#374151",
+                paddingHorizontal: 8,
+                paddingVertical: 4,
+                borderRadius: 6,
+              }}
+            >
+              <Text style={{ color: "#d1d5db", fontSize: 12 }}>
+                {meal.calories} cal
+              </Text>
+            </View>
+          )}
+          {meal.protein_g && (
+            <View
+              style={{
+                backgroundColor: "#374151",
+                paddingHorizontal: 8,
+                paddingVertical: 4,
+                borderRadius: 6,
+              }}
+            >
+              <Text style={{ color: "#d1d5db", fontSize: 12 }}>
+                P: {meal.protein_g}g
+              </Text>
+            </View>
+          )}
+          {meal.carbs_g && (
+            <View
+              style={{
+                backgroundColor: "#374151",
+                paddingHorizontal: 8,
+                paddingVertical: 4,
+                borderRadius: 6,
+              }}
+            >
+              <Text style={{ color: "#d1d5db", fontSize: 12 }}>
+                C: {meal.carbs_g}g
+              </Text>
+            </View>
+          )}
+          {meal.fat_g && (
+            <View
+              style={{
+                backgroundColor: "#374151",
+                paddingHorizontal: 8,
+                paddingVertical: 4,
+                borderRadius: 6,
+              }}
+            >
+              <Text style={{ color: "#d1d5db", fontSize: 12 }}>
+                F: {meal.fat_g}g
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
+
+      {/* Notes */}
+      {meal.notes && (
+        <Text
+          style={{
+            color: "#9ca3af",
+            fontSize: 13,
+            marginBottom: 6,
+          }}
+        >
+          {meal.notes}
+        </Text>
+      )}
+
+      {/* Timestamp */}
+      <Text style={{ color: "#6b7280", fontSize: 12 }}>
+        {timeOnly ? formatTime(meal.logged_at) : formatFullDate(meal.logged_at)}
+      </Text>
+    </View>
+  );
+};
+
 const LoggedMealsList = forwardRef<LoggedMealsListRef>((props, ref) => {
   const [meals, setMeals] = useState<LoggedMeal[]>([]);
   const [loading, setLoading] = useState(false);
@@ -58,46 +226,60 @@ const LoggedMealsList = forwardRef<LoggedMealsListRef>((props, ref) => {
     }
   }, [expanded]);
 
-  const getMealTypeIcon = (type: string) => {
-    switch (type) {
-      case "breakfast":
-        return "sunny";
-      case "lunch":
-        return "restaurant";
-      case "dinner":
-        return "moon";
-      case "snack":
-        return "fast-food";
-      default:
-        return "nutrition";
-    }
-  };
-
-  const formatDate = (dateString: string) => {
+  const getTimeCategory = (dateString: string) => {
     const date = new Date(dateString);
     const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
 
-    if (date.toDateString() === today.toDateString()) {
-      return `Today at ${date.toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      })}`;
-    } else if (date.toDateString() === yesterday.toDateString()) {
-      return `Yesterday at ${date.toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      })}`;
+    const threeDaysAgo = new Date(today);
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+
+    const sevenDaysAgo = new Date(today);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const mealDate = new Date(date);
+    mealDate.setHours(0, 0, 0, 0);
+
+    if (mealDate.getTime() === today.getTime()) {
+      return "today";
+    } else if (mealDate.getTime() === yesterday.getTime()) {
+      return "yesterday";
+    } else if (mealDate >= threeDaysAgo) {
+      return "past3days";
+    } else if (mealDate >= sevenDaysAgo) {
+      return "pastWeek";
     } else {
-      return date.toLocaleDateString([], {
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
+      return "older";
     }
   };
+
+  const groupMealsByTime = () => {
+    const groups: {
+      today: LoggedMeal[];
+      yesterday: LoggedMeal[];
+      past3days: LoggedMeal[];
+      pastWeek: LoggedMeal[];
+      older: LoggedMeal[];
+    } = {
+      today: [],
+      yesterday: [],
+      past3days: [],
+      pastWeek: [],
+      older: [],
+    };
+
+    meals.forEach((meal) => {
+      const category = getTimeCategory(meal.logged_at);
+      groups[category].push(meal);
+    });
+
+    return groups;
+  };
+
+  const groupedMeals = groupMealsByTime();
 
   return (
     <View style={{ marginHorizontal: 16, marginTop: 24 }}>
@@ -167,135 +349,178 @@ const LoggedMealsList = forwardRef<LoggedMealsListRef>((props, ref) => {
             </View>
           ) : (
             <ScrollView showsVerticalScrollIndicator={false}>
-              {meals.map((meal) => (
-                <View
-                  key={meal.id}
-                  style={{
-                    backgroundColor: "#1f2937",
-                    borderRadius: 12,
-                    padding: 12,
-                    marginBottom: 10,
-                    borderWidth: 1,
-                    borderColor: "#374151",
-                  }}
-                >
-                  {/* Meal Header */}
+              {/* Today */}
+              {groupedMeals.today.length > 0 && (
+                <View>
                   <View
                     style={{
                       flexDirection: "row",
                       alignItems: "center",
+                      marginBottom: 10,
                       gap: 8,
-                      marginBottom: 8,
                     }}
                   >
-                    <Ionicons
-                      name={getMealTypeIcon(meal.meal_type) as any}
-                      size={18}
-                      color="#a3e635"
-                    />
+                    <Ionicons name="today" size={16} color="#a3e635" />
                     <Text
                       style={{
-                        color: "#fff",
-                        fontSize: 15,
+                        color: "#a3e635",
+                        fontSize: 14,
                         fontWeight: "700",
-                        flex: 1,
                       }}
                     >
-                      {meal.name}
+                      Today
                     </Text>
                   </View>
+                  {groupedMeals.today.map((meal) => (
+                    <MealCard key={meal.id} meal={meal} timeOnly />
+                  ))}
+                </View>
+              )}
 
-                  {/* Nutrition Info */}
-                  {(meal.calories ||
-                    meal.protein_g ||
-                    meal.carbs_g ||
-                    meal.fat_g) && (
-                    <View
+              {/* Yesterday */}
+              {groupedMeals.yesterday.length > 0 && (
+                <View
+                  style={{ marginTop: groupedMeals.today.length > 0 ? 16 : 0 }}
+                >
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      marginBottom: 10,
+                      gap: 8,
+                    }}
+                  >
+                    <Ionicons name="calendar" size={16} color="#d1d5db" />
+                    <Text
                       style={{
-                        flexDirection: "row",
-                        flexWrap: "wrap",
-                        gap: 8,
-                        marginBottom: 6,
+                        color: "#d1d5db",
+                        fontSize: 14,
+                        fontWeight: "700",
                       }}
                     >
-                      {meal.calories && (
-                        <View
-                          style={{
-                            backgroundColor: "#374151",
-                            paddingHorizontal: 8,
-                            paddingVertical: 4,
-                            borderRadius: 6,
-                          }}
-                        >
-                          <Text style={{ color: "#d1d5db", fontSize: 12 }}>
-                            {meal.calories} cal
-                          </Text>
-                        </View>
-                      )}
-                      {meal.protein_g && (
-                        <View
-                          style={{
-                            backgroundColor: "#374151",
-                            paddingHorizontal: 8,
-                            paddingVertical: 4,
-                            borderRadius: 6,
-                          }}
-                        >
-                          <Text style={{ color: "#d1d5db", fontSize: 12 }}>
-                            P: {meal.protein_g}g
-                          </Text>
-                        </View>
-                      )}
-                      {meal.carbs_g && (
-                        <View
-                          style={{
-                            backgroundColor: "#374151",
-                            paddingHorizontal: 8,
-                            paddingVertical: 4,
-                            borderRadius: 6,
-                          }}
-                        >
-                          <Text style={{ color: "#d1d5db", fontSize: 12 }}>
-                            C: {meal.carbs_g}g
-                          </Text>
-                        </View>
-                      )}
-                      {meal.fat_g && (
-                        <View
-                          style={{
-                            backgroundColor: "#374151",
-                            paddingHorizontal: 8,
-                            paddingVertical: 4,
-                            borderRadius: 6,
-                          }}
-                        >
-                          <Text style={{ color: "#d1d5db", fontSize: 12 }}>
-                            F: {meal.fat_g}g
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                  )}
+                      Yesterday
+                    </Text>
+                  </View>
+                  {groupedMeals.yesterday.map((meal) => (
+                    <MealCard key={meal.id} meal={meal} timeOnly />
+                  ))}
+                </View>
+              )}
 
-                  {/* Notes */}
-                  {meal.notes && (
+              {/* Past 3 Days */}
+              {groupedMeals.past3days.length > 0 && (
+                <View
+                  style={{
+                    marginTop:
+                      groupedMeals.today.length > 0 ||
+                      groupedMeals.yesterday.length > 0
+                        ? 16
+                        : 0,
+                  }}
+                >
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      marginBottom: 10,
+                      gap: 8,
+                    }}
+                  >
+                    <Ionicons name="time" size={16} color="#9ca3af" />
                     <Text
                       style={{
                         color: "#9ca3af",
-                        fontSize: 13,
-                        marginBottom: 6,
+                        fontSize: 14,
+                        fontWeight: "700",
                       }}
                     >
-                      {meal.notes}
+                      Past 3 Days
                     </Text>
-                  )}
-
-                  {/* Timestamp */}
-                  <Text style={{ color: "#6b7280", fontSize: 12 }}>
-                    {formatDate(meal.logged_at)}
-                  </Text>
+                  </View>
+                  {groupedMeals.past3days.map((meal) => (
+                    <MealCard key={meal.id} meal={meal} />
+                  ))}
                 </View>
-              ))}
+              )}
+
+              {/* Past Week */}
+              {groupedMeals.pastWeek.length > 0 && (
+                <View
+                  style={{
+                    marginTop:
+                      groupedMeals.today.length > 0 ||
+                      groupedMeals.yesterday.length > 0 ||
+                      groupedMeals.past3days.length > 0
+                        ? 16
+                        : 0,
+                  }}
+                >
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      marginBottom: 10,
+                      gap: 8,
+                    }}
+                  >
+                    <Ionicons
+                      name="calendar-outline"
+                      size={16}
+                      color="#6b7280"
+                    />
+                    <Text
+                      style={{
+                        color: "#6b7280",
+                        fontSize: 14,
+                        fontWeight: "700",
+                      }}
+                    >
+                      Past Week
+                    </Text>
+                  </View>
+                  {groupedMeals.pastWeek.map((meal) => (
+                    <MealCard key={meal.id} meal={meal} />
+                  ))}
+                </View>
+              )}
+
+              {/* Older */}
+              {groupedMeals.older.length > 0 && (
+                <View
+                  style={{
+                    marginTop:
+                      groupedMeals.today.length > 0 ||
+                      groupedMeals.yesterday.length > 0 ||
+                      groupedMeals.past3days.length > 0 ||
+                      groupedMeals.pastWeek.length > 0
+                        ? 16
+                        : 0,
+                  }}
+                >
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      marginBottom: 10,
+                      gap: 8,
+                    }}
+                  >
+                    <Ionicons name="archive" size={16} color="#4b5563" />
+                    <Text
+                      style={{
+                        color: "#4b5563",
+                        fontSize: 14,
+                        fontWeight: "700",
+                      }}
+                    >
+                      Older
+                    </Text>
+                  </View>
+                  {groupedMeals.older.map((meal) => (
+                    <MealCard key={meal.id} meal={meal} />
+                  ))}
+                </View>
+              )}
             </ScrollView>
           )}
         </View>
