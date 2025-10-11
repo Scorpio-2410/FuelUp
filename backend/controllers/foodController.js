@@ -129,3 +129,99 @@ exports.saveRecipe = async (req, res) => {
     client.release();
   }
 };
+
+/** Log a meal with nutrition tracking */
+exports.logMeal = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const userId = req.userId;
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+    const {
+      name,
+      meal_type,
+      calories,
+      protein_g,
+      carbs_g,
+      fat_g,
+      serving_size,
+      serving_unit,
+      notes,
+      meal_plan_id,
+      logged_at,
+    } = req.body;
+
+    if (!name) return res.status(400).json({ error: "Meal name required" });
+
+    const { rows } = await client.query(
+      `INSERT INTO meals
+        (user_id, meal_plan_id, logged_at, name, meal_type, calories, protein_g, carbs_g, fat_g, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       RETURNING *`,
+      [
+        userId,
+        meal_plan_id || null,
+        logged_at || new Date(),
+        name,
+        meal_type || "other",
+        calories || null,
+        protein_g || null,
+        carbs_g || null,
+        fat_g || null,
+        notes ? `${notes}${serving_size ? ` (${serving_size} ${serving_unit || ""})` : ""}` : serving_size ? `${serving_size} ${serving_unit || ""}` : null,
+      ]
+    );
+
+    res.json({ ok: true, meal: rows[0] });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  } finally {
+    client.release();
+  }
+};
+
+/** Get logged meals for a user */
+exports.getUserMeals = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const userId = req.userId;
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+    const { limit = 50, offset = 0, start_date, end_date } = req.query;
+
+    let query = `
+      SELECT * FROM meals 
+      WHERE user_id = $1
+    `;
+    const params = [userId];
+    let paramCount = 1;
+
+    // Optional date filtering
+    if (start_date) {
+      paramCount++;
+      query += ` AND logged_at >= $${paramCount}`;
+      params.push(start_date);
+    }
+    if (end_date) {
+      paramCount++;
+      query += ` AND logged_at <= $${paramCount}`;
+      params.push(end_date);
+    }
+
+    query += ` ORDER BY logged_at DESC LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
+    params.push(Number(limit), Number(offset));
+
+    const { rows } = await client.query(query, params);
+
+    // Get total count
+    const countQuery = `SELECT COUNT(*) FROM meals WHERE user_id = $1`;
+    const { rows: countRows } = await client.query(countQuery, [userId]);
+    const total = parseInt(countRows[0].count);
+
+    res.json({ ok: true, meals: rows, total });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  } finally {
+    client.release();
+  }
+};
