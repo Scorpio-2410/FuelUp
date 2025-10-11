@@ -81,7 +81,6 @@ export default function TopSearchBar({
           <TextInput
             value={value}
             onChangeText={onChangeText}
-            placeholder={placeholder}
             placeholderTextColor="#9CA3AF"
             style={{ color: "#ffffff", marginLeft: 8, flex: 1 }}
             autoCapitalize="none"
