@@ -5,9 +5,6 @@
 import { apiGetMe, readProfileCache, writeProfileCache } from '../constants/api';
 import { ExpoStepsService } from './stepsService';
 import { StepsStorageService } from '../utils/stepsStorage';
-import * as SecureStore from 'expo-secure-store';
-
-const K_TOKEN = 'fu_token';
 
 export interface PreloadProgress {
   stage: string;
@@ -20,8 +17,6 @@ export interface PreloadedData {
   stepsData?: any;
   themeInitialized: boolean;
   fontsLoaded: boolean;
-  authToken?: string | null;
-  isAuthenticated?: boolean;
 }
 
 // App Preloader Class
@@ -32,8 +27,6 @@ export class AppPreloader {
   private preloadedData: PreloadedData = {
     themeInitialized: false,
     fontsLoaded: false,
-    authToken: null,
-    isAuthenticated: false,
   };
 
   private constructor() {}
@@ -124,19 +117,6 @@ export class AppPreloader {
     this.preloadedData.fontsLoaded = true;
   }
 
-  // Preload auth token (background loading)
-  private async preloadAuthToken(): Promise<void> {
-    try {
-      const token = await SecureStore.getItemAsync(K_TOKEN);
-      this.preloadedData.authToken = token;
-      this.preloadedData.isAuthenticated = !!token;
-    } catch (error) {
-      console.warn('Failed to preload auth token:', error);
-      this.preloadedData.authToken = null;
-      this.preloadedData.isAuthenticated = false;
-    }
-  }
-
   // Main preload function - runs all loading tasks with realistic progress
   async preloadAll(): Promise<PreloadedData> {
     // Start with 1% immediately
@@ -182,30 +162,24 @@ export class AppPreloader {
   // Get appropriate message based on current progress
   private getProgressMessage(progress: number): string {
     if (progress < 20) return 'Getting ready...';
-    if (progress < 40) return 'Counting your calories...';
-    if (progress < 60) return 'Planning your workouts...';
-    if (progress < 80) return 'Tracking your progress...';
+    if (progress < 40) return 'Loading your data...';
+    if (progress < 60) return 'Getting ready...';
+    if (progress < 80) return 'Getting ready...';
     if (progress < 95) return 'Almost there...';
     return this.preloadedData.userProfile?.username 
       ? `Welcome back, ${this.preloadedData.userProfile.username}!` 
-      : 'Ready to go!';
+      : 'Getting ready...';
   }
 
   // Run actual loading tasks in background
   private async runRealLoading(): Promise<void> {
     try {
-      // Auth token must load first, then we can load user-specific data
-      await this.preloadAuthToken();
-      
-      // Run remaining preload tasks in parallel (only if authenticated)
-      const tasks = [this.preloadTheme()];
-      
-      if (this.preloadedData.isAuthenticated) {
-        tasks.push(this.preloadUserProfile());
-        tasks.push(this.preloadStepsData());
-      }
-      
-      await Promise.allSettled(tasks);
+      // Run all preload tasks in parallel
+      await Promise.allSettled([
+        this.preloadUserProfile(),
+        this.preloadStepsData(),
+        this.preloadTheme(),
+      ]);
     } catch (error) {
       console.error('Background loading failed:', error);
     }
@@ -221,8 +195,6 @@ export class AppPreloader {
     this.preloadedData = {
       themeInitialized: false,
       fontsLoaded: false,
-      authToken: null,
-      isAuthenticated: false,
     };
   }
 }
