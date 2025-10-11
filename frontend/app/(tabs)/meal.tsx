@@ -10,7 +10,7 @@ import LoggedMealsList, {
   LoggedMealsListRef,
 } from "../../components/Meal/LoggedMealsList";
 import RefreshScroll from "../../components/RefreshScroll";
-import Toast from "../../components/Onboarding/Toast";
+import Toast from "../../components/Shared/Toast";
 import { useGlobalRefresh } from "../../components/useGlobalRefresh";
 import { apiSearchRecipesV3 } from "../../constants/api";
 import DynamicBackground from "../../components/Theme/DynamicTheme";
@@ -255,7 +255,7 @@ export default function MealScreen() {
           <LogMealButton
             onSuccess={() => {
               setToastType("success");
-              setToastMessage("Meal logged successfully! 🎉");
+              setToastMessage("Meal logged successfully!");
               setShowToast(true);
               // Refresh the logged meals list
               loggedMealsRef.current?.refresh();
