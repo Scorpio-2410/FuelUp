@@ -5,6 +5,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import TopSearchBar from "../../components/TopSearchBar";
 import ScrollableMealGrid from "../../components/Meal/ScrollableMealGrid";
+import LogMealButton from "../../components/Meal/LogMealButton";
+import LoggedMealsList, {
+  LoggedMealsListRef,
+} from "../../components/Meal/LoggedMealsList";
+import RefreshScroll from "../../components/RefreshScroll";
+import Toast from "../../components/Shared/Toast";
+import { useGlobalRefresh } from "../../components/useGlobalRefresh";
 import { apiSearchRecipesV3 } from "../../constants/api";
 import DynamicBackground from "../../components/Theme/DynamicTheme";
 import { useTheme } from "../../contexts/ThemeContext";
@@ -41,6 +48,13 @@ export default function MealScreen() {
   const [items, setItems] = useState<FSRecipeLite[]>([]);
   const [total, setTotal] = useState<number | null>(null);
   const [maxResults] = useState(25);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+  const [toastType, setToastType] = useState<"success" | "error" | "info">(
+    "success"
+  );
+
+  const loggedMealsRef = useRef<LoggedMealsListRef>(null);
 
   const q = useDebounce(query.trim(), 400);
 
@@ -82,6 +96,14 @@ export default function MealScreen() {
 
   const canPrev = page > 0;
   const approxHasMore = total == null ? true : (page + 1) * maxResults < total;
+
+  const { refreshing, handleRefresh } = useGlobalRefresh({
+    tabName: "meal",
+    onInternalRefresh: () => {
+      // Refetch current page
+      fetchPage(page, q);
+    },
+  });
 
   /* -------------------- top pagination bar -------------------- */
   function PaginationBar() {
@@ -156,56 +178,86 @@ export default function MealScreen() {
   return (
     <DynamicBackground theme={theme}>
       <View style={{ flex: 1, paddingTop: insets.top }}>
-        {/* Search */}
-        <TopSearchBar
-          value={query}
-          onChangeText={setQuery}
-          onClear={() => setQuery("")}
-          placeholder="Search"
+        {/* Toast Notification */}
+        <Toast
+          visible={showToast}
+          message={toastMessage}
+          type={toastType}
+          onHide={() => setShowToast(false)}
         />
 
-        {/* Card Container for Pagination and Grid */}
-        <View
-          style={{
-            marginHorizontal: 16,
-            marginTop: 12,
-            backgroundColor: "rgba(26, 26, 26, 0.24)",
-            borderRadius: 20,
-            borderWidth: 1,
-            borderColor: "rgba(255, 255, 255, 0.1)",
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.3,
-            shadowRadius: 8,
-            elevation: 8,
-            overflow: "hidden",
-          }}
-        >
-          {/* Pagination at the TOP */}
-          <View style={{ paddingTop: 12 }}>
-            <PaginationBar />
-          </View>
+        <RefreshScroll refreshing={refreshing} onRefresh={handleRefresh}>
+          {/* Search */}
+          <TopSearchBar
+            value={query}
+            onChangeText={setQuery}
+            onClear={() => setQuery("")}
+            placeholder="Search"
+          />
 
-          {/* Subtle Divider */}
+          {/* Card Container for Pagination and Grid */}
           <View
             style={{
-              height: 1,
-              backgroundColor: "rgba(255, 255, 255, 0.1)",
               marginHorizontal: 16,
-              marginBottom: 8,
+              marginTop: 12,
+              backgroundColor: "rgba(26, 26, 26, 0.24)",
+              borderRadius: 20,
+              borderWidth: 1,
+              borderColor: "rgba(255, 255, 255, 0.1)",
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 8,
+              elevation: 8,
+              overflow: "hidden",
+            }}
+          >
+            {/* Pagination at the TOP */}
+            <View style={{ paddingTop: 12 }}>
+              <PaginationBar />
+            </View>
+
+            {/* Subtle Divider */}
+            <View
+              style={{
+                height: 1,
+                backgroundColor: "rgba(255, 255, 255, 0.1)",
+                marginHorizontal: 16,
+                marginBottom: 8,
+              }}
+            />
+
+            {/* Meal Items Section - Scrollable Grid with Fade Effect */}
+            <ScrollableMealGrid
+              items={items}
+              loading={loading}
+              onRecipePress={(recipeId) => router.push(`/meal/${recipeId}`)}
+              height={450}
+            />
+          </View>
+
+          {/* Log Meal Button */}
+          <LogMealButton
+            onSuccess={() => {
+              setToastType("success");
+              setToastMessage("Meal logged successfully! 🎉");
+              setShowToast(true);
+              // Refresh the logged meals list
+              loggedMealsRef.current?.refresh();
+            }}
+            onError={(error) => {
+              setToastType("error");
+              setToastMessage(error);
+              setShowToast(true);
             }}
           />
 
-          {/* Meal Items Section - Scrollable Grid with Fade Effect */}
-          <ScrollableMealGrid
-            items={items}
-            loading={loading}
-            onRecipePress={(recipeId) => router.push(`/meal/${recipeId}`)}
-            height={450}
-          />
-        </View>
+          {/* Logged Meals List */}
+          <LoggedMealsList ref={loggedMealsRef} />
 
-        {/* Additional content can be added here later */}
+          {/* Additional content can be added here later */}
+          <View style={{ height: 100 }} />
+        </RefreshScroll>
       </View>
     </DynamicBackground>
   );
