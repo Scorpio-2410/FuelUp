@@ -16,7 +16,7 @@ class FitnessPlanController {
         endDate, // "YYYY-MM-DD"
         notes,
         fitnessProfileId, // optional: associate to an existing profile
-      } = req.body;
+      } = req.body; 
 
       if (!name) {
         return res.status(400).json({ error: "Plan name is required" });
