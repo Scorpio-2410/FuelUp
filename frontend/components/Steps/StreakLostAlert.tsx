@@ -1,7 +1,6 @@
 import React from "react";
 import { Modal, View, Text, TouchableOpacity, Pressable } from "react-native";
 import Animated, { FadeIn, FadeOut, ZoomIn, ZoomOut } from "react-native-reanimated";
-import { LinearGradient } from "expo-linear-gradient";
 
 type Props = {
   visible: boolean;
@@ -39,70 +38,84 @@ export default function StreakLostAlert({
                 shadowRadius: 20,
                 elevation: 20,
               }}>
-              {/* Broken Fire Icon with Gray Gradient */}
-              <View className="items-center mb-4">
-                <LinearGradient
-                  colors={['#6B7280', '#9CA3AF', '#D1D5DB']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  className="w-20 h-20 rounded-full items-center justify-center"
+              {/* Broken Heart Icon - Enhanced Design */}
+              <View className="items-center mb-6">
+                <View 
+                  className="w-20 h-20 rounded-full bg-gradient-to-br from-slate-700 to-slate-900 items-center justify-center border-4 border-slate-600"
                   style={{
-                    shadowColor: "#6B7280",
-                    shadowOffset: { width: 0, height: 6 },
-                    shadowOpacity: 0.6,
-                    shadowRadius: 16,
-                    elevation: 10,
+                    shadowColor: "#1E293B",
+                    shadowOffset: { width: 0, height: 8 },
+                    shadowOpacity: 0.8,
+                    shadowRadius: 20,
+                    elevation: 12,
                   }}>
-                  <Text className="text-6xl">💔</Text>
-                </LinearGradient>
+                  <Text className="text-6xl" style={{ transform: [{ translateY: -2 }] }}>💔</Text>
+                </View>
               </View>
 
-              {/* Title */}
-              <Text className="text-white text-2xl font-black text-center mb-2">
+              {/* Title with Glow Effect */}
+              <Text className="text-white text-3xl font-black text-center mb-6 tracking-wide"
+                    style={{
+                      textShadowColor: '#64748B',
+                      textShadowOffset: { width: 0, height: 0 },
+                      textShadowRadius: 10,
+                    }}>
                 Streak Lost
               </Text>
 
-              {/* Previous Streak Count */}
+              {/* Previous Streak Count - More Dramatic */}
               {previousStreak > 0 && (
-                <View className="flex-row items-center justify-center mb-3">
-                  <Text className="text-gray-400 text-4xl font-black mr-2">
-                    {previousStreak}
-                  </Text>
-                  <Text className="text-gray-400 text-xl font-bold">
-                    Day{previousStreak !== 1 ? 's' : ''}
-                  </Text>
+                <View className="items-center mb-6">
+                  <View className="flex-row items-baseline">
+                    <Text className="text-slate-400 text-7xl font-black mr-3"
+                          style={{
+                            textShadowColor: '#64748B',
+                            textShadowOffset: { width: 0, height: 0 },
+                            textShadowRadius: 8,
+                          }}>
+                      {previousStreak}
+                    </Text>
+                    <Text className="text-slate-500 text-3xl font-bold">
+                      Day{previousStreak !== 1 ? 's' : ''}
+                    </Text>
+                  </View>
                 </View>
               )}
 
-              {/* Message */}
-              <Text className="text-gray-300 text-base text-center mb-2 leading-6">
-                Your {previousStreak} day{previousStreak !== 1 ? 's' : ''} streak is lost 💔
-              </Text>
+              {/* Loss Badge */}
+              <View className="bg-slate-800/30 rounded-2xl p-4 mb-6 border border-slate-600/40">
+                <Text className="text-slate-200 text-xl text-center font-bold mb-2">
+                  Your streak has ended
+                </Text>
+                <Text className="text-gray-400 text-center leading-6">
+                  You missed yesterday's goal
+                </Text>
+              </View>
               
-              <Text className="text-blue-400 text-sm text-center mb-6 font-bold">
-                Every champion has setbacks. Rise up and start fresh today! 💪
-              </Text>
+              {/* Motivational Message */}
+              <View className="bg-blue-900/20 rounded-2xl p-4 mb-8 border border-blue-700/30">
+                <Text className="text-blue-300 text-lg text-center font-semibold leading-relaxed">
+                  Every champion has setbacks 💪
+                </Text>
+                <Text className="text-blue-200 text-base text-center font-bold mt-2">
+                  Rise up and start fresh today! 🚀
+                </Text>
+              </View>
 
               {/* Action Button */}
               <TouchableOpacity
                 onPress={onClose}
                 activeOpacity={0.8}
-                className="rounded-2xl py-4 px-6 overflow-hidden"
+                className="bg-indigo-600 rounded-2xl py-4 px-6"
                 style={{
-                  shadowColor: "#3B82F6",
+                  shadowColor: "#4F46E5",
                   shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.6,
-                  shadowRadius: 12,
-                  elevation: 8,
+                  shadowOpacity: 0.4,
+                  shadowRadius: 8,
+                  elevation: 6,
                 }}>
-                <LinearGradient
-                  colors={['#3B82F6', '#60A5FA', '#93C5FD']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  className="absolute inset-0"
-                />
-                <Text className="text-white text-center font-bold text-lg relative z-10">
-                  Start Fresh Today! 🚀
+                <Text className="text-white text-center font-bold text-lg">
+                  I Understand 💪
                 </Text>
               </TouchableOpacity>
             </Animated.View>

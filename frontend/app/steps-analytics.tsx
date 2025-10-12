@@ -281,12 +281,12 @@ export default function StepsAnalytics() {
               {Math.round(getProgressPercentage())}%
             </Text>
           </View>
-          <View className="w-full h-4 bg-gray-800 rounded-full" style={{ opacity: 0.6 }}>
+          <View className="w-full h-4 bg-gray-800 rounded-full relative overflow-hidden" style={{ opacity: 0.6 }}>
             <LinearGradient
-              colors={['#ef4444', '#f97316', '#fb923c']}
+              colors={['#1E3A8A', '#3B82F6', '#F97316', "#fb923c"]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
-              className="h-4 rounded-full"
+              className="h-4 rounded-full absolute left-0 top-0"
               style={{ 
                 width: `${getProgressPercentage()}%`,
                 shadowColor: "#f97316",
@@ -371,7 +371,7 @@ export default function StepsAnalytics() {
               >
                 <View className="flex-row items-center justify-between">
                   <View className="flex-1">
-                    <Text className="text-white text-base font-bold mb-0.5">12,000-15,000 Steps</Text>
+                    <Text className="text-white text-base font-bold mb-0.5">8,000+ Steps</Text>
                     <Text className="text-orange-400 text-xs">Higher activity</Text>
                   </View>
                   <View className="w-2.5 h-2.5 bg-orange-400 rounded-full"></View>

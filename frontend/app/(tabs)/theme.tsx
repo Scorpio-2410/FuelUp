@@ -108,7 +108,7 @@ export default function ThemePreview() {
           style={[styles.alertButton, styles.lostButton]}
           onPress={() => setShowLostAlert(true)}
         >
-          <Text style={styles.alertButtonText}>💔 Show Lost Alert</Text>
+          <Text style={styles.alertButtonText}>💔 Show Streak Lost</Text>
         </TouchableOpacity>
       </View>
 
@@ -234,9 +234,9 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 165, 0, 0.6)',
   },
   lostButton: {
-    backgroundColor: 'rgba(107, 114, 128, 0.9)',
+    backgroundColor: 'rgba(79, 70, 229, 0.9)',
     borderWidth: 2,
-    borderColor: 'rgba(156, 163, 175, 0.6)',
+    borderColor: 'rgba(99, 102, 241, 0.6)',
   },
   alertButtonText: {
     fontSize: 16,
