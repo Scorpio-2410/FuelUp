@@ -2,9 +2,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StepsData, StepsStorage, HistoricalStepsData } from '../types/steps';
 
 /**
- * Storage service for persisting steps data using AsyncStorage
- * Handles caching of daily steps data and user step goals
- * Implements the StepsStorage interface for consistent data persistence
+ // Storage service for persisting steps data using AsyncStorage
+ // Handles caching of daily steps data and user step goals
+ //Implements the StepsStorage interface for consistent data persistence
  */
 export class StepsStorageService implements StepsStorage {
   private cacheKey: string;
@@ -65,10 +65,10 @@ export class StepsStorageService implements StepsStorage {
   async getGoal(): Promise<number> {
     try {
       const savedGoal = await AsyncStorage.getItem(this.goalKey);
-      return savedGoal ? parseInt(savedGoal) : 12000; // Default goal
+      return savedGoal ? parseInt(savedGoal) : 8000; // Default goal
     } catch (error) {
       console.error('StepsStorage: Error loading step goal:', error);
-      return 12000;
+      return 8000;
     }
   }
 

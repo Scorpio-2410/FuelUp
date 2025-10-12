@@ -4,6 +4,9 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useStepsTracking } from '../hooks/useStepsTracking';
 import { apiGetStepsChart, apiGetStepsStreak, StepStats } from '../constants/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import StreakCongratulationsAlert from '../components/Steps/StreakCongratulationsAlert';
+import StreakLostAlert from '../components/Steps/StreakLostAlert';
 import Animated, { 
   FadeIn, 
   SlideInRight, 
@@ -27,6 +30,9 @@ export default function StepsAnalytics() {
   const [serverStats, setServerStats] = useState<StepStats | null>(null);
   const [serverStreak, setServerStreak] = useState<number>(0);
   const [loadingStats, setLoadingStats] = useState(true);
+  const [showStreakAlert, setShowStreakAlert] = useState(false);
+  const [showStreakLostAlert, setShowStreakLostAlert] = useState(false);
+  const [lostStreakCount, setLostStreakCount] = useState<number>(0);
 
   // Fetch backend stats (30 days for good average)
   const fetchServerStats = async () => {
@@ -63,6 +69,72 @@ export default function StepsAnalytics() {
     refreshSteps();
     fetchServerStats();
   }, []); // Only run once when screen loads
+
+  // Check if user just achieved goal and show congratulations
+  useEffect(() => {
+    const checkStreakAchievement = async () => {
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        const lastShownKey = `streak_alert_shown_${today}`;
+        const alreadyShown = await AsyncStorage.getItem(lastShownKey);
+        
+        // Only show if:
+        // 1. User has steps >= goal
+        // 2. Haven't shown today
+        // 3. User has a streak > 0
+        // 4. Not currently loading
+        if (!alreadyShown && 
+            stepsData.steps >= stepsData.goal && 
+            stepsData.currentStreak > 0 && 
+            !isLoading) {
+          setShowStreakAlert(true);
+          await AsyncStorage.setItem(lastShownKey, 'true');
+        }
+      } catch (error) {
+        console.error('StepsAnalytics: Error checking streak achievement:', error);
+      }
+    };
+
+    checkStreakAchievement();
+  }, [stepsData.steps, stepsData.goal, stepsData.currentStreak, isLoading]);
+
+  // Check if user lost their streak and show alert
+  useEffect(() => {
+    const checkStreakLoss = async () => {
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        const lostAlertKey = `streak_lost_alert_shown_${today}`;
+        const previousStreakKey = 'previous_streak_count';
+        const alreadyShown = await AsyncStorage.getItem(lostAlertKey);
+        
+        // Get stored previous streak
+        const storedPrevStreak = await AsyncStorage.getItem(previousStreakKey);
+        const previousStreak = storedPrevStreak ? parseInt(storedPrevStreak) : 0;
+        
+        // Check if streak was lost (had streak before, now it's 0)
+        if (!alreadyShown && 
+            previousStreak > 0 && 
+            stepsData.currentStreak === 0 && 
+            !isLoading) {
+          setLostStreakCount(previousStreak);
+          setShowStreakLostAlert(true);
+          await AsyncStorage.setItem(lostAlertKey, 'true');
+        }
+        
+        // Update stored streak for next time
+        if (stepsData.currentStreak > 0) {
+          await AsyncStorage.setItem(previousStreakKey, stepsData.currentStreak.toString());
+        } else if (stepsData.currentStreak === 0 && previousStreak > 0) {
+          // Clear previous streak after showing loss alert
+          await AsyncStorage.removeItem(previousStreakKey);
+        }
+      } catch (error) {
+        console.error('StepsAnalytics: Error checking streak loss:', error);
+      }
+    };
+
+    checkStreakLoss();
+  }, [stepsData.currentStreak, isLoading]);
 
   const handleRefresh = async () => {
     if (refreshing) return;
@@ -353,6 +425,20 @@ export default function StepsAnalytics() {
           </View>
         </RefreshScroll>
       </SafeAreaView>
+
+      {/* Streak Congratulations Alert */}
+      <StreakCongratulationsAlert
+        visible={showStreakAlert}
+        streakCount={stepsData.currentStreak}
+        onClose={() => setShowStreakAlert(false)}
+      />
+
+      {/* Streak Lost Alert */}
+      <StreakLostAlert
+        visible={showStreakLostAlert}
+        previousStreak={lostStreakCount}
+        onClose={() => setShowStreakLostAlert(false)}
+      />
     </DynamicBackground>
   );
 }

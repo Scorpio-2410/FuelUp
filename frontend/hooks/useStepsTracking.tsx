@@ -25,10 +25,10 @@ export const useStepsTracking = (): UseStepsTrackingReturn => {
     steps: 0,
     source: 'cached',
     lastUpdated: new Date().toISOString(),
-    goal: 12000,
+    goal: 8000,
     currentStreak: 0,
     lastStreakDate: null,
-    streakGoal: 7000
+    streakGoal: 8000
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isAvailable, setIsAvailable] = useState(false);
@@ -74,10 +74,18 @@ export const useStepsTracking = (): UseStepsTrackingReturn => {
     return (now - lastUpdateTime) > fifteenMinutes;
   }, []);
 
-  /**
-   * Calculates streak based on current steps and previous streak data
-   */
-  const calculateStreak = useCallback((steps: number, currentStreak: number, lastStreakDate: string | null): { newStreak: number; newLastStreakDate: string | null } => {
+  // Calculates streak based on current steps and previous streak data
+  // Returns newStreak, newLastStreakDate, streakJustAchieved, and streakJustLost flags
+  const calculateStreak = useCallback((
+    steps: number, 
+    currentStreak: number, 
+    lastStreakDate: string | null
+  ): { 
+    newStreak: number; 
+    newLastStreakDate: string | null; 
+    streakJustAchieved: boolean;
+    streakJustLost: boolean;
+  } => {
     const today = new Date().toISOString().split('T')[0];
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
@@ -88,27 +96,33 @@ export const useStepsTracking = (): UseStepsTrackingReturn => {
     if (streakAchieved) {
       if (lastStreakDate === yesterdayStr) {
         // Consecutive day - increment streak
-        return { newStreak: currentStreak + 1, newLastStreakDate: today };
+        return { newStreak: currentStreak + 1, newLastStreakDate: today, streakJustAchieved: true, streakJustLost: false };
       } else if (lastStreakDate === today) {
-        // Same day - keep current streak
-        return { newStreak: currentStreak, newLastStreakDate: lastStreakDate };
+        // Same day - keep current streak (already achieved today)
+        return { newStreak: currentStreak, newLastStreakDate: lastStreakDate, streakJustAchieved: false, streakJustLost: false };
+      } else if (!lastStreakDate || lastStreakDate < yesterdayStr) {
+        // New streak starting (missed a day or no previous streak)
+        return { newStreak: 1, newLastStreakDate: today, streakJustAchieved: true, streakJustLost: false };
       } else {
-        // New streak starting
-        return { newStreak: 1, newLastStreakDate: today };
+        // First time achieving today
+        return { newStreak: 1, newLastStreakDate: today, streakJustAchieved: true, streakJustLost: false };
       }
     } else {
-      // Streak broken
-      return { newStreak: 0, newLastStreakDate: null };
+      // Check if we missed yesterday (streak should be reset)
+      if (lastStreakDate && lastStreakDate < yesterdayStr && currentStreak > 0) {
+        // Missed a day - reset streak to 0 (STREAK LOST)
+        return { newStreak: 0, newLastStreakDate: null, streakJustAchieved: false, streakJustLost: true };
+      }
+      // Still same day, not achieved yet - maintain current streak
+      return { newStreak: currentStreak, newLastStreakDate: lastStreakDate, streakJustAchieved: false, streakJustLost: false };
     }
   }, [stepsData.streakGoal]);
 
-  /**
-   * Updates steps data and persists to storage
-   * Handles both sensor and cached data sources
-   */
+  // Updates steps data and persists to storage
+  // Handles both sensor and cached data sources
   const updateStepsData = useCallback(async (steps: number, source: 'sensor' | 'cached') => {
     setStepsData(prevData => {
-      const { newStreak, newLastStreakDate } = calculateStreak(steps, prevData.currentStreak, prevData.lastStreakDate);
+      const { newStreak, newLastStreakDate, streakJustAchieved, streakJustLost } = calculateStreak(steps, prevData.currentStreak, prevData.lastStreakDate);
       
       const newData: StepsData = {
         ...prevData,
