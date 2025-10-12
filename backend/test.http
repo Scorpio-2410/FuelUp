@@ -1,0 +1,150 @@
+@host = http://localhost:4000
+@json = application/json
+
+###
+# 1. Register (public)
+POST {{host}}/api/users/register
+Content-Type: {{json}}
+
+{
+  "username": "tester_s35",
+  "email": "tester_s35@example.com",
+  "password": "P@ssw0rd!",
+  "fullName": "SAT 35 Tester"
+}
+
+###
+# 2. Login (public) → capture token
+# Copy "token" from response into {{token}} below.
+POST {{host}}/api/users/login
+Content-Type: {{json}}
+
+{
+  "identifier": "tester_s35",
+  "password": "P@ssw0rd!"
+}
+
+###
+# 3. Set your bearer token here (paste from login response)
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjExLCJ1c2VybmFtZSI6InRlc3Rlcl9zMzUiLCJpYXQiOjE3NjAyNTgwNTYsImV4cCI6MTc2MDg2Mjg1Nn0.GQ-ZYxVpQsbwI13_vbq2kRMQ3UBZepQNNbTWXbRj80s
+
+###
+# 4. Upsert Fitness Profile (protected) — NOTE: method is PUT
+PUT {{host}}/api/fitness/profile
+Authorization: Bearer {{token}}
+Content-Type: {{json}}
+
+{
+  "heightCm": 175,
+  "weightKg": 70,
+  "goal": "strength",
+  "activityLevel": "moderate",
+  "daysPerWeek": 4,
+  "sessionLengthMin": 60,
+  "trainingLocation": "gym",
+  "equipmentAvailable": ["barbell","bench","rack"]
+}
+
+###
+# 5. Get Fitness Profile (protected) → grab profile.id if you want to link plans
+GET {{host}}/api/fitness/profile
+Authorization: Bearer {{token}}
+
+###
+# 6. Create Fitness Plan (protected)
+# Optionally set "fitnessProfileId": <id from step 5>
+POST {{host}}/api/fitness/plans
+Authorization: Bearer {{token}}
+Content-Type: {{json}}
+
+{
+  "name": "PPL Week 1",
+  "goal": "cut",
+  "status": "active",
+  "notes": "SAT-35 plan linkage",
+  "fitnessProfileId": 15
+}
+
+###
+# 7. List my plans (sanity)
+GET {{host}}/api/fitness/plans
+Authorization: Bearer {{token}}
+
+###
+# 8. Create an Exercise under the plan (protected)
+# Replace PLAN_ID with the id from step 6 or 7
+POST {{host}}/api/exercises
+Authorization: Bearer {{token}}
+Content-Type: {{json}}
+
+{
+  "planId": 3,
+  "name": "Barbell Bench Press",
+  "muscleGroup": "chest",
+  "equipment": "barbell",
+  "difficulty": "intermediate",
+  "sets": 3,
+  "reps": 8,
+  "restSeconds": 120,
+  "notes": "Flat bench"
+}
+
+###
+# 9. List my exercises (paging demo)
+GET {{host}}/api/exercises?limit=50&offset=0
+Authorization: Bearer {{token}}
+
+###
+# 10. Get a single exercise → capture EXERCISE_ID
+# Replace 1 with created id
+GET {{host}}/api/exercises/7
+Authorization: Bearer {{token}}
+
+###
+# 11. UPSERT Exercise Instruction by language (protected)
+# This POST is idempotent by (exercise_id, language).
+# You MUST supply stepsMd or a video field.
+POST {{host}}/api/exercises/7/instructions
+Authorization: Bearer {{token}}
+Content-Type: {{json}}
+
+{
+  "language": "en",
+  "format": "text",
+  "stepsMd": "- Set shoulder blades\n- Lower to sternum\n- Press back up",
+  "tipsMd": "> Keep wrists stacked over elbows"
+}
+
+###
+# 12. GET instruction(s) for the exercise
+# With ?lang=en you get one; without it you get all languages.
+GET {{host}}/api/exercises/7/instructions?lang=en
+Authorization: Bearer {{token}}
+
+###
+# 13. UPDATE instruction by instructionId (protected)
+# Replace 1 with instruction id from step 12
+PUT {{host}}/api/exercise-instructions/1
+Authorization: Bearer {{token}}
+Content-Type: {{json}}
+
+{
+  "tipsMd": "> Light arch, feet planted",
+  "format": "both",
+  "videoUrl": "https://example.com/bench-cue"
+}
+
+###
+# 14. DELETE instruction (cleanup)
+DELETE {{host}}/api/exercise-instructions/1
+Authorization: Bearer {{token}}
+
+###
+# 15. Negative test: missing body → should 400 in model (no steps/video)
+POST {{host}}/api/exercises/1/instructions
+Authorization: Bearer {{token}}
+Content-Type: {{json}}
+
+{
+  "language": "en"
+}
