@@ -5,18 +5,17 @@ class ExerciseInstruction {
     this.id = row.id;
     this.exerciseId = row.exercise_id;
 
-    this.format = row.format;            // 'text' | 'video' | 'both' | null
+    this.format = row.format;
     this.stepsMd = row.steps_md || null;
     this.tipsMd = row.tips_md || null;
     this.videoUrl = row.video_url || null;
-    this.videoSources = row.video_sources || null; // JSONB (object/array) or null
+    this.videoSources = row.video_sources || null; // JSONB
     this.language = row.language || "en";
 
     this.createdAt = row.created_at;
     this.updatedAt = row.updated_at;
   }
 
-  // ---------- helpers ----------
   static normaliseFormat({ format, stepsMd, videoUrl, videoSources }) {
     if (format && ["text", "video", "both"].includes(format)) return format;
     const hasText = !!stepsMd;
@@ -24,7 +23,7 @@ class ExerciseInstruction {
     if (hasText && hasVideo) return "both";
     if (hasText) return "text";
     if (hasVideo) return "video";
-    return null; // let DB accept null or fail validation in controller
+    return null;
   }
 
   toJSON() {
@@ -49,7 +48,7 @@ class ExerciseInstruction {
   }
 
   /**
-   * If language provided → return single instruction for that language (or null).
+   * If language provided → return single instruction (or null).
    * If no language → return all instructions for the exercise (array).
    */
   static async findByExercise(exerciseId, { language } = {}) {
@@ -78,11 +77,10 @@ class ExerciseInstruction {
     if (!data.stepsMd && !data.videoUrl && !data.videoSources) {
       throw new Error("Instruction must include stepsMd or a video (videoUrl/videoSources)");
     }
-
     const r = await pool.query(
       `INSERT INTO exercise_instructions
         (exercise_id, format, steps_md, tips_md, video_url, video_sources, language)
-       VALUES ($1,$2,$3,$4,$5,$6,COALESCE($7,'en'))
+       VALUES ($1,$2,$3,$4,$5,$6::jsonb,COALESCE($7,'en'))
        RETURNING *`,
       [
         exerciseId,
@@ -90,8 +88,39 @@ class ExerciseInstruction {
         data.stepsMd || null,
         data.tipsMd || null,
         data.videoUrl || null,
-        // JSONB – pg will serialise objects/arrays automatically
-        data.videoSources ?? null,
+        data.videoSources ? JSON.stringify(data.videoSources) : null,
+        data.language || null,
+      ]
+    );
+    return new ExerciseInstruction(r.rows[0]);
+  }
+
+  // NEW: idempotent create/update by (exercise_id, language)
+  static async upsert(exerciseId, data = {}) {
+    const format = ExerciseInstruction.normaliseFormat(data);
+    if (!data.stepsMd && !data.videoUrl && !data.videoSources) {
+      throw new Error("Instruction must include stepsMd or a video (videoUrl/videoSources)");
+    }
+    const r = await pool.query(
+      `INSERT INTO exercise_instructions
+        (exercise_id, format, steps_md, tips_md, video_url, video_sources, language)
+       VALUES ($1,$2,$3,$4,$5,$6::jsonb,COALESCE($7,'en'))
+       ON CONFLICT (exercise_id, language)
+       DO UPDATE SET
+         format = EXCLUDED.format,
+         steps_md = EXCLUDED.steps_md,
+         tips_md = EXCLUDED.tips_md,
+         video_url = EXCLUDED.video_url,
+         video_sources = EXCLUDED.video_sources,
+         updated_at = NOW()
+       RETURNING *`,
+      [
+        exerciseId,
+        format,
+        data.stepsMd || null,
+        data.tipsMd || null,
+        data.videoUrl || null,
+        data.videoSources ? JSON.stringify(data.videoSources) : null,
         data.language || null,
       ]
     );
@@ -99,7 +128,6 @@ class ExerciseInstruction {
   }
 
   async update(patch = {}) {
-    // If caller didn’t pass format but did change text/video fields, recompute format
     if (
       !("format" in patch) &&
       ("stepsMd" in patch || "videoUrl" in patch || "videoSources" in patch)
@@ -118,7 +146,7 @@ class ExerciseInstruction {
       stepsMd: "steps_md",
       tipsMd: "tips_md",
       videoUrl: "video_url",
-      videoSources: "video_sources", // pass object/array directly for JSONB
+      videoSources: "video_sources",
       language: "language",
     };
 
@@ -128,7 +156,9 @@ class ExerciseInstruction {
     for (const k of Object.keys(map)) {
       if (Object.prototype.hasOwnProperty.call(patch, k)) {
         sets.push(`${map[k]}=$${i}`);
-        vals.push(patch[k] ?? null);
+        vals.push(k === "videoSources" && patch[k] != null
+          ? JSON.stringify(patch[k])
+          : (patch[k] ?? null));
         i++;
       }
     }

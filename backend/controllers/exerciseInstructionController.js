@@ -1,113 +1,132 @@
-// controllers/exerciseInstructionController.js
 const ExerciseInstruction = require("../models/exerciseInstruction");
 const Exercise = require("../models/exercise");
 const FitnessPlan = require("../models/fitnessPlan");
 
-// helper to enforce that the current user owns the parent exercise → plan
+// Prefer single-query ownership if available; fallback to existing 2-query flow
 async function assertExerciseOwnership(exerciseId, userId) {
+  if (typeof Exercise.getById === "function") {
+    const ex = await Exercise.getById(exerciseId, userId);
+    if (!ex) return { error: "ForbiddenOrMissing" }; // unify not-found/forbidden
+    return { exercise: ex, plan: { userId } };
+  }
   const exercise = await Exercise.findById(exerciseId);
   if (!exercise) return { error: "Exercise not found" };
-
   const plan = await FitnessPlan.findById(exercise.fitnessPlanId);
-  if (!plan || plan.userId !== userId) {
-    return { error: "Forbidden" };
-  }
+  if (!plan || plan.userId !== userId) return { error: "Forbidden" };
   return { exercise, plan };
 }
 
-const ExerciseInstructionController = {
-  // GET /api/exercises/:id/instructions?lang=en
-  async getByExercise(req, res) {
-    try {
-      const { id } = req.params;
-      const lang = req.query.lang;
+// GET /api/exercises/:id/instructions?lang=en
+async function getByExercise(req, res) {
+  try {
+    const exerciseId = Number(req.params.id);
+    const lang = req.query.lang;
+    const { error, exercise } = await assertExerciseOwnership(exerciseId, req.userId);
+    if (error) return res.status(error === "Exercise not found" ? 404 : 403).json({ error });
 
-      const { error, exercise } = await assertExerciseOwnership(Number(id), req.userId);
-      if (error) {
-        return res.status(error === "Forbidden" ? 403 : 404).json({ error });
-      }
+    const result = await ExerciseInstruction.findByExercise(exercise.id, { language: lang });
+    const payload = Array.isArray(result)
+      ? result.map(r => r.toJSON())
+      : (result ? result.toJSON() : null);
 
-      const result = await ExerciseInstruction.findByExercise(exercise.id, { language: lang });
-      res.json({ success: true, instructions: Array.isArray(result) ? result.map(r => r.toJSON()) : result ? result.toJSON() : null });
-    } catch (e) {
-      console.error("getByExercise error:", e);
-      res.status(500).json({ error: "Failed to fetch instructions" });
-    }
-  },
+    return res.json({ success: true, instructions: payload });
+  } catch (e) {
+    console.error("getByExercise error:", e);
+    return res.status(500).json({ error: "Failed to fetch instructions" });
+  }
+}
 
-  // POST /api/exercises/:id/instructions
-  async create(req, res) {
-    try {
-      const { id } = req.params;
-      const { error, exercise } = await assertExerciseOwnership(Number(id), req.userId);
-      if (error) {
-        return res.status(error === "Forbidden" ? 403 : 404).json({ error });
-      }
+// POST /api/exercises/:id/instructions  (idempotent: create or update by language)
+async function create(req, res) {
+  try {
+    const exerciseId = Number(req.params.id);
+    const { error, exercise } = await assertExerciseOwnership(exerciseId, req.userId);
+    if (error) return res.status(error === "Exercise not found" ? 404 : 403).json({ error });
 
-      const created = await ExerciseInstruction.create(exercise.id, {
-        stepsMd: req.body.stepsMd,
-        tipsMd: req.body.tipsMd,
-        videoUrl: req.body.videoUrl,
-        videoSources: req.body.videoSources,
-        format: req.body.format,
-        language: req.body.language,
-      });
+    const saved = await ExerciseInstruction.upsert(exercise.id, {
+      stepsMd: req.body.stepsMd,
+      tipsMd: req.body.tipsMd,
+      videoUrl: req.body.videoUrl,
+      videoSources: req.body.videoSources,
+      format: req.body.format,
+      language: req.body.language,
+    });
 
-      res.status(201).json({ success: true, instruction: created.toJSON() });
-    } catch (e) {
-      console.error("createInstruction error:", e);
-      res.status(500).json({ error: "Failed to create instruction" });
-    }
-  },
+    return res.status(201).json({ success: true, instruction: saved.toJSON() });
+  } catch (e) {
+    console.error("createInstruction error:", e);
+    return res.status(500).json({ error: "Failed to save instruction" });
+  }
+}
 
-  // PUT /api/exercise-instructions/:instructionId
-  async update(req, res) {
-    try {
-      const { instructionId } = req.params;
-      const instr = await ExerciseInstruction.findById(Number(instructionId));
-      if (!instr) return res.status(404).json({ error: "Instruction not found" });
+// PUT /api/exercise-instructions/:instructionId
+async function update(req, res) {
+  try {
+    const instr = await ExerciseInstruction.findById(Number(req.params.instructionId));
+    if (!instr) return res.status(404).json({ error: "Instruction not found" });
 
-      // verify user owns the parent exercise → plan
-      const { error } = await assertExerciseOwnership(instr.exerciseId, req.userId);
-      if (error) {
-        return res.status(error === "Forbidden" ? 403 : 404).json({ error });
-      }
+    const { error } = await assertExerciseOwnership(instr.exerciseId, req.userId);
+    if (error) return res.status(error === "Exercise not found" ? 404 : 403).json({ error });
 
-      const updated = await instr.update({
-        stepsMd: req.body.stepsMd,
-        tipsMd: req.body.tipsMd,
-        videoUrl: req.body.videoUrl,
-        videoSources: req.body.videoSources,
-        format: req.body.format,
-        language: req.body.language,
-      });
+    const updated = await instr.update({
+      stepsMd: req.body.stepsMd,
+      tipsMd: req.body.tipsMd,
+      videoUrl: req.body.videoUrl,
+      videoSources: req.body.videoSources,
+      format: req.body.format,
+      language: req.body.language,
+    });
 
-      res.json({ success: true, instruction: updated.toJSON() });
-    } catch (e) {
-      console.error("updateInstruction error:", e);
-      res.status(500).json({ error: "Failed to update instruction" });
-    }
-  },
+    return res.json({ success: true, instruction: updated.toJSON() });
+  } catch (e) {
+    console.error("updateInstruction error:", e);
+    return res.status(500).json({ error: "Failed to update instruction" });
+  }
+}
 
-  // DELETE /api/exercise-instructions/:instructionId
-  async remove(req, res) {
-    try {
-      const { instructionId } = req.params;
-      const instr = await ExerciseInstruction.findById(Number(instructionId));
-      if (!instr) return res.status(404).json({ error: "Instruction not found" });
+// DELETE /api/exercise-instructions/:instructionId
+async function remove(req, res) {
+  try {
+    const instr = await ExerciseInstruction.findById(Number(req.params.instructionId));
+    if (!instr) return res.status(404).json({ error: "Instruction not found" });
 
-      const { error } = await assertExerciseOwnership(instr.exerciseId, req.userId);
-      if (error) {
-        return res.status(error === "Forbidden" ? 403 : 404).json({ error });
-      }
+    const { error } = await assertExerciseOwnership(instr.exerciseId, req.userId);
+    if (error) return res.status(error === "Exercise not found" ? 404 : 403).json({ error });
 
-      await instr.delete();
-      res.json({ success: true });
-    } catch (e) {
-      console.error("deleteInstruction error:", e);
-      res.status(500).json({ error: "Failed to delete instruction" });
-    }
-  },
+    await instr.delete();
+    return res.json({ success: true });
+  } catch (e) {
+    console.error("deleteInstruction error:", e);
+    return res.status(500).json({ error: "Failed to delete instruction" });
+  }
+}
+
+// OPTIONAL: DELETE by (exerciseId, lang) to match your unique index directly
+// DELETE /api/exercises/:id/instructions?lang=en
+async function deleteForExerciseLang(req, res) {
+  try {
+    const exerciseId = Number(req.params.id);
+    const lang = (req.query.lang || "en").slice(0, 10);
+
+    const { error, exercise } = await assertExerciseOwnership(exerciseId, req.userId);
+    if (error) return res.status(error === "Exercise not found" ? 404 : 403).json({ error });
+
+    // Reuse model; simple helper inline
+    const row = await ExerciseInstruction.findByExercise(exercise.id, { language: lang });
+    if (!row) return res.status(404).json({ error: "Instruction not found for language" });
+
+    await row.delete();
+    return res.json({ success: true });
+  } catch (e) {
+    console.error("deleteForExerciseLang error:", e);
+    return res.status(500).json({ error: "Failed to delete instruction" });
+  }
+}
+
+module.exports = {
+  getByExercise,
+  create,
+  update,
+  remove,
+  deleteForExerciseLang, // optional export
 };
-
-module.exports = ExerciseInstructionController;

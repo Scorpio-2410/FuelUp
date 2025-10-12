@@ -1,3 +1,4 @@
+// backend/models/exercise.js
 const { pool } = require("../config/database");
 
 class Exercise {
@@ -20,6 +21,7 @@ class Exercise {
     this.updatedAt = row.updated_at;
   }
 
+  // ---- CREATE ----
   static async create(planId, data) {
     const r = await pool.query(
       `INSERT INTO exercises
@@ -43,6 +45,7 @@ class Exercise {
     return new Exercise(r.rows[0]);
   }
 
+  // ---- READ ----
   static async listByPlan(planId) {
     const r = await pool.query(
       `SELECT * FROM exercises WHERE fitness_plan_id=$1 ORDER BY id ASC`,
@@ -56,6 +59,34 @@ class Exercise {
     return r.rows[0] ? new Exercise(r.rows[0]) : null;
   }
 
+  // NEW: user-scoped getter for ownership checks (used by instruction controller)
+  static async getById(id, userId) {
+    const r = await pool.query(
+      `SELECT e.*
+         FROM exercises e
+         JOIN fitness_plans fp ON fp.id = e.fitness_plan_id
+        WHERE e.id = $1 AND fp.user_id = $2
+        LIMIT 1`,
+      [id, userId]
+    );
+    return r.rows[0] ? new Exercise(r.rows[0]) : null;
+  }
+
+  // Optional: list all exercises for a user with paging
+  static async listForUser(userId, { limit = 50, offset = 0 } = {}) {
+    const r = await pool.query(
+      `SELECT e.*
+         FROM exercises e
+         JOIN fitness_plans fp ON fp.id = e.fitness_plan_id
+        WHERE fp.user_id = $1
+        ORDER BY e.id ASC
+        LIMIT $2 OFFSET $3`,
+      [userId, limit, offset]
+    );
+    return r.rows.map((row) => new Exercise(row));
+  }
+
+  // ---- UPDATE ----
   async update(patch) {
     const allowed = [
       "name",
@@ -84,20 +115,23 @@ class Exercise {
 
     vals.push(this.id);
     const r = await pool.query(
-      `UPDATE exercises SET ${sets.join(
-        ", "
-      )}, updated_at=NOW() WHERE id=$${i} RETURNING *`,
+      `UPDATE exercises
+          SET ${sets.join(", ")}, updated_at=NOW()
+        WHERE id=$${i}
+        RETURNING *`,
       vals
     );
     Object.assign(this, new Exercise(r.rows[0]));
     return this;
   }
 
-async delete() {
+  // ---- DELETE ----
+  async delete() {
     await pool.query(`DELETE FROM exercises WHERE id=$1`, [this.id]);
     return true;
   }
 
+  // ---- JSON SHAPE ----
   toJSON() {
     return {
       id: this.id,

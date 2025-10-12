@@ -1,93 +1,63 @@
-const MealPlan = require("../models/mealPlan");
+const NutritionProfile = require("../models/nutritionProfile");
 
-class MealPlanController {
-  static async createPlan(req, res) {
+class NutritionController {
+  // Get or create the nutrition profile
+  static async getProfile(req, res) {
     try {
-      const { name, status, startDate, endDate, targetCalories, notes } =
-        req.body;
-      if (!name)
-        return res.status(400).json({ error: "Plan name is required" });
-
-      const plan = await MealPlan.create(req.userId, {
-        name,
-        status,
-        startDate,
-        endDate,
-        targetCalories,
-        notes,
-      });
-      res.status(201).json({ success: true, plan });
-    } catch (e) {
-      console.error("createPlan error:", e);
-      res.status(500).json({ error: "Failed to create meal plan" });
-    }
-  }
-
-  static async listPlans(req, res) {
-    try {
-      const { status, limit = 50, offset = 0 } = req.query;
-      const plans = await MealPlan.listForUser(req.userId, {
-        status,
-        limit,
-        offset,
-      });
+      let profile = await NutritionProfile.findByUserId(req.userId);
+      if (!profile) profile = await NutritionProfile.upsert(req.userId, {});
       res.json({
         success: true,
-        plans,
-        pagination: { limit: +limit, offset: +offset },
+        profile: profile.toJSON ? profile.toJSON() : profile,
       });
     } catch (e) {
-      console.error("listPlans error:", e);
-      res.status(500).json({ error: "Failed to list meal plans" });
+      console.error("nutrition.getProfile error:", e);
+      res.status(500).json({ error: "Failed to retrieve nutrition profile" });
     }
   }
 
-  static async getPlan(req, res) {
+  // Upsert (create or overwrite sparse fields)
+  static async upsertProfile(req, res) {
     try {
-      const { id } = req.params;
-      const plan = await MealPlan.findById(id);
-      if (!plan) return res.status(404).json({ error: "Meal plan not found" });
-      if (plan.userId !== req.userId)
-        return res.status(403).json({ error: "Access denied" });
+      const {
+        dailyCalorieTarget,
+        macros,
+        prefCuisines,
+        dietRestrictions,
+        dislikedFoods,
+        allergies,
+      } = req.body;
 
-      res.json({ success: true, plan });
+      const profile = await NutritionProfile.upsert(req.userId, {
+        dailyCalorieTarget,
+        macros,
+        prefCuisines,
+        dietRestrictions,
+        dislikedFoods,
+        allergies,
+      });
+
+      res.status(201).json({ success: true, profile: profile.toJSON() });
     } catch (e) {
-      console.error("getPlan error:", e);
-      res.status(500).json({ error: "Failed to fetch meal plan" });
+      console.error("nutrition.upsertProfile error:", e);
+      res.status(500).json({ error: "Failed to save nutrition profile" });
     }
   }
 
-  static async updatePlan(req, res) {
+  // Patch update
+  static async updateProfile(req, res) {
     try {
-      const { id } = req.params;
-      const plan = await MealPlan.findById(id);
-      if (!plan) return res.status(404).json({ error: "Meal plan not found" });
-      if (plan.userId !== req.userId)
-        return res.status(403).json({ error: "Access denied" });
+      const profile = await NutritionProfile.findByUserId(req.userId);
+      if (!profile)
+        return res.status(404).json({ error: "Nutrition profile not found" });
 
-      const updated = await plan.update(req.body);
-      res.json({ success: true, plan: updated });
+      const updated = await profile.update(req.body);
+      res.json({ success: true, profile: updated.toJSON() });
     } catch (e) {
-      console.error("updatePlan error:", e);
-      res.status(500).json({ error: "Failed to update meal plan" });
-    }
-  }
-
-  static async deletePlan(req, res) {
-    try {
-      const { id } = req.params;
-      const plan = await MealPlan.findById(id);
-      if (!plan) return res.status(404).json({ error: "Meal plan not found" });
-      if (plan.userId !== req.userId)
-        return res.status(403).json({ error: "Access denied" });
-
-      await plan.delete();
-      res.json({ success: true, message: "Meal plan deleted" });
-    } catch (e) {
-      console.error("deletePlan error:", e);
-      res.status(500).json({ error: "Failed to delete meal plan" });
+      console.error("nutrition.updateProfile error:", e);
+      res.status(500).json({ error: "Failed to update nutrition profile" });
     }
   }
 }
 
-module.exports = MealPlanController;
+module.exports = NutritionController;

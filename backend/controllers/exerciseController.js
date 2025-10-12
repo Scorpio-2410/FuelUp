@@ -1,120 +1,60 @@
-const Exercise = require("../models/exercise");
-const FitnessPlan = require("../models/fitnessPlan");
+// backend/models/exerciseInstruction.js
+const { pool } = require("../config/database");
 
-async function assertPlanOwner(planId, userId) {
-  const plan = await FitnessPlan.findById(planId);
-  if (!plan || plan.userId !== userId) return null;
-  return plan;
-}
-
-const ExerciseController = {
-  // GET /api/exercises?planId=123
-  async listExercises(req, res) {
-    try {
-      const planId = Number(req.query.planId);
-      if (!planId) return res.status(400).json({ error: "planId is required" });
-      const plan = await assertPlanOwner(planId, req.userId);
-      if (!plan) return res.status(403).json({ error: "Forbidden" });
-      const exercises = await Exercise.listByPlan(planId);
-      res.json({ success: true, exercises: exercises.map(e => e.toJSON()) });
-    } catch (e) {
-      console.error("listExercises error:", e);
-      res.status(500).json({ error: "Failed to list exercises" });
-    }
+const ExerciseInstruction = {
+  async get(exerciseId, language = "en") {
+    const { rows } = await pool.query(
+      `SELECT id, exercise_id, format, steps_md, tips_md, video_url, video_sources, language,
+              created_at, updated_at
+         FROM exercise_instructions
+        WHERE exercise_id = $1 AND language = $2
+        LIMIT 1`,
+      [exerciseId, language]
+    );
+    return rows[0] || null;
   },
 
-  // GET /api/exercises/:id
-  async getExerciseById(req, res) {
-    try {
-      const id = Number(req.params.id);
-      const exercise = await Exercise.findById(id);
-      if (!exercise) return res.status(404).json({ error: "Exercise not found" });
-      const plan = await assertPlanOwner(exercise.fitnessPlanId, req.userId);
-      if (!plan) return res.status(403).json({ error: "Forbidden" });
-      res.json({ success: true, exercise: exercise.toJSON() });
-    } catch (e) {
-      console.error("getExerciseById error:", e);
-      res.status(500).json({ error: "Failed to fetch exercise" });
-    }
+  // Upsert by (exercise_id, language)
+  async upsert(exerciseId, payload) {
+    const language = (payload.language || "en").slice(0, 10);
+    const allowedFormats = new Set(["text", "video", "both"]);
+    const format = payload.format && allowedFormats.has(payload.format) ? payload.format : null;
+
+    const { rows } = await pool.query(
+      `INSERT INTO exercise_instructions
+         (exercise_id, format, steps_md, tips_md, video_url, video_sources, language)
+       VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7)
+       ON CONFLICT (exercise_id, language)
+       DO UPDATE SET
+         format = EXCLUDED.format,
+         steps_md = EXCLUDED.steps_md,
+         tips_md = EXCLUDED.tips_md,
+         video_url = EXCLUDED.video_url,
+         video_sources = EXCLUDED.video_sources,
+         updated_at = NOW()
+       RETURNING id, exercise_id, format, steps_md, tips_md, video_url, video_sources, language,
+                 created_at, updated_at`,
+      [
+        exerciseId,
+        format,
+        payload.stepsMd ?? null,
+        payload.tipsMd ?? null,
+        payload.videoUrl ?? null,
+        payload.videoSources ? JSON.stringify(payload.videoSources) : null,
+        language,
+      ]
+    );
+    return rows[0];
   },
 
-  // POST /api/exercises
-  async createExercise(req, res) {
-    try {
-      const planId = Number(req.body.planId);
-      if (!planId) return res.status(400).json({ error: "planId is required" });
-
-      const name = (req.body.name || "").trim();
-      if (!name) return res.status(400).json({ error: "name is required" });
-
-      const plan = await assertPlanOwner(planId, req.userId);
-      if (!plan) return res.status(403).json({ error: "Forbidden" });
-
-      const created = await Exercise.create(planId, {
-        name,
-        muscleGroup: req.body.muscleGroup ?? null,
-        equipment: req.body.equipment ?? null,
-        difficulty: req.body.difficulty ?? null,
-        durationMin: req.body.durationMin ?? null,
-        sets: req.body.sets ?? null,
-        reps: req.body.reps ?? null,
-        restSeconds: req.body.restSeconds ?? null,
-        notes: req.body.notes ?? null,
-      });
-
-      res.status(201).json({ success: true, exercise: created.toJSON() });
-    } catch (e) {
-      console.error("createExercise error:", e);
-      res.status(500).json({ error: "Failed to create exercise" });
-    }
-  },
-
-  // PUT /api/exercises/:id
-  async updateExercise(req, res) {
-    try {
-      const id = Number(req.params.id);
-      const exercise = await Exercise.findById(id);
-      if (!exercise) return res.status(404).json({ error: "Exercise not found" });
-
-      const plan = await assertPlanOwner(exercise.fitnessPlanId, req.userId);
-      if (!plan) return res.status(403).json({ error: "Forbidden" });
-
-      const updated = await exercise.update({
-        name: req.body.name,
-        muscle_group: req.body.muscleGroup,
-        equipment: req.body.equipment,
-        difficulty: req.body.difficulty,
-        duration_min: req.body.durationMin,
-        sets: req.body.sets,
-        reps: req.body.reps,
-        rest_seconds: req.body.restSeconds,
-        notes: req.body.notes,
-      });
-
-      res.json({ success: true, exercise: updated.toJSON() });
-    } catch (e) {
-      console.error("updateExercise error:", e);
-      res.status(500).json({ error: "Failed to update exercise" });
-    }
-  },
-
-  // DELETE /api/exercises/:id
-  async deleteExercise(req, res) {
-    try {
-      const id = Number(req.params.id);
-      const exercise = await Exercise.findById(id);
-      if (!exercise) return res.status(404).json({ error: "Exercise not found" });
-
-      const plan = await assertPlanOwner(exercise.fitnessPlanId, req.userId);
-      if (!plan) return res.status(403).json({ error: "Forbidden" });
-
-      await exercise.delete();
-      res.json({ success: true });
-    } catch (e) {
-      console.error("deleteExercise error:", e);
-      res.status(500).json({ error: "Failed to delete exercise" });
-    }
+  async remove(exerciseId, language = "en") {
+    const { rowCount } = await pool.query(
+      `DELETE FROM exercise_instructions
+        WHERE exercise_id = $1 AND language = $2`,
+      [exerciseId, language]
+    );
+    return rowCount > 0;
   },
 };
 
-module.exports = ExerciseController;
+module.exports = ExerciseInstruction;
