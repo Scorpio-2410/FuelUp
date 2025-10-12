@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useStepsTracking } from '../hooks/useStepsTracking';
-import { apiGetStepsChart, apiGetStepsStreak, StepStats } from '../constants/api';
+import { apiGetStepsChart, apiGetStepsStreak, apiGetStepsByDate, StepStats } from '../constants/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import StreakCongratulationsAlert from '../components/Steps/StreakCongratulationsAlert';
 import StreakLostAlert from '../components/Steps/StreakLostAlert';
@@ -33,6 +33,7 @@ export default function StepsAnalytics() {
   const [showStreakAlert, setShowStreakAlert] = useState(false);
   const [showStreakLostAlert, setShowStreakLostAlert] = useState(false);
   const [lostStreakCount, setLostStreakCount] = useState<number>(0);
+  const [serverYesterdaySteps, setServerYesterdaySteps] = useState<number>(0);
 
   // Fetch backend stats (30 days for good average)
   const fetchServerStats = async () => {
@@ -43,18 +44,37 @@ export default function StepsAnalytics() {
       startDate.setDate(startDate.getDate() - 30); // Last 30 days
       const startDateStr = startDate.toISOString().split('T')[0];
 
-      // Fetch stats and streak in parallel
-      const [chartData, streakData] = await Promise.all([
-        apiGetStepsChart(startDateStr, endDate),
-        apiGetStepsStreak()
-      ]);
+      // Calculate yesterday's date
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().split('T')[0];
 
-      if (chartData.success && chartData.overallStats) {
-        setServerStats(chartData.overallStats);
+      // Fetch stats, streak, and yesterday's data separately with individual error handling
+      try {
+        const chartData = await apiGetStepsChart(startDateStr, endDate);
+        if (chartData.success && chartData.overallStats) {
+          setServerStats(chartData.overallStats);
+        }
+      } catch (chartError) {
+        console.log('StepsAnalytics: Chart data not available yet (using local data)');
       }
-      
-      if (streakData.success) {
-        setServerStreak(streakData.streakDays);
+
+      try {
+        const streakData = await apiGetStepsStreak();
+        if (streakData.success) {
+          setServerStreak(streakData.streakDays);
+        }
+      } catch (streakError) {
+        console.log('StepsAnalytics: Streak data not available yet (using local data)');
+      }
+
+      try {
+        const yesterdayData = await apiGetStepsByDate(yesterdayStr);
+        if (yesterdayData.success && yesterdayData.stepRecord) {
+          setServerYesterdaySteps(yesterdayData.stepRecord.stepCount);
+        }
+      } catch (yesterdayError) {
+        console.log('StepsAnalytics: Yesterday data not available (using local data)');
       }
     } catch (error) {
       console.error('StepsAnalytics: Failed to fetch server stats:', error);
@@ -369,8 +389,13 @@ export default function StepsAnalytics() {
           >
             <Text className="text-indigo-300 font-bold mb-2 text-sm">📅 Yesterday</Text>
             <Text className="text-white text-3xl font-black">
-              {yesterdaySteps ? formatSteps(yesterdaySteps.steps) : '0'}
+              {loadingStats ? '...' : serverYesterdaySteps > 0 ? formatSteps(serverYesterdaySteps) : (yesterdaySteps ? formatSteps(yesterdaySteps.steps) : '0')}
             </Text>
+            {serverYesterdaySteps > 0 && (
+              <Text className="text-indigo-300/60 text-xs mt-1">
+                {serverYesterdaySteps >= 8000 ? '✅ Goal met' : '❌ Missed goal'}
+              </Text>
+            )}
           </Animated.View>
 
           {/* Daily Average */}

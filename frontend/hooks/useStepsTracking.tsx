@@ -3,6 +3,7 @@ import { StepsData, HistoricalStepsData } from '../types/steps';
 import { ExpoStepsService } from '../services/stepsService';
 import { StepsStorageService } from '../utils/stepsStorage';
 import { apiUpsertSteps, apiGetStepsChart, apiGetStepsStreak } from '../constants/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Custom hook for managing steps tracking functionality
 // Provides real-time step counting, caching, goal management, and server sync
@@ -194,6 +195,39 @@ export const useStepsTracking = (): UseStepsTrackingReturn => {
     await updateSteps();
   }, [updateSteps]);
 
+  // Sync ALL historical data to server (one-time migration)
+  const syncHistoricalData = useCallback(async () => {
+    try {
+      console.log('useStepsTracking: Starting historical data sync...');
+      const history = await storageService.getHistoricalData();
+      const entries = Object.entries(history);
+      
+      if (entries.length === 0) {
+        console.log('useStepsTracking: No historical data to sync');
+        return;
+      }
+
+      console.log(`useStepsTracking: Syncing ${entries.length} historical records...`);
+      
+      // Sync all historical data
+      for (const [date, data] of entries) {
+        try {
+          await apiUpsertSteps({
+            date: date,
+            stepCount: data.steps,
+          });
+          console.log(`useStepsTracking: Synced ${date}: ${data.steps} steps`);
+        } catch (err) {
+          console.error(`useStepsTracking: Failed to sync ${date}:`, err);
+        }
+      }
+      
+      console.log('useStepsTracking: Historical sync complete!');
+    } catch (error) {
+      console.error('useStepsTracking: Historical sync failed:', error);
+    }
+  }, [storageService]);
+
   // Sync steps to server (called periodically or manually)
   const syncToServer = useCallback(async () => {
     try {
@@ -240,6 +274,33 @@ export const useStepsTracking = (): UseStepsTrackingReturn => {
 
     initialize();
   }, []); // Empty dependency array - only run once on mount
+
+  // One-time historical data sync on first app load
+  useEffect(() => {
+    const runHistoricalSync = async () => {
+      const syncedKey = 'historical_steps_synced';
+      const alreadySynced = await storageService.load();
+      
+      // Check if we've already done historical sync
+      try {
+        const hasSynced = await AsyncStorage.getItem(syncedKey);
+        if (!hasSynced) {
+          console.log('useStepsTracking: First time sync - uploading historical data...');
+          await syncHistoricalData();
+          await AsyncStorage.setItem(syncedKey, 'true');
+        }
+      } catch (error) {
+        console.error('useStepsTracking: Error checking historical sync:', error);
+      }
+    };
+
+    // Run after 5 seconds to let app initialize
+    const timer = setTimeout(() => {
+      runHistoricalSync();
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, [syncHistoricalData]);
 
   // Auto-sync to server every 30 minutes when app is active
   useEffect(() => {

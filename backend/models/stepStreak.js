@@ -138,34 +138,48 @@ class StepStreak {
   }
 
   // Calculate streak (consecutive days with steps logged)
+  // Counts consecutive days from today backwards where step_count >= 8000
   static async getCurrentStreak(userId) {
-    const r = await pool.query(
-      `WITH RECURSIVE date_series AS (
-        -- Start from today going backwards
-        SELECT 
-          CURRENT_DATE as check_date,
-          0 as days_back
-        UNION ALL
-        SELECT 
-          check_date - INTERVAL '1 day',
-          days_back + 1
-        FROM date_series
-        WHERE days_back < 365  -- limit to 1 year
-      ),
-      user_steps AS (
-        SELECT DISTINCT date
-        FROM step_streaks
-        WHERE user_id = $1 AND step_count > 0
-      )
-      SELECT COUNT(*) as streak_days
-      FROM date_series ds
-      INNER JOIN user_steps us ON ds.check_date::date = us.date
-      WHERE ds.check_date <= CURRENT_DATE
-      ORDER BY ds.check_date DESC`,
-      [userId]
-    );
-    
-    return parseInt(r.rows[0]?.streak_days) || 0;
+    try {
+      // Get all step records for this user, ordered by date descending
+      const r = await pool.query(
+        `SELECT date, step_count
+         FROM step_streaks
+         WHERE user_id = $1 AND step_count >= 8000
+         ORDER BY date DESC
+         LIMIT 365`,
+        [userId]
+      );
+
+      if (r.rows.length === 0) {
+        return 0; // No records, no streak
+      }
+
+      // Check consecutive days from today backwards
+      let streak = 0;
+      const today = new Date().toISOString().split('T')[0];
+      let checkDate = new Date(today);
+
+      for (let i = 0; i < 365; i++) {
+        const dateStr = checkDate.toISOString().split('T')[0];
+        const hasSteps = r.rows.some(row => {
+          const rowDate = new Date(row.date).toISOString().split('T')[0];
+          return rowDate === dateStr;
+        });
+
+        if (hasSteps) {
+          streak++;
+          checkDate.setDate(checkDate.getDate() - 1); // Go back one day
+        } else {
+          break; // Streak broken
+        }
+      }
+
+      return streak;
+    } catch (error) {
+      console.error('getCurrentStreak error:', error);
+      return 0; // Return 0 on error instead of throwing
+    }
   }
 
   // Update an existing step record
