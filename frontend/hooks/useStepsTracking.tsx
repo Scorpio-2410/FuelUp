@@ -2,12 +2,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { StepsData, HistoricalStepsData } from '../types/steps';
 import { ExpoStepsService } from '../services/stepsService';
 import { StepsStorageService } from '../utils/stepsStorage';
+import { apiUpsertSteps, apiGetStepsChart, apiGetStepsStreak } from '../constants/api';
 
-/**
- * Custom hook for managing steps tracking functionality
- * Provides real-time step counting, caching, and goal management
- * Integrates sensor data with persistent storage for seamless user experience
- */
+// Custom hook for managing steps tracking functionality
+// Provides real-time step counting, caching, goal management, and server sync
+// Integrates sensor data with persistent storage and backend database
 
 interface UseStepsTrackingReturn {
   stepsData: StepsData;
@@ -18,6 +17,7 @@ interface UseStepsTrackingReturn {
   updateSteps: () => Promise<void>;
   updateGoal: (goal: number) => Promise<void>;
   refreshSteps: () => Promise<void>;
+  syncToServer: () => Promise<void>;
 }
 
 export const useStepsTracking = (): UseStepsTrackingReturn => {
@@ -37,6 +37,7 @@ export const useStepsTracking = (): UseStepsTrackingReturn => {
 
   const stepsService = new ExpoStepsService();
   const storageService = new StepsStorageService();
+  const [lastSyncTime, setLastSyncTime] = useState<number>(0);
 
   const loadCachedData = useCallback(async () => {
     try {
@@ -179,6 +180,41 @@ export const useStepsTracking = (): UseStepsTrackingReturn => {
     await updateSteps();
   }, [updateSteps]);
 
+  // Sync steps to server (called periodically or manually)
+  const syncToServer = useCallback(async () => {
+    try {
+      // Prevent rapid repeated syncs (minimum 5 minutes between syncs)
+      const now = Date.now();
+      const fiveMinutes = 5 * 60 * 1000;
+      if (now - lastSyncTime < fiveMinutes) {
+        console.log('useStepsTracking: Skipping sync (too soon)');
+        return;
+      }
+
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Only sync if we have step data
+      if (stepsData.steps > 0) {
+        console.log('useStepsTracking: Syncing to server...', {
+          date: today,
+          steps: stepsData.steps
+        });
+
+        await apiUpsertSteps({
+          date: today,
+          stepCount: stepsData.steps,
+        });
+
+        setLastSyncTime(now);
+        console.log('useStepsTracking: Sync successful');
+      }
+    } catch (error) {
+      console.error('useStepsTracking: Server sync failed:', error);
+      // Don't show error to user - sync will retry later
+      // Local data is still preserved
+    }
+  }, [stepsData.steps, lastSyncTime]);
+
   // Initialize on mount - load cached data only
   useEffect(() => {
     const initialize = async () => {
@@ -191,6 +227,24 @@ export const useStepsTracking = (): UseStepsTrackingReturn => {
     initialize();
   }, []); // Empty dependency array - only run once on mount
 
+  // Auto-sync to server every 30 minutes when app is active
+  useEffect(() => {
+    // Initial sync after 10 seconds (give time for app to load)
+    const initialSync = setTimeout(() => {
+      syncToServer();
+    }, 10000);
+
+    // Then sync every 30 minutes
+    const interval = setInterval(() => {
+      syncToServer();
+    }, 30 * 60 * 1000); // 30 minutes
+
+    return () => {
+      clearTimeout(initialSync);
+      clearInterval(interval);
+    };
+  }, [syncToServer]);
+
   return {
     stepsData,
     isLoading,
@@ -199,6 +253,7 @@ export const useStepsTracking = (): UseStepsTrackingReturn => {
     yesterdaySteps,
     updateSteps,
     updateGoal,
-    refreshSteps
+    refreshSteps,
+    syncToServer,
   };
 };

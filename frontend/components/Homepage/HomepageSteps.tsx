@@ -14,12 +14,15 @@ interface HomepageStepsProps {
 
 const HomepageSteps = forwardRef<any, HomepageStepsProps>(({ className, onRefresh }, ref) => {
   const router = useRouter();
-  const { stepsData, isLoading, isAvailable, hasError, updateSteps, refreshSteps } = useStepsTracking();
+  const { stepsData, isLoading, isAvailable, hasError, updateSteps, refreshSteps, syncToServer } = useStepsTracking();
   const hasInitiallyRefreshed = useRef(false);
 
   // Expose update function for external refresh
   useImperativeHandle(ref, () => ({
-    updateSteps: refreshSteps
+    updateSteps: async () => {
+      await refreshSteps();
+      await syncToServer();
+    }
   }));
 
   // Load data on mount - always refresh once to ensure fresh data

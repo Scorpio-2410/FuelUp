@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useStepsTracking } from '../hooks/useStepsTracking';
+import { apiGetStepsChart, apiGetStepsStreak, StepStats } from '../constants/api';
 import Animated, { 
   FadeIn, 
   SlideInRight, 
@@ -23,16 +24,50 @@ export default function StepsAnalytics() {
   const { stepsData, isLoading, isAvailable, hasError, yesterdaySteps, refreshSteps, updateGoal } = useStepsTracking();
   const { theme } = useTheme();
   const [refreshing, setRefreshing] = useState(false);
+  const [serverStats, setServerStats] = useState<StepStats | null>(null);
+  const [serverStreak, setServerStreak] = useState<number>(0);
+  const [loadingStats, setLoadingStats] = useState(true);
+
+  // Fetch backend stats (30 days for good average)
+  const fetchServerStats = async () => {
+    try {
+      setLoadingStats(true);
+      const endDate = new Date().toISOString().split('T')[0];
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 30); // Last 30 days
+      const startDateStr = startDate.toISOString().split('T')[0];
+
+      // Fetch stats and streak in parallel
+      const [chartData, streakData] = await Promise.all([
+        apiGetStepsChart(startDateStr, endDate),
+        apiGetStepsStreak()
+      ]);
+
+      if (chartData.success && chartData.overallStats) {
+        setServerStats(chartData.overallStats);
+      }
+      
+      if (streakData.success) {
+        setServerStreak(streakData.streakDays);
+      }
+    } catch (error) {
+      console.error('StepsAnalytics: Failed to fetch server stats:', error);
+      // Don't show error - will use local data as fallback
+    } finally {
+      setLoadingStats(false);
+    }
+  };
 
   // Auto-refresh when screen loads (like normal apps)
   useEffect(() => {
     refreshSteps();
+    fetchServerStats();
   }, []); // Only run once when screen loads
 
   const handleRefresh = async () => {
     if (refreshing) return;
     setRefreshing(true);
-    await refreshSteps();
+    await Promise.all([refreshSteps(), fetchServerStats()]);
     setTimeout(() => {
       setRefreshing(false);
     }, 1200);
@@ -272,7 +307,14 @@ export default function StepsAnalytics() {
             className="p-5 rounded-2xl w-[48%] mb-4 bg-teal-900/30 items-center border border-teal-500/20"
           >
             <Text className="text-teal-300 font-bold mb-2 text-sm">📊 Daily Average</Text>
-            <Text className="text-white text-3xl font-black">{getDisplaySteps()}</Text>
+            <Text className="text-white text-3xl font-black">
+              {loadingStats ? '...' : serverStats ? formatSteps(Math.round(serverStats.avgSteps)) : '0'}
+            </Text>
+            {serverStats && serverStats.totalDays > 0 && (
+              <Text className="text-teal-300/60 text-xs mt-1">
+                Last {serverStats.totalDays} days
+              </Text>
+            )}
           </Animated.View>
 
           {/* Best Day */}
@@ -281,16 +323,30 @@ export default function StepsAnalytics() {
             className="p-5 rounded-2xl w-[48%] bg-amber-900/30 items-center border border-amber-500/20"
           >
             <Text className="text-amber-300 font-bold mb-2 text-sm">🏆 Best Day</Text>
-            <Text className="text-white text-3xl font-black">{getDisplaySteps()}</Text>
+            <Text className="text-white text-3xl font-black">
+              {loadingStats ? '...' : serverStats ? formatSteps(serverStats.maxSteps) : '0'}
+            </Text>
+            {serverStats && serverStats.maxSteps > 0 && (
+              <Text className="text-amber-300/60 text-xs mt-1">
+                Personal record
+              </Text>
+            )}
           </Animated.View>
 
-          {/* Longest Streak */}
+          {/* Current Streak */}
           <Animated.View 
             entering={FadeIn.delay(2250).duration(1000)}
             className="p-5 rounded-2xl w-[48%] bg-pink-900/30 items-center border border-pink-500/20"
           >
-            <Text className="text-pink-300 font-bold mb-2 text-sm">📈 Longest Streak</Text>
-            <Text className="text-white text-3xl font-black">0 days</Text>
+            <Text className="text-pink-300 font-bold mb-2 text-sm">🔥 Current Streak</Text>
+            <Text className="text-white text-3xl font-black">
+              {loadingStats ? '...' : `${serverStreak} day${serverStreak !== 1 ? 's' : ''}`}
+            </Text>
+            {serverStreak > 0 && (
+              <Text className="text-pink-300/60 text-xs mt-1">
+                Keep it up!
+              </Text>
+            )}
           </Animated.View>
         </View>
 

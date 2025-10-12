@@ -411,6 +411,28 @@ const initializeDatabase = async () => {
       CREATE INDEX IF NOT EXISTS idx_prt_expire ON password_reset_tokens(expires_at);
     `);
 
+    /* =========== STEP STREAKS (step tracking) =========== */
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS step_streaks (
+        id          INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        date        DATE NOT NULL,
+        step_count  INTEGER NOT NULL DEFAULT 0 CHECK (step_count >= 0),
+        calories    INTEGER,
+        created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        CONSTRAINT step_streaks_user_date_unique UNIQUE (user_id, date)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_step_streaks_user ON step_streaks(user_id);
+      CREATE INDEX IF NOT EXISTS idx_step_streaks_date ON step_streaks(date);
+      CREATE INDEX IF NOT EXISTS idx_step_streaks_user_date ON step_streaks(user_id, date DESC);
+
+      DROP TRIGGER IF EXISTS trg_step_streaks_updated_at ON step_streaks;
+      CREATE TRIGGER trg_step_streaks_updated_at
+      BEFORE UPDATE ON step_streaks FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    `);
+
     console.log("Schema initialization complete.");
   } catch (err) {
     console.error("Database initialization error:", err.message);
