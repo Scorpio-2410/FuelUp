@@ -33,6 +33,12 @@ export default function StepsAnalytics() {
   const [serverYesterdaySteps, setServerYesterdaySteps] = useState<number>(0);
   const [userWeight, setUserWeight] = useState<number | undefined>(undefined);
 
+  // Debug logging for yesterday steps
+  React.useEffect(() => {
+    console.log('Yesterday steps from local storage:', yesterdaySteps);
+    console.log('Server yesterday steps:', serverYesterdaySteps);
+  }, [yesterdaySteps, serverYesterdaySteps]);
+
   // Animated progress value for smooth progress bar animation
   const progressWidth = useSharedValue(0);
 
@@ -81,10 +87,12 @@ export default function StepsAnalytics() {
 
       try {
         const yesterdayData = await apiGetStepsByDate(yesterdayStr);
+        console.log('Yesterday data from server:', yesterdayData);
         if (yesterdayData.success && yesterdayData.stepRecord) {
           setServerYesterdaySteps(yesterdayData.stepRecord.stepCount);
         }
       } catch (yesterdayError) {
+        console.log('Error fetching yesterday data:', yesterdayError);
       }
     } catch (error) {
       console.error('StepsAnalytics: Failed to fetch server stats:', error);
