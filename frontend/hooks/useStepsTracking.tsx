@@ -2,12 +2,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { StepsData, HistoricalStepsData } from '../types/steps';
 import { ExpoStepsService } from '../services/stepsService';
 import { StepsStorageService } from '../utils/stepsStorage';
+import { apiUpsertSteps, apiGetStepsChart, apiGetStepsStreak } from '../constants/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-/**
- * Custom hook for managing steps tracking functionality
- * Provides real-time step counting, caching, and goal management
- * Integrates sensor data with persistent storage for seamless user experience
- */
+// Custom hook for managing steps tracking functionality
+// Provides real-time step counting, caching, goal management, and server sync
+// Integrates sensor data with persistent storage and backend database
 
 interface UseStepsTrackingReturn {
   stepsData: StepsData;
@@ -18,6 +18,7 @@ interface UseStepsTrackingReturn {
   updateSteps: () => Promise<void>;
   updateGoal: (goal: number) => Promise<void>;
   refreshSteps: () => Promise<void>;
+  syncToServer: () => Promise<void>;
 }
 
 export const useStepsTracking = (): UseStepsTrackingReturn => {
@@ -25,10 +26,10 @@ export const useStepsTracking = (): UseStepsTrackingReturn => {
     steps: 0,
     source: 'cached',
     lastUpdated: new Date().toISOString(),
-    goal: 12000,
+    goal: 8000,
     currentStreak: 0,
     lastStreakDate: null,
-    streakGoal: 7000
+    streakGoal: 8000
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isAvailable, setIsAvailable] = useState(false);
@@ -37,6 +38,7 @@ export const useStepsTracking = (): UseStepsTrackingReturn => {
 
   const stepsService = new ExpoStepsService();
   const storageService = new StepsStorageService();
+  const [lastSyncTime, setLastSyncTime] = useState<number>(0);
 
   const loadCachedData = useCallback(async () => {
     try {
@@ -73,10 +75,18 @@ export const useStepsTracking = (): UseStepsTrackingReturn => {
     return (now - lastUpdateTime) > fifteenMinutes;
   }, []);
 
-  /**
-   * Calculates streak based on current steps and previous streak data
-   */
-  const calculateStreak = useCallback((steps: number, currentStreak: number, lastStreakDate: string | null): { newStreak: number; newLastStreakDate: string | null } => {
+  // Calculates streak based on current steps and previous streak data
+  // Returns newStreak, newLastStreakDate, streakJustAchieved, and streakJustLost flags
+  const calculateStreak = useCallback((
+    steps: number, 
+    currentStreak: number, 
+    lastStreakDate: string | null
+  ): { 
+    newStreak: number; 
+    newLastStreakDate: string | null; 
+    streakJustAchieved: boolean;
+    streakJustLost: boolean;
+  } => {
     const today = new Date().toISOString().split('T')[0];
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
@@ -87,27 +97,33 @@ export const useStepsTracking = (): UseStepsTrackingReturn => {
     if (streakAchieved) {
       if (lastStreakDate === yesterdayStr) {
         // Consecutive day - increment streak
-        return { newStreak: currentStreak + 1, newLastStreakDate: today };
+        return { newStreak: currentStreak + 1, newLastStreakDate: today, streakJustAchieved: true, streakJustLost: false };
       } else if (lastStreakDate === today) {
-        // Same day - keep current streak
-        return { newStreak: currentStreak, newLastStreakDate: lastStreakDate };
+        // Same day - keep current streak (already achieved today)
+        return { newStreak: currentStreak, newLastStreakDate: lastStreakDate, streakJustAchieved: false, streakJustLost: false };
+      } else if (!lastStreakDate || lastStreakDate < yesterdayStr) {
+        // New streak starting (missed a day or no previous streak)
+        return { newStreak: 1, newLastStreakDate: today, streakJustAchieved: true, streakJustLost: false };
       } else {
-        // New streak starting
-        return { newStreak: 1, newLastStreakDate: today };
+        // First time achieving today
+        return { newStreak: 1, newLastStreakDate: today, streakJustAchieved: true, streakJustLost: false };
       }
     } else {
-      // Streak broken
-      return { newStreak: 0, newLastStreakDate: null };
+      // Check if we missed yesterday (streak should be reset)
+      if (lastStreakDate && lastStreakDate < yesterdayStr && currentStreak > 0) {
+        // Missed a day - reset streak to 0 (STREAK LOST)
+        return { newStreak: 0, newLastStreakDate: null, streakJustAchieved: false, streakJustLost: true };
+      }
+      // Still same day, not achieved yet - maintain current streak
+      return { newStreak: currentStreak, newLastStreakDate: lastStreakDate, streakJustAchieved: false, streakJustLost: false };
     }
   }, [stepsData.streakGoal]);
 
-  /**
-   * Updates steps data and persists to storage
-   * Handles both sensor and cached data sources
-   */
+  // Updates steps data and persists to storage
+  // Handles both sensor and cached data sources
   const updateStepsData = useCallback(async (steps: number, source: 'sensor' | 'cached') => {
     setStepsData(prevData => {
-      const { newStreak, newLastStreakDate } = calculateStreak(steps, prevData.currentStreak, prevData.lastStreakDate);
+      const { newStreak, newLastStreakDate, streakJustAchieved, streakJustLost } = calculateStreak(steps, prevData.currentStreak, prevData.lastStreakDate);
       
       const newData: StepsData = {
         ...prevData,
@@ -179,6 +195,63 @@ export const useStepsTracking = (): UseStepsTrackingReturn => {
     await updateSteps();
   }, [updateSteps]);
 
+  // Sync ALL historical data to server (one-time migration)
+  const syncHistoricalData = useCallback(async () => {
+    try {
+      const history = await storageService.getHistoricalData();
+      const entries = Object.entries(history);
+      
+      if (entries.length === 0) {
+        return;
+      }
+
+      
+      // Sync all historical data
+      for (const [date, data] of entries) {
+        try {
+          await apiUpsertSteps({
+            date: date,
+            stepCount: data.steps,
+          });
+        } catch (err) {
+          console.error(`useStepsTracking: Failed to sync ${date}:`, err);
+        }
+      }
+      
+    } catch (error) {
+      console.error('useStepsTracking: Historical sync failed:', error);
+    }
+  }, [storageService]);
+
+  // Sync steps to server (called periodically or manually)
+  const syncToServer = useCallback(async () => {
+    try {
+      // Prevent rapid repeated syncs (minimum 5 minutes between syncs)
+      const now = Date.now();
+      const fiveMinutes = 5 * 60 * 1000;
+      if (now - lastSyncTime < fiveMinutes) {
+        return;
+      }
+
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Only sync if we have step data
+      if (stepsData.steps > 0) {
+
+        await apiUpsertSteps({
+          date: today,
+          stepCount: stepsData.steps,
+        });
+
+        setLastSyncTime(now);
+      }
+    } catch (error) {
+      console.error('useStepsTracking: Server sync failed:', error);
+      // Don't show error to user - sync will retry later
+      // Local data is still preserved
+    }
+  }, [stepsData.steps, lastSyncTime]);
+
   // Initialize on mount - load cached data only
   useEffect(() => {
     const initialize = async () => {
@@ -191,6 +264,50 @@ export const useStepsTracking = (): UseStepsTrackingReturn => {
     initialize();
   }, []); // Empty dependency array - only run once on mount
 
+  // One-time historical data sync on first app load
+  useEffect(() => {
+    const runHistoricalSync = async () => {
+      const syncedKey = 'historical_steps_synced';
+      const alreadySynced = await storageService.load();
+      
+      // Check if we've already done historical sync
+      try {
+        const hasSynced = await AsyncStorage.getItem(syncedKey);
+        if (!hasSynced) {
+          await syncHistoricalData();
+          await AsyncStorage.setItem(syncedKey, 'true');
+        }
+      } catch (error) {
+        console.error('useStepsTracking: Error checking historical sync:', error);
+      }
+    };
+
+    // Run after 5 seconds to let app initialize
+    const timer = setTimeout(() => {
+      runHistoricalSync();
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, [syncHistoricalData]);
+
+  // Auto-sync to server every 30 minutes when app is active
+  useEffect(() => {
+    // Initial sync after 10 seconds (give time for app to load)
+    const initialSync = setTimeout(() => {
+      syncToServer();
+    }, 10000);
+
+    // Then sync every 30 minutes
+    const interval = setInterval(() => {
+      syncToServer();
+    }, 30 * 60 * 1000); // 30 minutes
+
+    return () => {
+      clearTimeout(initialSync);
+      clearInterval(interval);
+    };
+  }, [syncToServer]);
+
   return {
     stepsData,
     isLoading,
@@ -199,6 +316,7 @@ export const useStepsTracking = (): UseStepsTrackingReturn => {
     yesterdaySteps,
     updateSteps,
     updateGoal,
-    refreshSteps
+    refreshSteps,
+    syncToServer,
   };
 };

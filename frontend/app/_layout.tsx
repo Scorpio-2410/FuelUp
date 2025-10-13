@@ -35,7 +35,11 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (loaded) {
-      SplashScreen.hideAsync();
+      // Add error handling for splash screen
+      SplashScreen.hideAsync().catch((error) => {
+        console.warn('SplashScreen hide error:', error);
+        // Continue execution even if splash screen fails
+      });
       // Mark fonts as loaded in preloader
       const preloader = AppPreloader.getInstance();
       preloader.markFontsLoaded();

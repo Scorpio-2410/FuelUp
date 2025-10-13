@@ -89,6 +89,17 @@ const EP = {
   quotesRandom: "/api/quotes/random",
   quotesAll: "/api/quotes",
 
+  // ---------- Step Tracking (Streak) ----------
+  stepsUpsert: "/api/steps",
+  stepsGetByDate: (date: string) => `/api/steps/${date}`,
+  stepsRange: "/api/steps/range",
+  stepsStats: "/api/steps/stats",
+  stepsWeekly: "/api/steps/weekly",
+  stepsMonthly: "/api/steps/monthly",
+  stepsStreak: "/api/steps/streak",
+  stepsChart: "/api/steps/chart",
+  stepsDelete: (date: string) => `/api/steps/${date}`,
+
   // ---------- Catalog + Meal Planner ----------
   foodsSearch: "/api/foods/search",
   foodDetail: (id: string | number) => `/api/foods/${id}`,
@@ -596,6 +607,7 @@ export async function apiGetMealPlanSummary(planId: number) {
   return asJson<any>(res);
 }
 
+
 // (6) Log meals
 export async function apiLogMeal(opts: {
   name: string;
@@ -634,4 +646,144 @@ export async function apiGetUserMeals(opts?: {
     headers: await authHeaders(),
   });
   return asJson<{ ok: boolean; meals: any[]; total: number }>(res);
+}
+
+/* -------------------- Step Tracking -------------------- */
+
+export interface StepRecord {
+  id: number;
+  userId: number;
+  date: string;
+  stepCount: number;
+  calories?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StepStats {
+  totalDays: number;
+  totalSteps: number;
+  avgSteps: number;
+  maxSteps: number;
+  minSteps: number;
+  totalCalories: number;
+  avgCalories: number;
+}
+
+export interface WeeklyStepStats {
+  weekStart: string;
+  daysLogged: number;
+  totalSteps: number;
+  avgSteps: number;
+  maxSteps: number;
+  totalCalories: number;
+}
+
+export interface MonthlyStepStats {
+  monthStart: string;
+  daysLogged: number;
+  totalSteps: number;
+  avgSteps: number;
+  maxSteps: number;
+  totalCalories: number;
+}
+
+// Upsert step data for a specific date
+export async function apiUpsertSteps(data: {
+  date: string; // YYYY-MM-DD
+  stepCount: number;
+  calories?: number;
+}) {
+  const res = await fetch(`${BASE_URL}${EP.stepsUpsert}`, {
+    method: "POST",
+    headers: await authHeaders(),
+    body: JSON.stringify(data),
+  });
+  return asJson<{ success: boolean; stepRecord: StepRecord }>(res);
+}
+
+// Get steps for a specific date
+export async function apiGetStepsByDate(date: string) {
+  const res = await fetch(`${BASE_URL}${EP.stepsGetByDate(date)}`, {
+    headers: await authHeaders(),
+  });
+  return asJson<{ success: boolean; stepRecord: StepRecord }>(res);
+}
+
+// Get steps for a date range
+export async function apiGetStepsRange(start: string, end: string) {
+  const qs = new URLSearchParams({ start, end });
+  const res = await fetch(`${BASE_URL}${EP.stepsRange}?${qs.toString()}`, {
+    headers: await authHeaders(),
+  });
+  return asJson<{ success: boolean; count: number; stepRecords: StepRecord[] }>(res);
+}
+
+// Get statistics for a period
+export async function apiGetStepsStats(
+  start: string,
+  end: string,
+  period: "overall" | "week" | "month" = "overall"
+) {
+  const qs = new URLSearchParams({ start, end, period });
+  const res = await fetch(`${BASE_URL}${EP.stepsStats}?${qs.toString()}`, {
+    headers: await authHeaders(),
+  });
+  return asJson<{ 
+    success: boolean; 
+    period: string;
+    dateRange: { start: string; end: string };
+    stats: StepStats | WeeklyStepStats[] | MonthlyStepStats[];
+  }>(res);
+}
+
+// Get weekly aggregated stats
+export async function apiGetWeeklyStepsStats(start: string, end: string) {
+  const qs = new URLSearchParams({ start, end });
+  const res = await fetch(`${BASE_URL}${EP.stepsWeekly}?${qs.toString()}`, {
+    headers: await authHeaders(),
+  });
+  return asJson<{ success: boolean; count: number; weeklyStats: WeeklyStepStats[] }>(res);
+}
+
+// Get monthly aggregated stats
+export async function apiGetMonthlyStepsStats(start: string, end: string) {
+  const qs = new URLSearchParams({ start, end });
+  const res = await fetch(`${BASE_URL}${EP.stepsMonthly}?${qs.toString()}`, {
+    headers: await authHeaders(),
+  });
+  return asJson<{ success: boolean; count: number; monthlyStats: MonthlyStepStats[] }>(res);
+}
+
+// Get current streak
+export async function apiGetStepsStreak() {
+  const res = await fetch(`${BASE_URL}${EP.stepsStreak}`, {
+    headers: await authHeaders(),
+  });
+  return asJson<{ success: boolean; streakDays: number; message: string }>(res);
+}
+
+// Get chart-ready data
+export async function apiGetStepsChart(start: string, end: string) {
+  const qs = new URLSearchParams({ start, end });
+  const res = await fetch(`${BASE_URL}${EP.stepsChart}?${qs.toString()}`, {
+    headers: await authHeaders(),
+  });
+  return asJson<{
+    success: boolean;
+    dateRange: { start: string; end: string };
+    dailyData: StepRecord[];
+    overallStats: StepStats;
+    chartReady: boolean;
+  }>(res);
+}
+
+// Delete steps for a specific date
+export async function apiDeleteSteps(date: string) {
+  const res = await fetch(`${BASE_URL}${EP.stepsDelete(date)}`, {
+    method: "DELETE",
+    headers: await authHeaders(),
+  });
+  return asJson<{ success: boolean; message: string }>(res);
+
 }

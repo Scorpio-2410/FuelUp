@@ -20,6 +20,9 @@ const quotesRoutes = require("./routes/quotesRoutes");
 const foodRoutes = require("./routes/foodRoutes"); // foods/recipes browse + save
 const mealPlanRoutes = require("./routes/mealPlanRoutes"); // create plan, add meal, summary
 
+/* ---- Step Tracking ---- */
+const stepStreakRoutes = require("./routes/stepStreakRoutes"); // step tracking and analytics
+
 const app = express();
 const PORT = process.env.PORT || 4000;
 
@@ -64,6 +67,9 @@ app.use("/api/quotes", quotesRoutes);
 */
 app.use("/api", foodRoutes);
 app.use("/api", mealPlanRoutes);
+
+// Step Tracking
+app.use("/api/steps", stepStreakRoutes);
 
 /* ---------------- Root + health ---------------- */
 app.get("/", (req, res) => {
@@ -117,6 +123,17 @@ app.get("/", (req, res) => {
         createPlan: "/api/plans",
         addMeal: "/api/plans/add",
         planSummary: "/api/plans/:planId/summary",
+      },
+      steps: {
+        upsert: "POST /api/steps",
+        getByDate: "/api/steps/:date",
+        getRange: "/api/steps/range?start=&end=",
+        getStats: "/api/steps/stats?start=&end=&period=",
+        getWeekly: "/api/steps/weekly?start=&end=",
+        getMonthly: "/api/steps/monthly?start=&end=",
+        getStreak: "/api/steps/streak",
+        getChart: "/api/steps/chart?start=&end=",
+        delete: "DELETE /api/steps/:date",
       },
     },
   });
