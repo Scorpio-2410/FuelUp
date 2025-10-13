@@ -9,7 +9,7 @@ import StreakLostAlert from '../components/StepsAnalysis/StreakLostAlert';
 import { StepsAnalyticsHeader } from '../components/StepsAnalysis/StepsAnalyticsHeader';
 import { StepsHeader } from '../components/StepsAnalysis/StepsHeader';
 import { ProgressBar } from '../components/StepsAnalysis/ProgressBar';
-import { FitnessLevels } from '../components/StepsAnalysis/FitnessLevels';
+import { StepsLevel } from '../components/StepsAnalysis/StepsLevel';
 import { StatsCards } from '../components/StepsAnalysis/StatsCards';
 import Animated, { 
   FadeIn,
@@ -56,7 +56,6 @@ export default function StepsAnalytics() {
           setServerStats(chartData.overallStats);
         }
       } catch (chartError) {
-        console.log('StepsAnalytics: Chart data not available yet (using local data)');
       }
 
       try {
@@ -65,7 +64,6 @@ export default function StepsAnalytics() {
           setServerStreak(streakData.streakDays);
         }
       } catch (streakError) {
-        console.log('StepsAnalytics: Streak data not available yet (using local data)');
       }
 
       try {
@@ -74,7 +72,6 @@ export default function StepsAnalytics() {
           setServerYesterdaySteps(yesterdayData.stepRecord.stepCount);
         }
       } catch (yesterdayError) {
-        console.log('StepsAnalytics: Yesterday data not available (using local data)');
       }
     } catch (error) {
       console.error('StepsAnalytics: Failed to fetch server stats:', error);
@@ -222,8 +219,8 @@ export default function StepsAnalytics() {
               />
             </Animated.View>
 
-            {/* Fitness Levels */}
-            <FitnessLevels 
+            {/* Step Levels */}
+            <StepsLevel 
               steps={stepsData.steps}
               isLoading={isLoading}
               hasError={hasError}

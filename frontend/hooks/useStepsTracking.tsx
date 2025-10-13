@@ -198,16 +198,13 @@ export const useStepsTracking = (): UseStepsTrackingReturn => {
   // Sync ALL historical data to server (one-time migration)
   const syncHistoricalData = useCallback(async () => {
     try {
-      console.log('useStepsTracking: Starting historical data sync...');
       const history = await storageService.getHistoricalData();
       const entries = Object.entries(history);
       
       if (entries.length === 0) {
-        console.log('useStepsTracking: No historical data to sync');
         return;
       }
 
-      console.log(`useStepsTracking: Syncing ${entries.length} historical records...`);
       
       // Sync all historical data
       for (const [date, data] of entries) {
@@ -216,13 +213,11 @@ export const useStepsTracking = (): UseStepsTrackingReturn => {
             date: date,
             stepCount: data.steps,
           });
-          console.log(`useStepsTracking: Synced ${date}: ${data.steps} steps`);
         } catch (err) {
           console.error(`useStepsTracking: Failed to sync ${date}:`, err);
         }
       }
       
-      console.log('useStepsTracking: Historical sync complete!');
     } catch (error) {
       console.error('useStepsTracking: Historical sync failed:', error);
     }
@@ -235,7 +230,6 @@ export const useStepsTracking = (): UseStepsTrackingReturn => {
       const now = Date.now();
       const fiveMinutes = 5 * 60 * 1000;
       if (now - lastSyncTime < fiveMinutes) {
-        console.log('useStepsTracking: Skipping sync (too soon)');
         return;
       }
 
@@ -243,10 +237,6 @@ export const useStepsTracking = (): UseStepsTrackingReturn => {
       
       // Only sync if we have step data
       if (stepsData.steps > 0) {
-        console.log('useStepsTracking: Syncing to server...', {
-          date: today,
-          steps: stepsData.steps
-        });
 
         await apiUpsertSteps({
           date: today,
@@ -254,7 +244,6 @@ export const useStepsTracking = (): UseStepsTrackingReturn => {
         });
 
         setLastSyncTime(now);
-        console.log('useStepsTracking: Sync successful');
       }
     } catch (error) {
       console.error('useStepsTracking: Server sync failed:', error);
@@ -285,7 +274,6 @@ export const useStepsTracking = (): UseStepsTrackingReturn => {
       try {
         const hasSynced = await AsyncStorage.getItem(syncedKey);
         if (!hasSynced) {
-          console.log('useStepsTracking: First time sync - uploading historical data...');
           await syncHistoricalData();
           await AsyncStorage.setItem(syncedKey, 'true');
         }

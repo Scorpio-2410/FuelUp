@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, SharedValue } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 
 interface ProgressBarProps {
@@ -8,7 +8,7 @@ interface ProgressBarProps {
   goal: number;
   isLoading: boolean;
   hasError: boolean;
-  progressWidth: Animated.SharedValue<number>;
+  progressWidth: SharedValue<number>;
 }
 
 // Single responsibility: Display animated progress bar with fire gradient
