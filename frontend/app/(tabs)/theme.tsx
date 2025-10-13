@@ -6,8 +6,8 @@ import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import MorningBackground from '../../components/Theme/morning/MorningBackground';
 import AfternoonBackground from '../../components/Theme/afternoon/AfternoonBackground';
 import CelestialBackground from '../../components/Theme/night/CelestialBackground';
-import StreakCongratulationsAlert from '../../components/Steps/StreakCongratulationsAlert';
-import StreakLostAlert from '../../components/Steps/StreakLostAlert';
+import StreakCongratulationsAlert from '../../components/StepsAnalysis/StreakCongratulationsAlert';
+import StreakLostAlert from '../../components/StepsAnalysis/StreakLostAlert';
 
 type ThemeMode = 'morning' | 'afternoon' | 'night';
 
