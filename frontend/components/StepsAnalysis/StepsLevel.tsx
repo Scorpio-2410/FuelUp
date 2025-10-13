@@ -197,7 +197,7 @@ export const StepsLevel = ({ steps, isLoading, hasError }: StepsLevelProps) => {
         activeOpacity={0.7}
       >
         <Animated.View 
-          entering={FadeIn.delay(700).duration(600)}
+          entering={FadeIn.duration(600)}
           className="bg-gray-900/20 border border-gray-600/30 rounded-full px-6 py-3"
         >
           <Text className="text-gray-200 font-semibold text-sm">
@@ -217,7 +217,7 @@ export const StepsLevel = ({ steps, isLoading, hasError }: StepsLevelProps) => {
               return (
                 <Animated.View 
                   key={index}
-                  entering={FadeIn.delay(800 + index * 100).duration(600)}
+                  entering={FadeIn.duration(600)}
                   className="p-5 rounded-2xl"
                   style={{
                     backgroundColor: levelColors.background,
