@@ -198,7 +198,6 @@ export default function MealScreen() {
             value={query}
             onChangeText={setQuery}
             onClear={() => setQuery("")}
-            placeholder="Search"
           />
 
           {/* Header */}
