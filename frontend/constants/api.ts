@@ -102,6 +102,10 @@ const EP = {
   mealPlans: "/api/plans", // GET (list) + POST (create)
   mealPlanAdd: "/api/plans/add",
   mealPlanSummary: (id: string | number) => `/api/plans/${id}/summary`,
+
+  // Meal logging
+  mealsLog: "/api/meals/log",
+  mealsGet: "/api/meals",
 };
 
 /* -------------------- helpers -------------------- */
@@ -590,4 +594,44 @@ export async function apiGetMealPlanSummary(planId: number) {
     headers: await authHeaders(),
   });
   return asJson<any>(res);
+}
+
+// (6) Log meals
+export async function apiLogMeal(opts: {
+  name: string;
+  meal_type?: "breakfast" | "lunch" | "dinner" | "snack" | "other";
+  calories?: number;
+  protein_g?: number;
+  carbs_g?: number;
+  fat_g?: number;
+  serving_size?: number;
+  serving_unit?: string;
+  notes?: string;
+  meal_plan_id?: number;
+  logged_at?: string;
+}) {
+  const res = await fetch(`${BASE_URL}${EP.mealsLog}`, {
+    method: "POST",
+    headers: await authHeaders(),
+    body: JSON.stringify(opts),
+  });
+  return asJson<{ ok: boolean; meal: any }>(res);
+}
+
+export async function apiGetUserMeals(opts?: {
+  limit?: number;
+  offset?: number;
+  start_date?: string;
+  end_date?: string;
+}) {
+  const params = new URLSearchParams();
+  if (opts?.limit) params.append("limit", String(opts.limit));
+  if (opts?.offset) params.append("offset", String(opts.offset));
+  if (opts?.start_date) params.append("start_date", opts.start_date);
+  if (opts?.end_date) params.append("end_date", opts.end_date);
+
+  const res = await fetch(`${BASE_URL}${EP.mealsGet}?${params}`, {
+    headers: await authHeaders(),
+  });
+  return asJson<{ ok: boolean; meals: any[]; total: number }>(res);
 }

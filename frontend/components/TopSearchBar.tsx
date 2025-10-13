@@ -29,7 +29,7 @@ export default function TopSearchBar({
   return (
     <View
       style={{
-        backgroundColor: "#121212",
+        backgroundColor: "transparent",
         paddingHorizontal: 16,
         paddingVertical: 12,
         marginBottom: 12,

@@ -1,17 +1,20 @@
 // frontend/app/(tabs)/meal.tsx
-import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  View,
-  Text,
-  FlatList,
-  ActivityIndicator,
-  Pressable,
-} from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { View, Text, Pressable } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import TopSearchBar from "../../components/TopSearchBar";
-import RecipeCard from "../../components/Meal/RecipeCard";
+import ScrollableMealGrid from "../../components/Meal/ScrollableMealGrid";
+import LogMealButton from "../../components/Meal/LogMealButton";
+import LoggedMealsList, {
+  LoggedMealsListRef,
+} from "../../components/Meal/LoggedMealsList";
+import RefreshScroll from "../../components/RefreshScroll";
+import Toast from "../../components/Shared/Toast";
+import { useGlobalRefresh } from "../../components/useGlobalRefresh";
 import { apiSearchRecipesV3 } from "../../constants/api";
+import DynamicBackground from "../../components/Theme/DynamicTheme";
+import { useTheme } from "../../contexts/ThemeContext";
 
 /* -------------------- small debounce hook -------------------- */
 function useDebounce<T>(value: T, delay = 400) {
@@ -26,7 +29,8 @@ function useDebounce<T>(value: T, delay = 400) {
 }
 
 /* -------------------- types -------------------- */
-type FSRecipeLite = { // this is the type for the recipes from FatSecret
+type FSRecipeLite = {
+  // this is the type for the recipes from FatSecret
   recipe_id: string;
   recipe_name: string;
   recipe_image?: string | null;
@@ -36,6 +40,7 @@ type FSRecipeLite = { // this is the type for the recipes from FatSecret
 export default function MealScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { theme } = useTheme();
 
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(0); // FatSecret is 0-based
@@ -43,13 +48,21 @@ export default function MealScreen() {
   const [items, setItems] = useState<FSRecipeLite[]>([]);
   const [total, setTotal] = useState<number | null>(null);
   const [maxResults] = useState(25);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+  const [toastType, setToastType] = useState<"success" | "error" | "info">(
+    "success"
+  );
+
+  const loggedMealsRef = useRef<LoggedMealsListRef>(null);
 
   const q = useDebounce(query.trim(), 400);
 
   async function fetchPage(p: number, qStr: string) {
     setLoading(true);
     try {
-      const data = await apiSearchRecipesV3({ // this is the API call to FatSecret
+      const data = await apiSearchRecipesV3({
+        // this is the API call to FatSecret
         q: qStr,
         page: p,
         maxResults,
@@ -84,25 +97,21 @@ export default function MealScreen() {
   const canPrev = page > 0;
   const approxHasMore = total == null ? true : (page + 1) * maxResults < total;
 
-  const HeaderLoader = useMemo(
-    () => (
-      <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
-        {loading ? (
-          <View className="items-center justify-center py-6">
-            <ActivityIndicator />
-          </View>
-        ) : null}
-      </View>
-    ),
-    [loading]
-  );
+  const { refreshing, handleRefresh } = useGlobalRefresh({
+    tabName: "meal",
+    onInternalRefresh: () => {
+      // Refetch current page
+      fetchPage(page, q);
+    },
+  });
 
   /* -------------------- top pagination bar -------------------- */
   function PaginationBar() {
     return (
       <View
         className="flex-row items-center justify-between"
-        style={{ paddingHorizontal: 16, marginBottom: 8 }}>
+        style={{ paddingHorizontal: 20, marginBottom: 12 }}
+      >
         <Pressable
           onPress={() => {
             if (canPrev) {
@@ -116,15 +125,19 @@ export default function MealScreen() {
             paddingHorizontal: 16,
             paddingVertical: 10,
             borderRadius: 12,
-            backgroundColor: canPrev ? "#262626" : "#171717",
-          }}>
+            backgroundColor: canPrev ? "#374151" : "#1f2937",
+            borderWidth: 1,
+            borderColor: canPrev ? "#4b5563" : "#374151",
+          }}
+        >
           <Text
-            style={{ color: canPrev ? "#fff" : "#6b7280", fontWeight: "600" }}>
+            style={{ color: canPrev ? "#fff" : "#6b7280", fontWeight: "600" }}
+          >
             Prev
           </Text>
         </Pressable>
 
-        <Text style={{ color: "#9ca3af" }}>
+        <Text style={{ color: "#d1d5db", fontWeight: "500" }}>
           Page {page + 1}
           {total != null
             ? ` • ${Math.min((page + 1) * maxResults, total)}/${total}`
@@ -144,13 +157,17 @@ export default function MealScreen() {
             paddingHorizontal: 16,
             paddingVertical: 10,
             borderRadius: 12,
-            backgroundColor: approxHasMore ? "#2563eb" : "#171717",
-          }}>
+            backgroundColor: approxHasMore ? "#2563eb" : "#1f2937",
+            borderWidth: 1,
+            borderColor: approxHasMore ? "#3b82f6" : "#374151",
+          }}
+        >
           <Text
             style={{
               color: approxHasMore ? "#fff" : "#6b7280",
               fontWeight: "700",
-            }}>
+            }}
+          >
             Next
           </Text>
         </Pressable>
@@ -159,45 +176,104 @@ export default function MealScreen() {
   }
 
   return (
-    <View
-      style={{ flex: 1, backgroundColor: "#1a1a1a", paddingTop: insets.top }}>
-      {/* Search */}
-      <TopSearchBar
-        value={query}
-        onChangeText={setQuery}
-        onClear={() => setQuery("")}
-        placeholder="Search"
-      />
+    <DynamicBackground theme={theme}>
+      <View
+        style={{
+          flex: 1,
+          paddingTop: insets.top,
+          paddingBottom: insets.bottom,
+        }}
+      >
+        {/* Toast Notification */}
+        <Toast
+          visible={showToast}
+          message={toastMessage}
+          type={toastType}
+          onHide={() => setShowToast(false)}
+        />
 
-      {/* Pagination at the TOP */}
-      <PaginationBar />
+        <RefreshScroll refreshing={refreshing} onRefresh={handleRefresh}>
+          {/* Search */}
+          <TopSearchBar
+            value={query}
+            onChangeText={setQuery}
+            onClear={() => setQuery("")}
+            placeholder="Search"
+          />
 
-      {/* Results */}
-      <FlatList
-        data={items}
-        keyExtractor={(it) => it.recipe_id}
-        ListHeaderComponent={HeaderLoader} // just the spinner when loading
-        contentContainerStyle={{ paddingBottom: 8 }}
-        keyboardShouldPersistTaps="handled"
-        renderItem={({ item }) => (
-          <View style={{ paddingHorizontal: 16, marginBottom: 8 }}>
-            <RecipeCard
-              title={item.recipe_name}
-              imageUrl={item.recipe_image || null}
-              onPress={() => router.push(`/meal/${item.recipe_id}`)}
+          {/* Header */}
+          <View
+            style={{ paddingHorizontal: 24, marginTop: 10, marginBottom: 4 }}
+          >
+            <Text style={{ color: "#fff", fontSize: 40, fontWeight: "800" }}>
+              Nutrition
+            </Text>
+          </View>
+
+          {/* Card Container for Pagination and Grid */}
+          <View
+            style={{
+              marginHorizontal: 16,
+              marginTop: 12,
+              backgroundColor: "rgba(26, 26, 26, 0.24)",
+              borderRadius: 20,
+              borderWidth: 1,
+              borderColor: "rgba(255, 255, 255, 0.1)",
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 8,
+              elevation: 8,
+              overflow: "hidden",
+            }}
+          >
+            {/* Pagination at the TOP */}
+            <View style={{ paddingTop: 12 }}>
+              <PaginationBar />
+            </View>
+
+            {/* Subtle Divider */}
+            <View
+              style={{
+                height: 1,
+                backgroundColor: "rgba(255, 255, 255, 0.1)",
+                marginHorizontal: 16,
+                marginBottom: 8,
+              }}
+            />
+
+            {/* Meal Items Section - Scrollable Grid with Fade Effect */}
+            <ScrollableMealGrid
+              items={items}
+              loading={loading}
+              onRecipePress={(recipeId) => router.push(`/meal/${recipeId}`)}
+              height={450}
             />
           </View>
-        )}
-        ListEmptyComponent={
-          !loading ? (
-            <View style={{ paddingHorizontal: 16, paddingTop: 24 }}>
-              <Text className="text-neutral-400 text-center">
-                Search for meals and foods.
-              </Text>
-            </View>
-          ) : null
-        }
-      />
-    </View>
+
+          {/* Log Meal Button */}
+          <LogMealButton
+            onSuccess={() => {
+              setToastType("success");
+              setToastMessage("Meal logged successfully!");
+              setShowToast(true);
+              // Refresh the logged meals list
+              loggedMealsRef.current?.refresh();
+            }}
+            onError={(error) => {
+              setToastType("error");
+              setToastMessage(error);
+              setShowToast(true);
+            }}
+          />
+
+          {/* Logged Meals List */}
+          <LoggedMealsList ref={loggedMealsRef} />
+
+          {/* Additional content can be added here later */}
+          <View style={{ height: 100 }} />
+        </RefreshScroll>
+      </View>
+    </DynamicBackground>
   );
 }

@@ -1,5 +1,5 @@
 // frontend/components/Meal/RecipeCard.tsx
-import { View, Text, Pressable, Image } from "react-native";
+import { View, Text, TouchableOpacity, Image } from "react-native";
 
 type Props = {
   title: string;
@@ -9,28 +9,46 @@ type Props = {
 
 export default function RecipeCard({ title, imageUrl, onPress }: Props) {
   return (
-    <Pressable
+    <TouchableOpacity
       onPress={onPress}
-      className="bg-neutral-900 rounded-2xl p-3 mb-3 border border-neutral-800"
-      style={{ overflow: "hidden" }}>
-      <View className="flex-row">
-        {imageUrl ? (
-          <Image
-            source={{ uri: imageUrl }}
-            style={{ width: 80, height: 80, borderRadius: 12, marginRight: 12 }}
-          />
-        ) : (
-          <View
-            style={{ width: 80, height: 80, borderRadius: 12, marginRight: 12 }}
-            className="bg-neutral-800"
-          />
-        )}
-        <View className="flex-1 justify-center">
-          <Text className="text-white font-semibold" numberOfLines={2}>
-            {title}
-          </Text>
+      activeOpacity={0.85}
+      style={{
+        backgroundColor: "#2a2a2a",
+        borderRadius: 16,
+        overflow: "hidden",
+      }}
+    >
+      {imageUrl ? (
+        <Image
+          source={{ uri: imageUrl }}
+          style={{
+            width: "100%",
+            height: 120,
+            backgroundColor: "#1f1f1f",
+          }}
+          resizeMode="cover"
+        />
+      ) : (
+        <View
+          style={{
+            width: "100%",
+            height: 120,
+            backgroundColor: "#1f1f1f",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <Text style={{ fontSize: 40, opacity: 0.3 }}>🍽️</Text>
         </View>
+      )}
+      <View style={{ padding: 10 }}>
+        <Text
+          style={{ color: "#ffffff", fontWeight: "700", fontSize: 14 }}
+          numberOfLines={2}
+        >
+          {title}
+        </Text>
       </View>
-    </Pressable>
+    </TouchableOpacity>
   );
 }
