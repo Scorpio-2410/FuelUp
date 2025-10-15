@@ -572,16 +572,30 @@ export async function apiSaveRecipe(recipe_id: string | number) {
 
 // (5) Meal planner list/create/add/summary
 export async function apiListMealPlans() {
-  const res = await fetch(`${BASE_URL}${EP.mealPlans}`, {
+  // const res = await fetch(`${BASE_URL}${EP.mealPlans}`, {
+  //   headers: await authHeaders(),
+  // });
+  const profile = await readProfileCache();
+  const userId = profile?.id;
+  if (!userId) throw new Error("User not logged in");
+
+  const res = await fetch(`${BASE_URL}${EP.mealPlans}?user_id=${userId}`, {
     headers: await authHeaders(),
   });
   return asJson<{ plans: any[] }>(res);
 }
 export async function apiCreateMealPlan(name: string) {
+  const profile = await readProfileCache();
+  const userId = profile?.id;
+  if (!userId) throw new Error("User not logged in");
+
   const res = await fetch(`${BASE_URL}${EP.mealPlans}`, {
     method: "POST",
     headers: await authHeaders(),
-    body: JSON.stringify({ name }),
+    // body: JSON.stringify({ name }),
+    body: JSON.stringify({ user_id: userId, name }),
+
+
   });
   return asJson<any>(res);
 }
@@ -593,10 +607,14 @@ export async function apiAddMealToPlan(opts: {
   scheduled_at?: string | null;
   notes?: string | null;
 }) {
+  const profile = await readProfileCache();
+  const userId = profile?.id;
+  if (!userId) throw new Error("User not logged in");
   const res = await fetch(`${BASE_URL}${EP.mealPlanAdd}`, {
     method: "POST",
     headers: await authHeaders(),
-    body: JSON.stringify(opts),
+    // body: JSON.stringify(opts),
+    body: JSON.stringify({ ...opts, user_id: userId }),
   });
   return asJson<{ added: any; summary: any }>(res);
 }
