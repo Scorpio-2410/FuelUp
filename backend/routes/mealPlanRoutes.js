@@ -7,5 +7,7 @@ router.get("/plans", ctrl.listMealPlans);
 router.post("/plans", ctrl.createMealPlan);
 router.post("/plans/add", ctrl.addMealToPlan);
 router.get("/plans/:planId/summary", ctrl.getPlanSummary);
+router.delete("/plans/:planId", ctrl.deleteMealPlan);
+
 
 module.exports = router;

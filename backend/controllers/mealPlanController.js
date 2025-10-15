@@ -189,9 +189,37 @@ async function computePlanSummary(client, meal_plan_id) {
   };
 }
 
+exports.deleteMealPlan = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const planId = Number(req.params.planId);
+    const { user_id } = req.query; // optional, if you pass user_id in request
+
+    if (!planId) return res.status(400).json({ error: "planId required" });
+
+    const { rowCount } = await client.query(
+      `DELETE FROM meal_plans WHERE id=$1`,
+      [planId]
+    );
+
+    if (rowCount === 0) {
+      return res.status(404).json({ error: "Meal plan not found" });
+    }
+
+    res.json({ success: true, message: "Meal plan deleted successfully." });
+  } catch (error) {
+    console.error("Delete plan error:", error);
+    res.status(500).json({ error: "Server error while deleting meal plan." });
+  } finally {
+    client.release();
+  }
+};
+
+
 module.exports = {
   listMealPlans: exports.listMealPlans,
   createMealPlan: exports.createMealPlan,
   addMealToPlan: exports.addMealToPlan,
   getPlanSummary: exports.getPlanSummary,
+  deleteMealPlan: exports.deleteMealPlan, 
 };

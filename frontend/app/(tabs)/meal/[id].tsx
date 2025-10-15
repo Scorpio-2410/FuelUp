@@ -10,9 +10,11 @@ import {
 } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { apiGetRecipeDetail } from "../../../constants/api";
+import { apiGetRecipeDetail, apiAddMealToPlan, readProfileCache, apiSaveRecipe } from "../../../constants/api";
 import LogMealButton from "../../../components/Meal/LogMealButton";
 import Toast from "../../../components/Shared/Toast";
+import PlanPicker from "../../../components/Meal/PlanPicker";
+
 
 type FSDir = { direction_description?: string; direction_number?: string };
 type FSIng = {
@@ -64,6 +66,7 @@ export default function RecipeDetail() {
   const [toastType, setToastType] = useState<"success" | "error" | "info">(
     "success"
   );
+  const [showPlanPicker, setShowPlanPicker] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -78,6 +81,36 @@ export default function RecipeDetail() {
       }
     })();
   }, [id]);
+
+  async function handlePlanPick(planId: number) {
+    try {
+      const profile = await readProfileCache();
+      if (!profile?.id) {
+        alert("You must be logged in to add to a plan");
+        return;
+      }
+      const saveRes = await apiSaveRecipe(id);
+      const dbRecipeId = saveRes.recipe?.id;
+
+      if (!dbRecipeId) {
+        throw new Error("Recipe save failed — no DB ID returned");
+      }
+  
+      await apiAddMealToPlan({
+        meal_plan_id: planId,
+        recipe_id: dbRecipeId,   
+        servings: 1,
+        meal_type: "other",
+      });
+  
+      alert("Recipe added to meal plan successfully!");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to add recipe to plan");
+    } finally {
+      setShowPlanPicker(false);
+    }
+  }
 
   /* -------------------- derived fields -------------------- */
   const title = recipe?.recipe_name || (loading ? "Loading..." : "Recipe");
@@ -240,10 +273,10 @@ export default function RecipeDetail() {
           {/* Title row with "Open in browser" on the right */}
           <View
             style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 12,
+              // flexDirection: "row",
+              // alignItems: "center",
+              // justifyContent: "space-between",
+              // gap: 12,
               marginBottom: 4,
             }}
           >
@@ -253,19 +286,34 @@ export default function RecipeDetail() {
                 fontSize: 28,
                 fontWeight: "800",
                 flexShrink: 1,
+                marginBottom:10,
               }}
             >
               {title}
             </Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8, }}>
+          <Pressable
+          onPress={() => setShowPlanPicker(true)}
+          style={{
+            backgroundColor: "#57B9FF",
+            paddingHorizontal: 14,
+            paddingVertical: 8,
+            borderRadius: 10,
+            alignSelf: "flex-start",
+            marginBottom: 8,
+          }}>
+            <Text style={{ color: "#fff", fontWeight: "700" }}>+ Add to Plan</Text>
+          </Pressable>
 
             {recipeUrl ? (
               <Pressable
                 onPress={() => Linking.openURL(recipeUrl)}
                 style={{
-                  paddingHorizontal: 12,
+                  paddingHorizontal: 14,
                   paddingVertical: 8,
                   borderRadius: 10,
-                  backgroundColor: "#0b4da2",
+                  backgroundColor: "#57B9FF",
+                  marginBottom: 8,
                 }}
               >
                 <Text style={{ color: "#fff", fontWeight: "700" }}>
@@ -274,6 +322,7 @@ export default function RecipeDetail() {
               </Pressable>
             ) : null}
           </View>
+          </View>
 
           {!!description && (
             <Text style={{ color: "#9ca3af", marginTop: 6 }}>
@@ -281,7 +330,6 @@ export default function RecipeDetail() {
             </Text>
           )}
 
-          {/* Meta: servings / grams per portion / rating */}
           <View
             style={{
               marginTop: 14,
@@ -476,6 +524,11 @@ export default function RecipeDetail() {
           />
         </View>
       </ScrollView>
+      <PlanPicker
+      visible={showPlanPicker}
+      onClose={() => setShowPlanPicker(false)}
+      onPick={handlePlanPick}
+    />
     </>
   );
 }
