@@ -12,6 +12,7 @@ import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { apiGetRecipeDetail, apiAddMealToPlan, readProfileCache, apiSaveRecipe } from "../../../constants/api";
 import PlanPicker from "../../../components/Meal/PlanPicker";
+import MealPlans from "@/components/Meal/mealPlan";
 
 
 type FSDir = { direction_description?: string; direction_number?: string };
@@ -341,6 +342,7 @@ export default function RecipeDetail() {
             alignItems: "center",}}>
           <Text style={{ color: "#fff", fontWeight: "700" }}>➕ Add to Meal Plan</Text>
         </Pressable>
+        <MealPlans onSelect={(planId) => handlePlanPick(planId)} />
 
           {/* Nutrition */}
           <View
