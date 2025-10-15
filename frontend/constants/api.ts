@@ -112,6 +112,7 @@ const EP = {
   // Meal plans (nutrition)
   mealPlans: "/api/plans", // GET (list) + POST (create)
   mealPlanAdd: "/api/plans/add",
+  mealPlanDelete: (id: number) => `/api/plans/${id}`,
   mealPlanSummary: (id: string | number) => `/api/plans/${id}/summary`,
 
   // Meal logging
@@ -664,6 +665,12 @@ export async function apiGetUserMeals(opts?: {
     headers: await authHeaders(),
   });
   return asJson<{ ok: boolean; meals: any[]; total: number }>(res);
+}
+export async function apiDeleteMealPlan(id: number) {
+  const res = await fetch(`${BASE_URL}${EP.mealPlanDelete(id)}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+  }).then((r) => r.json());
 }
 
 /* -------------------- Step Tracking -------------------- */

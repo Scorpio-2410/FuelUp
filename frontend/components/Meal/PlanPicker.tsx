@@ -7,8 +7,9 @@ import {
   TextInput,
   Pressable,
   FlatList,
+  Alert,
 } from "react-native";
-import { apiCreateMealPlan, apiListMealPlans } from "../../constants/api";
+import { apiCreateMealPlan, apiListMealPlans, apiDeleteMealPlan, } from "../../constants/api";
 
 type Props = {
   visible: boolean;
@@ -44,6 +45,28 @@ export default function PlanPicker({ visible, onClose, onPick }: Props) {
     } catch {}
   }
 
+  async function handleDelete(id: number, name: string) {
+    Alert.alert(
+      "Delete Plan",
+      `Are you sure you want to delete "${name}"?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await apiDeleteMealPlan(id);
+              await refresh();
+            } catch {
+              Alert.alert("Error", "Could not delete plan.");
+            }
+          },
+        },
+      ]
+    );
+  }
+
   return (
     <Modal
       visible={visible}
@@ -58,26 +81,66 @@ export default function PlanPicker({ visible, onClose, onPick }: Props) {
         }}>
         <View
           style={{
-            backgroundColor: "#111827",
-            padding: 16,
-            borderTopLeftRadius: 18,
-            borderTopRightRadius: 18,
+            // backgroundColor: "#111827",
+            backgroundColor: "#18181b",
+            // padding: 16,
+            // borderTopLeftRadius: 18,
+            // borderTopRightRadius: 18,
+            paddingHorizontal: 20,
+            paddingTop: 18,
+            paddingBottom: 30,
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: -4 },
+            shadowOpacity: 0.25,
+            shadowRadius: 8,
+            minHeight: "55%", 
+            maxHeight: "75%",
           }}>
+            {/* Header */}
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: 16,
+            }}
+          >
           <Text
             style={{
               color: "#fff",
               fontSize: 18,
               fontWeight: "800",
-              marginBottom: 10,
+              // marginBottom: 10,
             }}>
             Select a plan
           </Text>
+          <Pressable onPress={onClose}>
+              <Text style={{ color: "#a3e635", fontWeight: "700", fontSize:15 }}>Close</Text>
+            </Pressable>
+          </View>
 
           <FlatList
             data={plans}
             keyExtractor={(p) => String(p.id)}
-            style={{ maxHeight: 260 }}
+            style={{ maxHeight: 260, 
+            backgroundColor: "#1a1a1a",
+            borderRadius: 12,
+            marginBottom: 14, }}
+            contentContainerStyle={{ paddingVertical: 4 }}
             renderItem={({ item }) => (
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  paddingVertical: 12,
+                  paddingHorizontal: 14,
+                  borderBottomWidth: 1,
+                  borderBottomColor: "#27272a",
+                }}
+              >
               <Pressable
                 onPress={() => onPick(item.id)}
                 style={{
@@ -85,17 +148,68 @@ export default function PlanPicker({ visible, onClose, onPick }: Props) {
                   borderBottomWidth: 1,
                   borderBottomColor: "#1f2937",
                 }}>
-                <Text style={{ color: "#e5e7eb", fontWeight: "600" }}>
+                <Text style={{ color: "#e5e7eb", fontWeight: "600", fontSize:15 }}>
                   {item.name}
                 </Text>
               </Pressable>
+              <Pressable
+                  onPress={() => handleDelete(item.id, item.name)}
+                  style={{
+                    backgroundColor: "#dc2626",
+                    paddingVertical: 6,
+                    paddingHorizontal: 12,
+                    borderRadius: 8,
+                  }}
+                >
+                  <Text style={{ color: "#fff", fontWeight: "700" }}>Delete</Text>
+                </Pressable>
+              </View>
             )}
+            // ListEmptyComponent={
+            //   <Text style={{ color: "#9ca3af", marginVertical: 6, padding: 8, minHeight: 20 }}>
+            //     {loading ? "Loading..." : "No plans yet."}
+            //   </Text>
+            // }
             ListEmptyComponent={
-              <Text style={{ color: "#9ca3af", marginVertical: 6 }}>
-                {loading ? "Loading..." : "No plans yet."}
-              </Text>
-            }
-          />
+              <View
+                style={{
+                  flex: 1,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  paddingVertical: 50,
+                }}>
+                <View
+                  style={{
+                    backgroundColor: "#1f2937",
+                    borderRadius: 12,
+                    paddingVertical: 20,
+                    paddingHorizontal: 16,
+                    borderWidth: 1,
+                    borderColor: "#2d2d2d",
+                    width: "90%",
+                    alignItems: "center",
+                  }}>
+                  <Text
+                    style={{
+                      color: "#9ca3af",
+                      fontSize: 15,
+                      textAlign: "center",
+                      fontWeight: "500",
+                    }}>
+                    {loading ? "Loading your meal plans..." : "No meal plans yet."}
+                  </Text>
+                  <Text
+                    style={{
+                      color: "#6b7280",
+                      fontSize: 13,
+                      marginTop: 6,
+                      textAlign: "center",
+                    }}>
+                    Tap “Create” below to start a new plan.
+                  </Text>
+                </View>
+              </View>
+            }/>
 
           <View style={{ height: 12 }} />
 
@@ -129,12 +243,6 @@ export default function PlanPicker({ visible, onClose, onPick }: Props) {
           ) : (
             <Text style={{ color: "#9ca3af" }}>Plan limit reached (5).</Text>
           )}
-
-          <Pressable
-            onPress={onClose}
-            style={{ alignSelf: "flex-end", marginTop: 14 }}>
-            <Text style={{ color: "#a3e635", fontWeight: "800" }}>Close</Text>
-          </Pressable>
         </View>
       </View>
     </Modal>
