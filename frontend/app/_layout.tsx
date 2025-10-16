@@ -91,7 +91,9 @@ function RootLayoutNav() {
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="targetquestions" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="steps-analytics" options={{ headerShown: false }} />
+        <Stack.Screen name="steps-analytics" options={{ headerShown: false }} />
+        <Stack.Screen name="steps-performance-chart" options={{ headerShown: false }} />
+        <Stack.Screen name="calories-formula" options={{ headerShown: false }} />
 
         {/* Auth + onboarding: hide headers */}
         <Stack.Screen name="authlogin" options={{ headerShown: false }} />

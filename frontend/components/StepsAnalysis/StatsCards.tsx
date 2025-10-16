@@ -164,10 +164,13 @@ export const StatsCards = ({
       {statsCards.map((card, index) => {
         const cardStyles = getCardStyles(card.color);
         const isYesterdayCard = card.title === "📅 Yesterday";
+        const isCaloriesCard = card.title === "🔥 Calories Burned";
         
-        const CardComponent = isYesterdayCard ? TouchableOpacity : Animated.View;
+        const CardComponent = (isYesterdayCard || isCaloriesCard) ? TouchableOpacity : Animated.View;
         const cardProps = isYesterdayCard 
           ? { onPress: () => router.push('/steps-performance-chart') }
+          : isCaloriesCard
+          ? { onPress: () => router.push('/calories-formula') }
           : { entering: FadeIn.delay(card.delay).duration(1000) };
         
         return (
