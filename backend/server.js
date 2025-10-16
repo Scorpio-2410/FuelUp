@@ -15,6 +15,8 @@ const exerciseSearchRoutes = require("./routes/exerciseSearchRoutes"); // Exerci
 const scheduleRoutes = require("./routes/scheduleRoutes");
 const targetQuestionRoutes = require("./routes/targetQuestionRoutes");
 const quotesRoutes = require("./routes/quotesRoutes");
+const foodRecommendationRoutes = require("./routes/foodRecommendationRoutes");
+
 
 /* ---- NEW: FatSecret catalogs + Meal Planner ---- */
 const foodRoutes = require("./routes/foodRoutes"); // foods/recipes browse + save
@@ -70,6 +72,10 @@ app.use("/api", mealPlanRoutes);
 
 // Step Tracking
 app.use("/api/steps", stepStreakRoutes);
+
+//Ai Food Recommendations
+app.use("/api/food", foodRecommendationRoutes);
+
 
 /* ---------------- Root + health ---------------- */
 app.get("/", (req, res) => {
