@@ -118,8 +118,15 @@ export const StatsCards = ({
     {
       title: "📅 Yesterday", 
       value: loadingStats ? '...' : (() => {
+        // Debug logging
+        console.log('StatsCards Debug:');
+        console.log('  serverYesterdaySteps:', serverYesterdaySteps);
+        console.log('  yesterdaySteps?.steps:', yesterdaySteps?.steps);
+        console.log('  serverYesterdaySteps > 0:', serverYesterdaySteps > 0);
+        
         // Prioritize server data, but fall back to local data if server data is 0 or unavailable
         const steps = serverYesterdaySteps > 0 ? serverYesterdaySteps : (yesterdaySteps?.steps || 0);
+        console.log('  Final steps value:', steps);
         return formatSteps(steps);
       })(),
       subtitle: (() => {

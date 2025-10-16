@@ -88,8 +88,13 @@ export default function StepsAnalytics() {
       try {
         const yesterdayData = await apiGetStepsByDate(yesterdayStr);
         console.log('Yesterday data from server:', yesterdayData);
+        console.log('Yesterday date being queried:', yesterdayStr);
         if (yesterdayData.success && yesterdayData.stepRecord) {
+          console.log('StepRecord found:', yesterdayData.stepRecord);
+          console.log('Step count:', yesterdayData.stepRecord.stepCount);
           setServerYesterdaySteps(yesterdayData.stepRecord.stepCount);
+        } else {
+          console.log('No stepRecord found or success=false');
         }
       } catch (yesterdayError) {
         console.log('Error fetching yesterday data:', yesterdayError);
