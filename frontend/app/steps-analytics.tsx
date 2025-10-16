@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useStepsTracking } from '../hooks/useStepsTracking';
-import { apiGetStepsChart, apiGetStepsStreak, apiGetStepsByDate, StepStats, apiGetMe } from '../constants/api';
+import { apiGetStepsChart, apiGetStepsStreak, apiGetStepsByDate, StepStats, apiGetMe, apiGetFitnessProfile } from '../constants/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import StreakCongratulationsAlert from '../components/StepsAnalysis/StreakCongratulationsAlert';
 import StreakLostAlert from '../components/StepsAnalysis/StreakLostAlert';
@@ -42,15 +42,15 @@ export default function StepsAnalytics() {
   // Animated progress value for smooth progress bar animation
   const progressWidth = useSharedValue(0);
 
-  // Fetch user profile data for weight
-  const fetchUserProfile = async () => {
+  // Fetch fitness profile data for weight
+  const fetchFitnessProfile = async () => {
     try {
-      const { user } = await apiGetMe();
-      if (user?.weightKg) {
-        setUserWeight(user.weightKg);
+      const { profile } = await apiGetFitnessProfile();
+      if (profile?.weightKg) {
+        setUserWeight(profile.weightKg);
       }
     } catch (error) {
-      console.log('Failed to fetch user profile:', error);
+      console.log('Failed to fetch fitness profile:', error);
     }
   };
 
@@ -111,7 +111,7 @@ export default function StepsAnalytics() {
   useEffect(() => {
     refreshSteps();
     fetchServerStats();
-    fetchUserProfile();
+    fetchFitnessProfile();
   }, []); // Only run once when screen loads
 
   // Animate progress bar when steps change
@@ -202,7 +202,7 @@ export default function StepsAnalytics() {
   const handleRefresh = async () => {
     if (refreshing) return;
     setRefreshing(true);
-    await Promise.all([refreshSteps(), fetchServerStats()]);
+    await Promise.all([refreshSteps(), fetchServerStats(), fetchFitnessProfile()]);
     setTimeout(() => {
       setRefreshing(false);
     }, 1200);
