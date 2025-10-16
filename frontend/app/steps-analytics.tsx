@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useStepsTracking } from '../hooks/useStepsTracking';
-import { apiGetStepsChart, apiGetStepsStreak, apiGetStepsByDate, StepStats } from '../constants/api';
+import { apiGetStepsChart, apiGetStepsStreak, apiGetStepsByDate, StepStats, apiGetMe } from '../constants/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import StreakCongratulationsAlert from '../components/StepsAnalysis/StreakCongratulationsAlert';
 import StreakLostAlert from '../components/StepsAnalysis/StreakLostAlert';
@@ -31,9 +31,28 @@ export default function StepsAnalytics() {
   const [showStreakLostAlert, setShowStreakLostAlert] = useState(false);
   const [lostStreakCount, setLostStreakCount] = useState<number>(0);
   const [serverYesterdaySteps, setServerYesterdaySteps] = useState<number>(0);
+  const [userWeight, setUserWeight] = useState<number | undefined>(undefined);
+
+  // Debug logging for yesterday steps
+  React.useEffect(() => {
+    console.log('Yesterday steps from local storage:', yesterdaySteps);
+    console.log('Server yesterday steps:', serverYesterdaySteps);
+  }, [yesterdaySteps, serverYesterdaySteps]);
 
   // Animated progress value for smooth progress bar animation
   const progressWidth = useSharedValue(0);
+
+  // Fetch user profile data for weight
+  const fetchUserProfile = async () => {
+    try {
+      const { user } = await apiGetMe();
+      if (user?.weightKg) {
+        setUserWeight(user.weightKg);
+      }
+    } catch (error) {
+      console.log('Failed to fetch user profile:', error);
+    }
+  };
 
   // Fetch backend stats (30 days for good average)
   const fetchServerStats = async () => {
@@ -68,10 +87,17 @@ export default function StepsAnalytics() {
 
       try {
         const yesterdayData = await apiGetStepsByDate(yesterdayStr);
+        console.log('Yesterday data from server:', yesterdayData);
+        console.log('Yesterday date being queried:', yesterdayStr);
         if (yesterdayData.success && yesterdayData.stepRecord) {
+          console.log('StepRecord found:', yesterdayData.stepRecord);
+          console.log('Step count:', yesterdayData.stepRecord.stepCount);
           setServerYesterdaySteps(yesterdayData.stepRecord.stepCount);
+        } else {
+          console.log('No stepRecord found or success=false');
         }
       } catch (yesterdayError) {
+        console.log('Error fetching yesterday data:', yesterdayError);
       }
     } catch (error) {
       console.error('StepsAnalytics: Failed to fetch server stats:', error);
@@ -85,6 +111,7 @@ export default function StepsAnalytics() {
   useEffect(() => {
     refreshSteps();
     fetchServerStats();
+    fetchUserProfile();
   }, []); // Only run once when screen loads
 
   // Animate progress bar when steps change
@@ -233,6 +260,8 @@ export default function StepsAnalytics() {
               serverYesterdaySteps={serverYesterdaySteps}
               yesterdaySteps={yesterdaySteps}
               loadingStats={loadingStats}
+              userWeight={userWeight}
+              todaySteps={stepsData.steps}
             />
           </View>
         </RefreshScroll>
