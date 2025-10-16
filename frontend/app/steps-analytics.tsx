@@ -122,16 +122,8 @@ export default function StepsAnalytics() {
     });
   }, [stepsData.steps, stepsData.goal, progressWidth]);
 
-  // Auto-refresh steps every 2 minutes to keep progress bar moving
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (!isLoading && !hasError) {
-        refreshSteps();
-      }
-    }, 2 * 60 * 1000); // 2 minutes
-
-    return () => clearInterval(interval);
-  }, [refreshSteps, isLoading, hasError]);
+  // Auto-refresh removed for better user experience
+  // Users can manually refresh using pull-to-refresh
 
   // Check if user just achieved goal and show congratulations
   useEffect(() => {
