@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { StepStats } from '../../constants/api';
 import { stepsCaloriesBurn, UserProfile } from './StepsCaloriesBurn';
+import { useRouter } from 'expo-router';
 
 interface StatsCardsProps {
   serverStats: StepStats | null;
@@ -100,6 +101,7 @@ export const StatsCards = ({
   userFitnessLevel,
   todaySteps
 }: StatsCardsProps) => {
+  const router = useRouter();
   const formatSteps = (steps: number): string => {
     return steps.toLocaleString();
   };
@@ -187,10 +189,17 @@ export const StatsCards = ({
     <View className="flex-row flex-wrap justify-between mb-6">
       {statsCards.map((card, index) => {
         const cardStyles = getCardStyles(card.color);
+        const isYesterdayCard = card.title === "📅 Yesterday";
+        
+        const CardComponent = isYesterdayCard ? TouchableOpacity : Animated.View;
+        const cardProps = isYesterdayCard 
+          ? { onPress: () => router.push('/steps-chart') }
+          : { entering: FadeIn.delay(card.delay).duration(1000) };
+        
         return (
-          <Animated.View 
+          <CardComponent 
             key={index}
-            entering={FadeIn.delay(card.delay).duration(1000)}
+            {...cardProps}
             className="p-5 rounded-2xl w-[48%] mb-4 items-center border"
             style={{
               backgroundColor: cardStyles.backgroundColor,
@@ -217,7 +226,7 @@ export const StatsCards = ({
                 {card.subtitle}
               </Text>
             )}
-          </Animated.View>
+          </CardComponent>
         );
       })}
     </View>
