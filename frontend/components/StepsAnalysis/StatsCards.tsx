@@ -110,25 +110,6 @@ export const StatsCards = ({
     return calories.toLocaleString();
   };
 
-  // Debug logging for calories calculation
-  React.useEffect(() => {
-    console.log('Calories calculation debug:', {
-      userWeight,
-      userHeight,
-      userAge,
-      userGender,
-      userFitnessLevel,
-      todaySteps,
-      calculatedCalories: userWeight ? calculateCaloriesBurned(
-        todaySteps, 
-        userWeight, 
-        userHeight, 
-        userAge, 
-        userGender, 
-        userFitnessLevel
-      ) : 'No weight'
-    });
-  }, [userWeight, userHeight, userAge, userGender, userFitnessLevel, todaySteps]);
 
   const statsCards = [
     {
@@ -148,15 +129,8 @@ export const StatsCards = ({
     {
       title: "📅 Yesterday", 
       value: loadingStats ? '...' : (() => {
-        // Debug logging
-        console.log('StatsCards Debug:');
-        console.log('  serverYesterdaySteps:', serverYesterdaySteps);
-        console.log('  yesterdaySteps?.steps:', yesterdaySteps?.steps);
-        console.log('  serverYesterdaySteps > 0:', serverYesterdaySteps > 0);
-        
         // Prioritize server data, but fall back to local data if server data is 0 or unavailable
         const steps = serverYesterdaySteps > 0 ? serverYesterdaySteps : (yesterdaySteps?.steps || 0);
-        console.log('  Final steps value:', steps);
         return formatSteps(steps);
       })(),
       subtitle: (() => {
@@ -193,7 +167,7 @@ export const StatsCards = ({
         
         const CardComponent = isYesterdayCard ? TouchableOpacity : Animated.View;
         const cardProps = isYesterdayCard 
-          ? { onPress: () => router.push('/steps-chart') }
+          ? { onPress: () => router.push('/steps-performance-chart') }
           : { entering: FadeIn.delay(card.delay).duration(1000) };
         
         return (

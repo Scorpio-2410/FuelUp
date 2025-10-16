@@ -35,8 +35,6 @@ export default function StepsAnalytics() {
 
   // Debug logging for yesterday steps
   React.useEffect(() => {
-    console.log('Yesterday steps from local storage:', yesterdaySteps);
-    console.log('Server yesterday steps:', serverYesterdaySteps);
   }, [yesterdaySteps, serverYesterdaySteps]);
 
   // Animated progress value for smooth progress bar animation
@@ -50,7 +48,6 @@ export default function StepsAnalytics() {
         setUserWeight(profile.weightKg);
       }
     } catch (error) {
-      console.log('Failed to fetch fitness profile:', error);
     }
   };
 
@@ -87,20 +84,12 @@ export default function StepsAnalytics() {
 
       try {
         const yesterdayData = await apiGetStepsByDate(yesterdayStr);
-        console.log('Yesterday data from server:', yesterdayData);
-        console.log('Yesterday date being queried:', yesterdayStr);
         if (yesterdayData.success && yesterdayData.stepRecord) {
-          console.log('StepRecord found:', yesterdayData.stepRecord);
-          console.log('Step count:', yesterdayData.stepRecord.stepCount);
           setServerYesterdaySteps(yesterdayData.stepRecord.stepCount);
-        } else {
-          console.log('No stepRecord found or success=false');
         }
       } catch (yesterdayError) {
-        console.log('Error fetching yesterday data:', yesterdayError);
       }
     } catch (error) {
-      console.error('StepsAnalytics: Failed to fetch server stats:', error);
       // Don't show error - will use local data as fallback
     } finally {
       setLoadingStats(false);
@@ -146,7 +135,6 @@ export default function StepsAnalytics() {
           await AsyncStorage.setItem(lastShownKey, 'true');
         }
       } catch (error) {
-        console.error('StepsAnalytics: Error checking streak achievement:', error);
       }
     };
 
@@ -184,7 +172,6 @@ export default function StepsAnalytics() {
           await AsyncStorage.removeItem(previousStreakKey);
         }
       } catch (error) {
-        console.error('StepsAnalytics: Error checking streak loss:', error);
       }
     };
 
