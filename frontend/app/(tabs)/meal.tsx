@@ -15,6 +15,9 @@ import { useGlobalRefresh } from "../../components/useGlobalRefresh";
 import { apiSearchRecipesV3 } from "../../constants/api";
 import DynamicBackground from "../../components/Theme/DynamicTheme";
 import { useTheme } from "../../contexts/ThemeContext";
+import { useNavigation } from "@react-navigation/native";
+import MealPlansScreen from "../../components/Meal/mealPlans";
+
 
 /* -------------------- small debounce hook -------------------- */
 function useDebounce<T>(value: T, delay = 400) {
@@ -108,6 +111,7 @@ export default function MealScreen() {
   /* -------------------- top pagination bar -------------------- */
   function PaginationBar() {
     return (
+      
       <View
         className="flex-row items-center justify-between"
         style={{ paddingHorizontal: 20, marginBottom: 12 }}
@@ -208,6 +212,32 @@ export default function MealScreen() {
               Nutrition
             </Text>
           </View>
+          <View style={{ paddingHorizontal: 24, marginBottom: 12 }}>
+
+        <Pressable
+          onPress={() => router.push("/meal-plans")} 
+          style={{
+            backgroundColor: "#2563eb",
+            borderRadius: 14,
+            paddingVertical: 12,
+            alignItems: "center",
+            justifyContent: "center",
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 3 },
+            shadowOpacity: 0.25,
+            shadowRadius: 4,
+          }}>
+          <Text
+            style={{
+              color: "#fff",
+              fontSize: 16,
+              fontWeight: "700",
+              letterSpacing: 0.3,
+            }}>
+            View Meal Plans
+          </Text>
+        </Pressable>
+      </View>
 
           {/* Card Container for Pagination and Grid */}
           <View
