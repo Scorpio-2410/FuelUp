@@ -24,6 +24,8 @@ export default function MealPlansScreen() {
   const [planSummary, setPlanSummary] = useState<any>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [summaryLoading, setSummaryLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
 
 
   async function loadPlans() {
@@ -37,14 +39,21 @@ export default function MealPlansScreen() {
       setLoading(false);
     }
   }
-
-  async function handleCreatePlan() {
+  
+async function handleCreatePlan() {
     try {
+      if (plans.length >= 5) {
+        setErrorMessage("Plan limit reached (5).");
+        return;
+      }
+
       const name = `Plan ${plans.length + 1}`;
       await apiCreateMealPlan(name);
       await loadPlans();
+      setErrorMessage(null);
     } catch (err) {
       console.error("Create plan error:", err);
+      setErrorMessage("Failed to create meal plan.");
     }
   }
 
@@ -88,7 +97,7 @@ export default function MealPlansScreen() {
       {plans.length === 0 ? (
         <View className="flex-1 justify-center items-center">
           <Text className="text-gray-400 text-base">
-            No meal plans yet — create one below!
+            No meal plans yet - create one below!
           </Text>
         </View>
       ) : (
@@ -119,12 +128,20 @@ export default function MealPlansScreen() {
       )}
 
       {/* create plan button */}
+      {plans.length < 5 ? (
       <Pressable
         onPress={handleCreatePlan}
         className="absolute bottom-10 right-10 mx-auto bg-blue-600 rounded-2xl py-4 w-[90%] flex-row justify-center items-center shadow-lg shadow-blue-800/60">
         <Plus size={22} color="white" />
         <Text className="text-white text-lg font-bold ml-2">Create Plan</Text>
       </Pressable>
+      ) : (
+        <View className="absolute bottom-10 left-0 right-0 items-center">
+          <Text className="text-gray-400 text-base font-semibold">
+            Plan limit reached (5)
+          </Text>
+        </View>
+      )}
 
       {/* plan recipes */}
       <Modal
