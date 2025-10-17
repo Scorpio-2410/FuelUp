@@ -69,14 +69,18 @@ export class AppPreloader {
         this.preloadedData.userProfile = cached;
       }
 
-      // 2) Fetch fresh data from API in background
-      const { user } = await apiGetMe();
-      if (user) {
-        this.preloadedData.userProfile = user;
-        await writeProfileCache(user);
+      // 2) Try to fetch fresh data from API - will fail silently if no token
+      try {
+        const { user } = await apiGetMe();
+        if (user) {
+          this.preloadedData.userProfile = user;
+          await writeProfileCache(user);
+        }
+      } catch (apiError) {
+        // Silent fail - user not logged in
       }
     } catch (error) {
-      console.warn('Failed to preload user profile:', error);
+      // Silent fail
     }
   }
 
