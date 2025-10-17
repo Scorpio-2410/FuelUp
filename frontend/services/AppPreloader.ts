@@ -2,7 +2,8 @@
 // Handles all data loading during splash screen for smooth app startup
 // Eliminates white screen by preloading essential data in background
 
-import { apiGetMe, readProfileCache, writeProfileCache } from '../constants/api';
+import { apiGetMe, readProfileCache, writeProfileCache, K_TOKEN } from '../constants/api';
+import * as SecureStore from 'expo-secure-store';
 import { ExpoStepsService } from './stepsService';
 import { StepsStorageService } from '../utils/stepsStorage';
 
@@ -69,7 +70,19 @@ export class AppPreloader {
         this.preloadedData.userProfile = cached;
       }
 
-      // 2) Try to fetch fresh data from API - will fail silently if no token
+      // 2) Check if user is authenticated before making API call
+      try {
+        const token = await SecureStore.getItemAsync(K_TOKEN);
+        if (!token) {
+          // No token available, skip API call
+          return;
+        }
+      } catch (tokenError) {
+        // SecureStore not available or token check failed, skip API call
+        return;
+      }
+
+      // 3) Try to fetch fresh data from API
       try {
         const { user } = await apiGetMe();
         if (user) {
