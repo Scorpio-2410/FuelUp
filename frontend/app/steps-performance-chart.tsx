@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { apiGetStepsChart, StepStats } from '../constants/api';
@@ -23,6 +23,7 @@ export default function StepsPerformanceChart() {
   const [stats, setStats] = useState<StepStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedPeriod, setSelectedPeriod] = useState<'week' | 'month'>('week');
+  const scrollViewRef = useRef<ScrollView>(null);
 
   // Fetch chart data
   const fetchChartData = async () => {
@@ -108,59 +109,42 @@ export default function StepsPerformanceChart() {
         const response = await apiGetStepsChart(startDateStr, endDateStr);
         
         if (response.success) {
-          // Create complete 30-day range with 0 steps for missing days
-          const completeData = [];
-          const currentDate = new Date(startDate);
+          // Filter to only show days with actual step data
+          const dataWithSteps = response.dailyData ? response.dailyData.filter((d: any) => d.stepCount > 0) : [];
           
-          while (currentDate <= endDate) {
-            const dateStr = currentDate.toISOString().split('T')[0];
-            const existingData = response.dailyData ? response.dailyData.find((d: any) => {
-              // Handle both date formats: "2025-10-08" and "2025-10-08T13:00:00.000Z"
-              const apiDate = d.date.split('T')[0];
-              return apiDate === dateStr;
-            }) : null;
+          if (dataWithSteps.length > 0) {
+            // Sort by date to ensure chronological order
+            dataWithSteps.sort((a: any, b: any) => {
+              const dateA = new Date(a.date.split('T')[0]);
+              const dateB = new Date(b.date.split('T')[0]);
+              return dateA.getTime() - dateB.getTime();
+            });
             
-            completeData.push({
-              date: currentDate.toLocaleDateString('en-US', { 
+            const completeData = dataWithSteps.map((d: any) => ({
+              date: new Date(d.date.split('T')[0]).toLocaleDateString('en-US', { 
                 weekday: 'short', 
                 month: 'short', 
                 day: 'numeric' 
               }),
-              steps: existingData ? existingData.stepCount : 0,
+              steps: d.stepCount,
               maxSteps: 0
-            });
+            }));
             
-            currentDate.setDate(currentDate.getDate() + 1);
+            const maxSteps = Math.max(...completeData.map(d => d.steps), 1);
+            const formattedData = completeData.map(item => ({
+              ...item,
+              maxSteps
+            }));
+            
+            setChartData(formattedData);
+            setStats(response.overallStats);
+          } else {
+            // No data available
+            setChartData([]);
           }
-          
-          const maxSteps = Math.max(...completeData.map(d => d.steps), 1); // Ensure at least 1 for display
-          const formattedData = completeData.map(item => ({
-            ...item,
-            maxSteps
-          }));
-          
-          setChartData(formattedData);
-          setStats(response.overallStats);
         } else {
-          // If API fails, still show 30 days with 0 steps
-          const completeData = [];
-          const currentDate = new Date(startDate);
-          
-          while (currentDate <= endDate) {
-            completeData.push({
-              date: currentDate.toLocaleDateString('en-US', { 
-                weekday: 'short', 
-                month: 'short', 
-                day: 'numeric' 
-              }),
-              steps: 0,
-              maxSteps: 1
-            });
-            
-            currentDate.setDate(currentDate.getDate() + 1);
-          }
-          
-          setChartData(completeData);
+          // If API fails, show no data
+          setChartData([]);
         }
       }
     } catch (error) {
@@ -172,6 +156,16 @@ export default function StepsPerformanceChart() {
   useEffect(() => {
     fetchChartData();
   }, [selectedPeriod]);
+
+  // Auto-scroll to the rightmost position (most recent data) when data loads
+  useEffect(() => {
+    if (chartData.length > 0 && selectedPeriod === 'month') {
+      // Small delay to ensure the chart is rendered
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }
+  }, [chartData, selectedPeriod]);
 
   const getBarHeight = (steps: number, maxSteps: number) => {
     if (maxSteps === 0) return 0;
@@ -304,6 +298,21 @@ export default function StepsPerformanceChart() {
               entering={FadeInDown.delay(300).duration(300)}
               className="bg-gray-900/30 rounded-2xl p-6 mb-6"
             >
+              {/* Data Range Indicator for Monthly View */}
+              {selectedPeriod === 'month' && (
+                <View className="mb-4 p-3 bg-gray-800/50 rounded-lg">
+                  <Text className="text-gray-300 text-sm font-bold mb-1">DATA RANGE</Text>
+                  <Text className="text-white text-sm">
+                    {chartData.length} day{chartData.length !== 1 ? 's' : ''} of step data
+                    {chartData.length > 0 && (
+                      <Text className="text-gray-400">
+                        {' • '}
+                        {chartData[0].date.split(' ')[1]} {chartData[0].date.split(' ')[2]} - {chartData[chartData.length - 1].date.split(' ')[1]} {chartData[chartData.length - 1].date.split(' ')[2]}
+                      </Text>
+                    )}
+                  </Text>
+                </View>
+              )}
               {/* Y-axis labels */}
               <View className="absolute left-2 top-6 flex-col justify-between" style={{ height: chartHeight - 40 }}>
                 <Text className="text-white text-xs">15k</Text>
@@ -314,14 +323,18 @@ export default function StepsPerformanceChart() {
 
               {/* Chart container */}
               <View className="ml-8" style={{ height: chartHeight }}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  <View className="flex-row items-end" style={{ minWidth: chartData.length * 40 }}>
+                <ScrollView 
+                  ref={scrollViewRef}
+                  horizontal 
+                  showsHorizontalScrollIndicator={false}
+                >
+                  <View className="flex-row items-end" style={{ minWidth: chartData.length * 50 }}>
                     {chartData.map((day, index) => {
                       const barHeight = getBarHeight(day.steps, day.maxSteps);
                       const barColor = getBarColor(day.steps);
                       
                       return (
-                        <View key={index} className="items-center mx-1" style={{ width: 35 }}>
+                        <View key={index} className="items-center mx-1" style={{ width: 45 }}>
                           {/* Bar */}
                           <View 
                             className="w-full rounded-t-lg"
@@ -341,7 +354,7 @@ export default function StepsPerformanceChart() {
                           
                           {/* Date - simplified format */}
                           <Text className="text-white text-xs mt-1 text-center">
-                            {day.date.split(' ')[1]} {/* Show only day number */}
+                            {day.date.split(' ')[2]} {/* Show only day number */}
                           </Text>
                         </View>
                       );
