@@ -8,7 +8,7 @@ const { width: screenWidth } = Dimensions.get('window');
 const chartHeight = 200;
 
 interface MonthlyStepsPerformanceProps extends StepsPerformanceProps {
-  scrollViewRef?: React.RefObject<ScrollView>;
+  scrollViewRef?: React.RefObject<ScrollView | null>;
 }
 
 // Single Responsibility: Handle monthly steps performance chart

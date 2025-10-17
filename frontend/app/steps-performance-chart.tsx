@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import DynamicBackground from '../components/Theme/DynamicTheme';
 import { useTheme } from '../contexts/ThemeContext';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { useStepsTracking } from '../hooks/useStepsTracking';
 import { WeeklyStepsPerformance } from '../components/StepsAnalysis/WeeklyStepsPerformance';
 import { MonthlyStepsPerformance } from '../components/StepsAnalysis/MonthlyStepsPerformance';
@@ -14,6 +14,7 @@ import { PeriodType } from '../components/StepsAnalysis/StepsPerformanceTypes';
 // Single Responsibility: Handle UI layout, period selection, and component coordination
 export default function StepsPerformanceChart() {
   const { theme } = useTheme();
+  const router = useRouter();
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>('week');
   const scrollViewRef = useRef<ScrollView>(null);
   
@@ -32,7 +33,7 @@ export default function StepsPerformanceChart() {
             className="flex-row items-center justify-between px-6 py-4"
           >
             <TouchableOpacity 
-              onPress={() => {/* Handle back navigation */}}
+              onPress={() => router.back()}
               className="w-10 h-10 rounded-full bg-gray-800/50 items-center justify-center"
             >
               <Text className="text-white text-lg">←</Text>
