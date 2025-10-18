@@ -118,6 +118,7 @@ const EP = {
   // Meal logging
   mealsLog: "/api/meals/log",
   mealsGet: "/api/meals",
+  dailyCalories: (date: string) => `/api/daily-calories/${date}`,
 };
 
 /* -------------------- helpers -------------------- */
@@ -666,6 +667,25 @@ export async function apiGetUserMeals(opts?: {
   });
   return asJson<{ ok: boolean; meals: any[]; total: number }>(res);
 }
+
+export interface DailyCalorieSummary {
+  date: string;
+  consumed: number;
+  burned: number;
+  target: number;
+  netCalories: number;
+  progress: number;
+  remaining: number;
+  isOverTarget: boolean;
+}
+
+export async function apiGetDailyCalorieSummary(date: string) {
+  const res = await fetch(`${BASE_URL}${EP.dailyCalories(date)}`, {
+    headers: await authHeaders(),
+  });
+  return asJson<{ ok: boolean; summary: DailyCalorieSummary }>(res);
+}
+
 export async function apiDeleteMealPlan(id: number) {
   const res = await fetch(`${BASE_URL}${EP.mealPlanDelete(id)}`, {
     method: "DELETE",
