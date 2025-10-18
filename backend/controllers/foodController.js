@@ -262,7 +262,19 @@ exports.getDailyCalorieSummary = async (req, res) => {
        WHERE user_id = $1 AND date = $2`,
       [userId, date]
     );
-    const burned = parseInt(stepsResult.rows[0].burned_calories) || 0;
+    const stepsBurned = parseInt(stepsResult.rows[0].burned_calories) || 0;
+
+    // Get burned calories from fitness activities for the date
+    const activitiesResult = await client.query(
+      `SELECT COALESCE(SUM(calories_burned), 0) as burned_calories
+       FROM fitness_activities 
+       WHERE user_id = $1 AND date = $2`,
+      [userId, date]
+    );
+    const activitiesBurned = parseInt(activitiesResult.rows[0].burned_calories) || 0;
+
+    // Total burned calories (steps + activities)
+    const burned = stepsBurned + activitiesBurned;
 
     // Calculate net calories and progress
     const netCalories = consumed - burned;
@@ -274,6 +286,8 @@ exports.getDailyCalorieSummary = async (req, res) => {
         date,
         consumed,
         burned,
+        stepsBurned,
+        activitiesBurned,
         target,
         netCalories,
         progress: Math.min(progress, 100), // Cap at 100%
