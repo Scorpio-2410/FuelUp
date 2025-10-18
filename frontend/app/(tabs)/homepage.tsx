@@ -182,7 +182,9 @@ export default function HomePageScreen() {
           <FitnessActivityTracker ref={fitnessActivityRef} className="mb-6" />
 
           {/* Legacy Calories (keeping for now) */}
+          {/*
           <HomepageCaloriesTracking ref={caloriesRef} className="mb-6" />
+          */}
         </View>
       </RefreshScroll>
     </View>
