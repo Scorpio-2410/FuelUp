@@ -10,6 +10,8 @@ import HomepageMotivationalQuotes from "../../components/Homepage/HomepageMotiva
 import HomepageGoalsMessage from "../../components/Homepage/HomepageMealRecommendation";
 import HomepageSteps from "../../components/Homepage/HomepageSteps";
 import HomepageCaloriesTracking from "../../components/Homepage/HomepageCaloriesTracking";
+import DailyCalorieSummary from "../../components/Homepage/DailyCalorieSummary";
+import FitnessActivityTracker from "../../components/Homepage/FitnessActivityTracker";
 import { useGlobalRefresh } from "../../components/useGlobalRefresh";
 
 import {
@@ -35,6 +37,8 @@ export default function HomePageScreen() {
   const stepsRef = useRef<{ updateSteps: () => void }>(null);
   const quotesRef = useRef<{ updateQuote: () => void }>(null);
   const caloriesRef = useRef<{ updateCalories: () => void }>(null);
+  const dailyCaloriesRef = useRef<{ refresh: () => void }>(null);
+  const fitnessActivityRef = useRef<{ refresh: () => void }>(null);
   const goalsRef = useRef<{ updateMessage: () => void }>(null);
 
   const fetchHeaderProfile = useCallback(async () => {
@@ -68,6 +72,8 @@ export default function HomePageScreen() {
       stepsRef.current?.updateSteps();
       quotesRef.current?.updateQuote();
       caloriesRef.current?.updateCalories();
+      dailyCaloriesRef.current?.refresh();
+      fitnessActivityRef.current?.refresh();
       goalsRef.current?.updateMessage();
       fetchHeaderProfile();
     },
@@ -117,10 +123,10 @@ export default function HomePageScreen() {
           <HomepageMotivationalQuotes ref={quotesRef} className="mb-8" />
 
           {/* Steps and Background GIFs section */}
-          <View style={{ marginBottom: 32, position: 'relative' }}>
+          <View style={{ marginBottom: 32, position: "relative" }}>
             {/* Steps Widget - 45% (Foreground) */}
             <View
-              style={{ width: '45%', zIndex: 1 }}
+              style={{ width: "45%", zIndex: 1 }}
               onLayout={(event) => {
                 const { height } = event.nativeEvent.layout;
                 setStepsWidgetHeight(height);
@@ -133,28 +139,32 @@ export default function HomePageScreen() {
             {stepsWidgetHeight > 0 && (
               <View
                 style={{
-                  position: 'absolute',
+                  position: "absolute",
                   top: 0,
-                  left: '45%',
-                  width: '55%',
+                  left: "45%",
+                  width: "55%",
                   height: stepsWidgetHeight,
-                  flexDirection: 'row',
+                  flexDirection: "row",
                   gap: 3,
                   zIndex: 0,
                   paddingLeft: 4,
                 }}
               >
-                <View style={{ flex: 1.1, borderRadius: 16, overflow: 'hidden' }}>
+                <View
+                  style={{ flex: 1.1, borderRadius: 16, overflow: "hidden" }}
+                >
                   <Image
-                    source={require('../../assets/images/Cowboy-Bebop-Love.gif')}
-                    style={{ width: '100%', height: '100%' }}
+                    source={require("../../assets/images/Cowboy-Bebop-Love.gif")}
+                    style={{ width: "100%", height: "100%" }}
                     resizeMode="cover"
                   />
                 </View>
-                <View style={{ flex: 0.8, borderRadius: 16, overflow: 'hidden' }}>
+                <View
+                  style={{ flex: 0.8, borderRadius: 16, overflow: "hidden" }}
+                >
                   <Image
-                    source={require('../../assets/images/Art-Running.gif')}
-                    style={{ width: '100%', height: '100%' }}
+                    source={require("../../assets/images/Art-Running.gif")}
+                    style={{ width: "100%", height: "100%" }}
                     resizeMode="cover"
                   />
                 </View>
@@ -165,8 +175,16 @@ export default function HomePageScreen() {
           {/* Meal Recommendation */}
           <HomepageGoalsMessage ref={goalsRef} className="mb-8" />
 
-          {/* Calories */}
+          {/* Daily Calorie Summary */}
+          <DailyCalorieSummary ref={dailyCaloriesRef} className="mb-6" />
+
+          {/* Fitness Activity Tracker */}
+          <FitnessActivityTracker ref={fitnessActivityRef} className="mb-6" />
+
+          {/* Legacy Calories (keeping for now) */}
+          {/*
           <HomepageCaloriesTracking ref={caloriesRef} className="mb-6" />
+          */}
         </View>
       </RefreshScroll>
     </View>

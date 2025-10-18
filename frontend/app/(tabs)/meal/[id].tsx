@@ -10,11 +10,15 @@ import {
 } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { apiGetRecipeDetail, apiAddMealToPlan, readProfileCache, apiSaveRecipe } from "../../../constants/api";
+import {
+  apiGetRecipeDetail,
+  apiAddMealToPlan,
+  readProfileCache,
+  apiSaveRecipe,
+} from "../../../constants/api";
 import LogMealButton from "../../../components/Meal/LogMealButton";
 import Toast from "../../../components/Shared/Toast";
 import PlanPicker from "../../../components/Meal/PlanPicker";
-
 
 type FSDir = { direction_description?: string; direction_number?: string };
 type FSIng = {
@@ -95,14 +99,14 @@ export default function RecipeDetail() {
       if (!dbRecipeId) {
         throw new Error("Recipe save failed — no DB ID returned");
       }
-  
+
       await apiAddMealToPlan({
         meal_plan_id: planId,
-        recipe_id: dbRecipeId,   
+        recipe_id: dbRecipeId,
         servings: 1,
         meal_type: "other",
       });
-  
+
       alert("Recipe added to meal plan successfully!");
     } catch (err) {
       console.error(err);
@@ -176,11 +180,19 @@ export default function RecipeDetail() {
 
     return {
       name: recipe.recipe_name,
-      calories: Number(nut.calories) || undefined,
-      protein_g: Number(nut.protein) || undefined,
-      carbs_g: Number(nut.carbohydrate) || undefined,
-      fat_g: Number(nut.fat) || undefined,
-      serving_size: gramsPerPortion ? Number(gramsPerPortion) : undefined,
+      calories: Number(nut.calories)
+        ? Math.round(Number(nut.calories))
+        : undefined,
+      protein_g: Number(nut.protein)
+        ? Math.round(Number(nut.protein))
+        : undefined,
+      carbs_g: Number(nut.carbohydrate)
+        ? Math.round(Number(nut.carbohydrate))
+        : undefined,
+      fat_g: Number(nut.fat) ? Math.round(Number(nut.fat)) : undefined,
+      serving_size: gramsPerPortion
+        ? Math.round(Number(gramsPerPortion))
+        : undefined,
       serving_unit: gramsPerPortion ? "g" : "serving",
     };
   }, [recipe, serving, simpleNut, gramsPerPortion]);
@@ -286,42 +298,52 @@ export default function RecipeDetail() {
                 fontSize: 28,
                 fontWeight: "800",
                 flexShrink: 1,
-                marginBottom:10,
+                marginBottom: 10,
               }}
             >
               {title}
             </Text>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8, }}>
-          <Pressable
-          onPress={() => setShowPlanPicker(true)}
-          style={{
-            backgroundColor: "#57B9FF",
-            paddingHorizontal: 14,
-            paddingVertical: 8,
-            borderRadius: 10,
-            alignSelf: "flex-start",
-            marginBottom: 8,
-          }}>
-            <Text style={{ color: "#fff", fontWeight: "700" }}>+ Add to Plan</Text>
-          </Pressable>
-
-            {recipeUrl ? (
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 8,
+                marginBottom: 8,
+              }}
+            >
               <Pressable
-                onPress={() => Linking.openURL(recipeUrl)}
+                onPress={() => setShowPlanPicker(true)}
                 style={{
+                  backgroundColor: "#57B9FF",
                   paddingHorizontal: 14,
                   paddingVertical: 8,
                   borderRadius: 10,
-                  backgroundColor: "#57B9FF",
+                  alignSelf: "flex-start",
                   marginBottom: 8,
                 }}
               >
                 <Text style={{ color: "#fff", fontWeight: "700" }}>
-                  Open in browser
+                  + Add to Plan
                 </Text>
               </Pressable>
-            ) : null}
-          </View>
+
+              {recipeUrl ? (
+                <Pressable
+                  onPress={() => Linking.openURL(recipeUrl)}
+                  style={{
+                    paddingHorizontal: 14,
+                    paddingVertical: 8,
+                    borderRadius: 10,
+                    backgroundColor: "#57B9FF",
+                    marginBottom: 8,
+                  }}
+                >
+                  <Text style={{ color: "#fff", fontWeight: "700" }}>
+                    Open in browser
+                  </Text>
+                </Pressable>
+              ) : null}
+            </View>
           </View>
 
           {!!description && (
@@ -525,10 +547,10 @@ export default function RecipeDetail() {
         </View>
       </ScrollView>
       <PlanPicker
-      visible={showPlanPicker}
-      onClose={() => setShowPlanPicker(false)}
-      onPick={handlePlanPick}
-    />
+        visible={showPlanPicker}
+        onClose={() => setShowPlanPicker(false)}
+        onPick={handlePlanPick}
+      />
     </>
   );
 }
