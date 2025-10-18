@@ -166,8 +166,8 @@ const DailyCalorieSummary = forwardRef<any, DailyCalorieSummaryProps>(
               </Text>
             </View>
 
-            {/* Burned */}
-            <View className="mb-4">
+            {/* Burned - Total */}
+            <View className="mb-2">
               <View className="flex-row items-center mb-1">
                 <View
                   className="w-3 h-3 rounded-full mr-3"
@@ -178,8 +178,31 @@ const DailyCalorieSummary = forwardRef<any, DailyCalorieSummaryProps>(
                 </Text>
               </View>
               <Text style={{ color: "#a0a0a0" }} className="text-sm ml-6">
-                Burned
+                Burned Total
               </Text>
+            </View>
+
+            {/* Burned Breakdown */}
+            <View className="ml-6 mb-4">
+              <View className="flex-row items-center mb-1">
+                <View
+                  className="w-2 h-2 rounded-full mr-2"
+                  style={{ backgroundColor: "#3b82f6" }}
+                />
+                <Text className="text-white text-sm">
+                  {summary.stepsBurned.toLocaleString()} cal from steps
+                </Text>
+              </View>
+              <View className="flex-row items-center">
+                <View
+                  className="w-2 h-2 rounded-full mr-2"
+                  style={{ backgroundColor: "#ef4444" }}
+                />
+                <Text className="text-white text-sm">
+                  {summary.activitiesBurned.toLocaleString()} cal from
+                  activities
+                </Text>
+              </View>
             </View>
 
             {/* Net Calories */}

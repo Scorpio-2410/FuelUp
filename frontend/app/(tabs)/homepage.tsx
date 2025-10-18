@@ -11,6 +11,7 @@ import HomepageGoalsMessage from "../../components/Homepage/HomepageMealRecommen
 import HomepageSteps from "../../components/Homepage/HomepageSteps";
 import HomepageCaloriesTracking from "../../components/Homepage/HomepageCaloriesTracking";
 import DailyCalorieSummary from "../../components/Homepage/DailyCalorieSummary";
+import FitnessActivityTracker from "../../components/Homepage/FitnessActivityTracker";
 import { useGlobalRefresh } from "../../components/useGlobalRefresh";
 
 import {
@@ -37,6 +38,7 @@ export default function HomePageScreen() {
   const quotesRef = useRef<{ updateQuote: () => void }>(null);
   const caloriesRef = useRef<{ updateCalories: () => void }>(null);
   const dailyCaloriesRef = useRef<{ refresh: () => void }>(null);
+  const fitnessActivityRef = useRef<{ refresh: () => void }>(null);
   const goalsRef = useRef<{ updateMessage: () => void }>(null);
 
   const fetchHeaderProfile = useCallback(async () => {
@@ -71,6 +73,7 @@ export default function HomePageScreen() {
       quotesRef.current?.updateQuote();
       caloriesRef.current?.updateCalories();
       dailyCaloriesRef.current?.refresh();
+      fitnessActivityRef.current?.refresh();
       goalsRef.current?.updateMessage();
       fetchHeaderProfile();
     },
@@ -174,6 +177,9 @@ export default function HomePageScreen() {
 
           {/* Daily Calorie Summary */}
           <DailyCalorieSummary ref={dailyCaloriesRef} className="mb-6" />
+
+          {/* Fitness Activity Tracker */}
+          <FitnessActivityTracker ref={fitnessActivityRef} className="mb-6" />
 
           {/* Legacy Calories (keeping for now) */}
           <HomepageCaloriesTracking ref={caloriesRef} className="mb-6" />
