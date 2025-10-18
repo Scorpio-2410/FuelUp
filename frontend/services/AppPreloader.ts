@@ -153,7 +153,7 @@ export class AppPreloader {
 
   // Run smooth progress animation over 4 seconds
   private async runSmoothProgress(): Promise<void> {
-    const totalDuration = 4000; // 4 seconds
+    const totalDuration = 3000; // 4 seconds
     const updateInterval = 50; // Update every 50ms
     const totalSteps = totalDuration / updateInterval; // 80 steps
     const progressPerStep = 99 / totalSteps; // Go from 1% to 100%

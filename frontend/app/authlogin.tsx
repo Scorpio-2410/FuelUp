@@ -113,7 +113,7 @@ export default function AuthLogin() {
     try {
       const { token } = await apiLogin({ identifier: identifier.trim(), password });
       await storeToken(token);
-      router.replace("/(tabs)/" as any);
+      router.replace("/(tabs)/homepage" as any);
     } catch (error: any) {
       Alert.alert("Login failed", error?.message || "Please check your credentials.");
     } finally {
