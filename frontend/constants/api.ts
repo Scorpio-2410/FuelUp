@@ -100,6 +100,15 @@ const EP = {
   stepsChart: "/api/steps/chart",
   stepsDelete: (date: string) => `/api/steps/${date}`,
 
+  // ---------- Fitness Activities ----------
+  fitnessActivities: "/api/fitness/activities",
+  fitnessActivityByDate: (date: string) => `/api/fitness/activities/${date}`,
+  fitnessActivityRange: "/api/fitness/activities/range",
+  fitnessActivityStats: "/api/fitness/activities/stats",
+  fitnessActivityCalories: (date: string) => `/api/fitness/activities/calories/${date}`,
+  fitnessActivityUpdate: (id: string | number) => `/api/fitness/activities/${id}`,
+  fitnessActivityDelete: (id: string | number) => `/api/fitness/activities/${id}`,
+
   // ---------- Catalog + Meal Planner ----------
   foodsSearch: "/api/foods/search",
   foodDetail: (id: string | number) => `/api/foods/${id}`,
@@ -672,6 +681,8 @@ export interface DailyCalorieSummary {
   date: string;
   consumed: number;
   burned: number;
+  stepsBurned: number;
+  activitiesBurned: number;
   target: number;
   netCalories: number;
   progress: number;
@@ -830,5 +841,128 @@ export async function apiDeleteSteps(date: string) {
     headers: await authHeaders(),
   });
   return asJson<{ success: boolean; message: string }>(res);
+}
 
+/* -------------------- Fitness Activities -------------------- */
+
+export interface FitnessActivity {
+  id: number;
+  userId: number;
+  date: string;
+  activityType: 'cardio' | 'strength' | 'flexibility' | 'sports' | 'other';
+  exerciseName: string;
+  durationMinutes: number;
+  caloriesBurned: number;
+  intensity: 'low' | 'moderate' | 'high' | 'very_high';
+  notes?: string;
+  externalId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FitnessActivityStats {
+  overall: {
+    totalActivities: number;
+    totalCalories: number;
+    avgCaloriesPerActivity: number;
+    totalDurationMinutes: number;
+    avgDurationMinutes: number;
+  };
+  byType: Array<{
+    activityType: string;
+    count: number;
+    totalCalories: number;
+    avgCalories: number;
+    totalDuration: number;
+    avgDuration: number;
+  }>;
+}
+
+// Create a new fitness activity
+export async function apiCreateFitnessActivity(data: {
+  date: string;
+  activityType: 'cardio' | 'strength' | 'flexibility' | 'sports' | 'other';
+  exerciseName: string;
+  durationMinutes: number;
+  caloriesBurned: number;
+  intensity?: 'low' | 'moderate' | 'high' | 'very_high';
+  notes?: string;
+  externalId?: string;
+}) {
+  const res = await fetch(`${BASE_URL}${EP.fitnessActivities}`, {
+    method: "POST",
+    headers: await authHeaders(),
+    body: JSON.stringify(data),
+  });
+  return asJson<{ success: boolean; activity: FitnessActivity }>(res);
+}
+
+// Get activities for a specific date
+export async function apiGetFitnessActivitiesByDate(date: string) {
+  const res = await fetch(`${BASE_URL}${EP.fitnessActivityByDate(date)}`, {
+    headers: await authHeaders(),
+  });
+  return asJson<{ 
+    success: boolean; 
+    date: string; 
+    activities: FitnessActivity[]; 
+    totalCalories: number 
+  }>(res);
+}
+
+// Get activities for a date range
+export async function apiGetFitnessActivitiesRange(start: string, end: string) {
+  const res = await fetch(`${BASE_URL}${EP.fitnessActivityRange}?start=${start}&end=${end}`, {
+    headers: await authHeaders(),
+  });
+  return asJson<{ 
+    success: boolean; 
+    dateRange: { start: string; end: string }; 
+    count: number; 
+    activities: FitnessActivity[]; 
+    totalCalories: number 
+  }>(res);
+}
+
+// Get activity statistics
+export async function apiGetFitnessActivityStats(start: string, end: string) {
+  const res = await fetch(`${BASE_URL}${EP.fitnessActivityStats}?start=${start}&end=${end}`, {
+    headers: await authHeaders(),
+  });
+  return asJson<{ 
+    success: boolean; 
+    dateRange: { start: string; end: string }; 
+    stats: FitnessActivityStats 
+  }>(res);
+}
+
+// Get total calories burned from activities for a specific date
+export async function apiGetFitnessActivityCalories(date: string) {
+  const res = await fetch(`${BASE_URL}${EP.fitnessActivityCalories(date)}`, {
+    headers: await authHeaders(),
+  });
+  return asJson<{ 
+    success: boolean; 
+    date: string; 
+    totalCalories: number 
+  }>(res);
+}
+
+// Update an activity
+export async function apiUpdateFitnessActivity(id: string | number, updates: Partial<FitnessActivity>) {
+  const res = await fetch(`${BASE_URL}${EP.fitnessActivityUpdate(id)}`, {
+    method: "PUT",
+    headers: await authHeaders(),
+    body: JSON.stringify(updates),
+  });
+  return asJson<{ success: boolean; activity: FitnessActivity }>(res);
+}
+
+// Delete an activity
+export async function apiDeleteFitnessActivity(id: string | number) {
+  const res = await fetch(`${BASE_URL}${EP.fitnessActivityDelete(id)}`, {
+    method: "DELETE",
+    headers: await authHeaders(),
+  });
+  return asJson<{ success: boolean; message: string }>(res);
 }
