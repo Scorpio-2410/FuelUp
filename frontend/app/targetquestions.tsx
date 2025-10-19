@@ -58,7 +58,7 @@ function QuestionSegmentContent() {
               [
                 {
                   text: "Continue to Dashboard",
-                  onPress: () => router.replace("/homepage"),
+                  onPress: () => router.replace("/(tabs)/homepage"),
                 },
               ]
             );
@@ -146,7 +146,7 @@ function QuestionSegmentContent() {
         Alert.alert(
           "Got it! I'll adjust your goals for today and get you started! 😊"
         );
-        router.push("/homepage");
+        router.push("/(tabs)/homepage");
       } catch (error) {
         console.error("Failed to save answers:", error);
         Alert.alert(

@@ -449,6 +449,33 @@ const initializeDatabase = async () => {
       BEFORE UPDATE ON step_streaks FOR EACH ROW EXECUTE FUNCTION set_updated_at();
     `);
 
+    /* =========== FITNESS ACTIVITIES (exercise tracking) =========== */
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS fitness_activities (
+        id              INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        user_id         INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        date            DATE NOT NULL,
+        activity_type   VARCHAR(50) NOT NULL CHECK (activity_type IN ('cardio', 'strength', 'flexibility', 'sports', 'other')),
+        exercise_name   VARCHAR(255) NOT NULL,
+        duration_minutes INTEGER NOT NULL CHECK (duration_minutes > 0),
+        calories_burned INTEGER NOT NULL CHECK (calories_burned >= 0),
+        intensity       VARCHAR(20) DEFAULT 'moderate' CHECK (intensity IN ('low', 'moderate', 'high', 'very_high')),
+        notes           TEXT,
+        external_id     VARCHAR(100), -- For exercises from external APIs
+        created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_fitness_activities_user ON fitness_activities(user_id);
+      CREATE INDEX IF NOT EXISTS idx_fitness_activities_date ON fitness_activities(date);
+      CREATE INDEX IF NOT EXISTS idx_fitness_activities_user_date ON fitness_activities(user_id, date DESC);
+      CREATE INDEX IF NOT EXISTS idx_fitness_activities_type ON fitness_activities(activity_type);
+
+      DROP TRIGGER IF EXISTS trg_fitness_activities_updated_at ON fitness_activities;
+      CREATE TRIGGER trg_fitness_activities_updated_at
+      BEFORE UPDATE ON fitness_activities FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    `);
+
     console.log("Schema initialization complete.");
   } catch (err) {
     console.error("Database initialization error:", err.message);

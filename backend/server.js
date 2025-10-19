@@ -23,7 +23,8 @@ const foodRoutes = require("./routes/foodRoutes"); // foods/recipes browse + sav
 const mealPlanRoutes = require("./routes/mealPlanRoutes"); // create plan, add meal, summary
 
 /* ---- Step Tracking ---- */
-const stepStreakRoutes = require("./routes/stepStreakRoutes"); // step tracking and analytics
+const stepStreakRoutes = require("./routes/stepStreakRoutes");
+const fitnessActivityRoutes = require("./routes/fitnessActivityRoutes"); // step tracking and analytics
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -75,6 +76,9 @@ app.use("/api", mealPlanRoutes);
 
 // Step Tracking
 app.use("/api/steps", stepStreakRoutes);
+
+// Fitness Activities
+app.use("/api/fitness/activities", fitnessActivityRoutes);
 
 /* ---------------- Root + health ---------------- */
 app.get("/", (req, res) => {
