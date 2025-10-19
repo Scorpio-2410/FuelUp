@@ -1,3 +1,4 @@
+// frontend/components/Fitness/WeeklySchedule.tsx
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import {
   View,
@@ -353,15 +354,15 @@ export default function WeeklySchedule({ onClose }: Props) {
     if (planning) return;
     setPlanning(true);
     try {
-      const { created_count } = await apiAutoPlanWorkouts(7);
+      const { created_count } = await apiAutoPlanWorkouts();
       await loadWeek();
       Alert.alert(
         "Workout suggestions",
-        created_count > 0
+        created_count && created_count > 0
           ? `Added ${created_count} workout${
               created_count > 1 ? "s" : ""
             } based on your schedule.`
-          : "No suitable free slots found in the next week."
+          : "No suitable free slots found in the current week."
       );
     } catch (e: any) {
       Alert.alert("Suggestion failed", e?.message || "Please try again.");
