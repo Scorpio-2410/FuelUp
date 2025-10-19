@@ -37,59 +37,51 @@ export const MonthlyStepsPerformance: React.FC<MonthlyStepsPerformanceProps> = (
       const response = await apiGetStepsChart(startDateStr, endDateStr);
       
       if (response.success) {
-        // Get all days with step data, but always include today
+        // Create complete data for all days in the range, similar to WeeklyStepsPerformance
+        const completeData: ChartData[] = [];
+        const currentDate = new Date(startDate);
         const today = new Date().toISOString().split('T')[0];
-        const dataWithSteps = response.dailyData ? response.dailyData.filter((d: any) => d.stepCount > 0) : [];
         
-        // Always include today even if it has 0 steps initially
-        const hasToday = dataWithSteps.some((d: any) => d.date.split('T')[0] === today);
-        if (!hasToday) {
-          dataWithSteps.push({
-            id: 0,
-            userId: 0,
-            date: today,
-            stepCount: 0,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
+        while (currentDate <= endDate) {
+          const dateStr = currentDate.toISOString().split('T')[0];
+          const isToday = dateStr === today;
+          
+          let steps = 0;
+          if (isToday) {
+            // Use real-time data for today
+            steps = currentSteps;
+          } else {
+            // Use server data for other days
+            const existingData = response.dailyData?.find((d: any) => {
+              const apiDate = d.date.split('T')[0];
+              return apiDate === dateStr;
+            });
+            steps = existingData ? existingData.stepCount : 0;
+          }
+          
+          completeData.push({
+            date: currentDate.toLocaleDateString('en-US', { 
+              weekday: 'short', 
+              month: 'short', 
+              day: 'numeric' 
+            }),
+            steps,
+            maxSteps: 0
           });
+          
+          currentDate.setDate(currentDate.getDate() + 1);
         }
         
-        if (dataWithSteps.length > 0) {
-          // Sort by date to ensure chronological order
-          dataWithSteps.sort((a: any, b: any) => {
-            const dateA = new Date(a.date.split('T')[0]);
-            const dateB = new Date(b.date.split('T')[0]);
-            return dateA.getTime() - dateB.getTime();
-          });
-          
-          const completeData: ChartData[] = dataWithSteps.map((d: any) => {
-            const dateStr = d.date.split('T')[0];
-            const isToday = dateStr === today;
-            
-            return {
-              date: new Date(d.date.split('T')[0]).toLocaleDateString('en-US', { 
-                weekday: 'short', 
-                month: 'short', 
-                day: 'numeric' 
-              }),
-              steps: isToday ? currentSteps : d.stepCount,
-              maxSteps: 0
-            };
-          });
-          
-          // Calculate max steps for proper scaling
-          const maxSteps = Math.max(...completeData.map(d => d.steps), 1);
-          const formattedData = completeData.map(item => ({
-            ...item,
-            maxSteps
-          }));
-          
-          setChartData(formattedData);
-          setStats(response.overallStats);
-          onStatsLoaded?.(response.overallStats);
-        } else {
-          setChartData([]);
-        }
+        // Calculate max steps for proper scaling
+        const maxSteps = Math.max(...completeData.map(d => d.steps), 1);
+        const formattedData = completeData.map(item => ({
+          ...item,
+          maxSteps
+        }));
+        
+        setChartData(formattedData);
+        setStats(response.overallStats);
+        onStatsLoaded?.(response.overallStats);
       } else {
         setChartData([]);
       }
