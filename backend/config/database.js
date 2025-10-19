@@ -296,10 +296,13 @@ const initializeDatabase = async () => {
         muscle_group VARCHAR(80),
         equipment    VARCHAR(120),
         difficulty   VARCHAR(40),
-        duration_min INTEGER,
-        sets         INTEGER,
-        reps         INTEGER,
-        rest_seconds INTEGER,
+        -- consolidated metadata columns
+        secondary_muscles TEXT,
+        category VARCHAR(80),
+        external_id VARCHAR(64),
+        gif_url TEXT,
+        video_url TEXT,
+        image_url TEXT,
         notes        TEXT,
         created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -310,6 +313,19 @@ const initializeDatabase = async () => {
       DROP TRIGGER IF EXISTS trg_exercises_updated_at ON exercises;
       CREATE TRIGGER trg_exercises_updated_at
       BEFORE UPDATE ON exercises FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+      -- Migration helpers: add new columns if missing, drop legacy columns if present
+      ALTER TABLE exercises ADD COLUMN IF NOT EXISTS secondary_muscles TEXT;
+      ALTER TABLE exercises ADD COLUMN IF NOT EXISTS category VARCHAR(80);
+  ALTER TABLE exercises ADD COLUMN IF NOT EXISTS target VARCHAR(80);
+      ALTER TABLE exercises ADD COLUMN IF NOT EXISTS external_id VARCHAR(64);
+      ALTER TABLE exercises ADD COLUMN IF NOT EXISTS gif_url TEXT;
+      ALTER TABLE exercises ADD COLUMN IF NOT EXISTS video_url TEXT;
+      ALTER TABLE exercises ADD COLUMN IF NOT EXISTS image_url TEXT;
+      -- remove legacy columns safely if they exist
+      ALTER TABLE exercises DROP COLUMN IF EXISTS duration_min;
+      ALTER TABLE exercises DROP COLUMN IF EXISTS sets;
+      ALTER TABLE exercises DROP COLUMN IF EXISTS reps;
+      ALTER TABLE exercises DROP COLUMN IF EXISTS rest_seconds;
     `);
 
     /* =========== PLAN EXERCISES =========== */

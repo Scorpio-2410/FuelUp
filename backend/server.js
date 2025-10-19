@@ -12,9 +12,11 @@ const fitnessProfileRoutes = require("./routes/fitnessProfileRoutes");
 const fitnessPlanRoutes = require("./routes/fitnessPlanRoutes");
 const planExerciseRoutes = require("./routes/planExerciseRoutes"); // exercises saved to a plan
 const exerciseSearchRoutes = require("./routes/exerciseSearchRoutes"); // ExerciseDB proxy
+const localExerciseRoutes = require("./routes/localExerciseRoutes");
 const scheduleRoutes = require("./routes/scheduleRoutes");
 const targetQuestionRoutes = require("./routes/targetQuestionRoutes");
 const quotesRoutes = require("./routes/quotesRoutes");
+const aiWorkoutRoutes = require("./routes/aiWorkoutRoutes");
 
 /* ---- NEW: FatSecret catalogs + Meal Planner ---- */
 const foodRoutes = require("./routes/foodRoutes"); // foods/recipes browse + save
@@ -40,9 +42,12 @@ app.use("/api/users", userRoutes);
 app.use("/api/fitness", fitnessProfileRoutes); // /api/fitness/profile (GET/PUT)
 app.use("/api/fitness/plans", fitnessPlanRoutes); // CRUD plans
 app.use("/api/fitness/plans/:id/exercises", planExerciseRoutes); // list/add/remove exercises for a plan
+app.use("/api", aiWorkoutRoutes); // <-- Mount the AI route with other /api routes
 
 // ExerciseDB proxy (public catalog; no caching)
 app.use("/api/exercises", exerciseSearchRoutes); // GET / (search via q/target), GET /:id, GET /:id/image
+// Local DB-backed exercise details (by numeric DB id)
+app.use("/api/exercises/local", localExerciseRoutes);
 
 // Schedule
 app.use("/api/schedule", scheduleRoutes); // /, /events, /events/:id

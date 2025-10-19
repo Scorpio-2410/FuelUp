@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import {
   apiGetExerciseDetail,
+  apiGetLocalExerciseDetail,
   getExerciseImageUri,
   apiListPlans,
   apiListPlanExercises,
@@ -24,7 +25,7 @@ const fallback = require("../../assets/images/fitness.png");
 
 type Props = {
   visible: boolean;
-  exercise: ExerciseListItem | null;
+  exercise: any | null;
   onClose: () => void;
 };
 
@@ -56,12 +57,43 @@ export default function ExerciseDetailModal({
         setError(null);
         setGifUri(null);
         setDetail(null);
+        // Determine which id to use for lookups: prefer externalId (plan row) or external_id
+        const extId =
+          exercise.externalId ?? exercise.external_id ?? exercise.id;
+        const source = (exercise.source || "").toLowerCase();
+        let item = null;
 
-        const { item } = await apiGetExerciseDetail(exercise.id);
+        if (source === "local" || /^\\d+$/.test(String(extId))) {
+          // treat as local DB id
+          try {
+            const r2 = await apiGetLocalExerciseDetail(extId);
+            item = r2.item;
+            setGifUri(item?.gif_url || item?.image_url || null);
+          } catch (err) {
+            // fallback to public if local fails
+            try {
+              const r = await apiGetExerciseDetail(extId);
+              item = r.item;
+              setGifUri(getExerciseImageUri(extId, "180"));
+            } catch (err2) {
+              throw err2;
+            }
+          }
+        } else {
+          // prefer public ExerciseDB lookup first
+          try {
+            const r = await apiGetExerciseDetail(extId);
+            item = r.item;
+            setGifUri(getExerciseImageUri(extId, "180"));
+          } catch (err) {
+            // fallback to local DB detail
+            const r2 = await apiGetLocalExerciseDetail(extId);
+            item = r2.item;
+            setGifUri(item?.gif_url || item?.image_url || null);
+          }
+        }
         if (!mounted) return;
-
         setDetail(item || {});
-        setGifUri(getExerciseImageUri(exercise.id, "180"));
       } catch (e: any) {
         if (mounted) setError(e?.message ?? "Failed to load exercise");
       } finally {
@@ -97,7 +129,8 @@ export default function ExerciseDetailModal({
     if (!exercise) return;
     try {
       setAdding(true);
-      await apiAddExerciseToPlan(planId, exercise.id, exercise.name, {
+      const extId = exercise.externalId ?? exercise.external_id ?? exercise.id;
+      await apiAddExerciseToPlan(planId, extId, exercise.name, {
         gifUrl: detail?.gifUrl || null,
         bodyPart: detail?.bodyPart || null,
         target: detail?.target || null,
@@ -124,7 +157,8 @@ export default function ExerciseDetailModal({
           backgroundColor: "#000",
           paddingTop: insets.top + 6, // ⬅️ extra gap under the HUD
           paddingBottom: insets.bottom, // safe bottom
-        }}>
+        }}
+      >
         {/* Header */}
         <View
           style={{
@@ -134,10 +168,12 @@ export default function ExerciseDetailModal({
             paddingVertical: 8,
             borderBottomWidth: 1,
             borderBottomColor: "#222",
-          }}>
+          }}
+        >
           <TouchableOpacity
             onPress={onClose}
-            style={{ marginRight: 10, padding: 6 }}>
+            style={{ marginRight: 10, padding: 6 }}
+          >
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
 
@@ -148,7 +184,8 @@ export default function ExerciseDetailModal({
               fontSize: 20,
               fontWeight: "700",
               flex: 1,
-            }}>
+            }}
+          >
             {exercise.name}
           </Text>
 
@@ -163,7 +200,8 @@ export default function ExerciseDetailModal({
               flexDirection: "row",
               alignItems: "center",
               marginLeft: 8,
-            }}>
+            }}
+          >
             <Ionicons name="add" size={18} color="#fff" />
             <Text style={{ color: "#fff", marginLeft: 4, fontWeight: "700" }}>
               Plan
@@ -176,7 +214,8 @@ export default function ExerciseDetailModal({
           contentContainerStyle={{
             padding: 16,
             paddingBottom: 24 + insets.bottom,
-          }}>
+          }}
+        >
           {/* GIF / image */}
           <View
             style={{
@@ -188,7 +227,8 @@ export default function ExerciseDetailModal({
               alignItems: "center",
               justifyContent: "center",
               marginBottom: 16,
-            }}>
+            }}
+          >
             {gifUri ? (
               <Image
                 source={{ uri: gifUri }}
@@ -241,13 +281,15 @@ export default function ExerciseDetailModal({
                   fontSize: 18,
                   fontWeight: "700",
                   marginBottom: 10,
-                }}>
+                }}
+              >
                 Instructions
               </Text>
               {detail.instructions.map((step: string, idx: number) => (
                 <View
                   key={idx}
-                  style={{ flexDirection: "row", gap: 10, marginBottom: 10 }}>
+                  style={{ flexDirection: "row", gap: 10, marginBottom: 10 }}
+                >
                   <View
                     style={{
                       width: 24,
@@ -257,7 +299,8 @@ export default function ExerciseDetailModal({
                       alignItems: "center",
                       justifyContent: "center",
                       marginTop: 2,
-                    }}>
+                    }}
+                  >
                     <Text style={{ color: "#0a0a0a", fontWeight: "800" }}>
                       {idx + 1}
                     </Text>

@@ -274,6 +274,13 @@ export async function apiGetExerciseDetail(id: string | number) {
   return asJson<{ item: any }>(res);
 }
 
+export async function apiGetLocalExerciseDetail(id: string | number) {
+  const res = await fetch(`${BASE_URL}/api/exercises/local/${id}`, {
+    headers: await authHeaders(),
+  });
+  return asJson<{ item: any }>(res);
+}
+
 export function getExerciseImageUri(id: string | number, res = "180") {
   return `${BASE_URL}${EP.exerciseImage(id, res)}`;
 }
@@ -338,6 +345,24 @@ export async function apiListPlanExercises(planId: string | number) {
     : [];
   return { success: true, items };
 }
+// AI suggest workout
+export async function apiSuggestWorkout(payload: {
+  goal?: string;
+  activityLevel?: string;
+  daysPerWeek?: number;
+  height?: number;
+  weight?: number;
+  targets?: string[] | string;
+  exercises_per_day?: number;
+  max_exercises?: number;
+}) {
+  const res = await fetch(`${BASE_URL}/api/ai/suggest-workout`, {
+    method: "POST",
+    headers: await authHeaders(),
+    body: JSON.stringify(payload),
+  });
+  return asJson<any>(res);
+}
 export async function apiAddExerciseToPlan(
   planId: string | number,
   externalId: string | number,
@@ -347,6 +372,7 @@ export async function apiAddExerciseToPlan(
     bodyPart?: string | null;
     target?: string | null;
     equipment?: string | null;
+    source?: string | null;
   }
 ) {
   const res = await fetch(`${BASE_URL}${EP.planExercises(planId)}`, {
@@ -595,8 +621,6 @@ export async function apiCreateMealPlan(name: string) {
     headers: await authHeaders(),
     // body: JSON.stringify({ name }),
     body: JSON.stringify({ user_id: userId, name }),
-
-
   });
   return asJson<any>(res);
 }
@@ -625,7 +649,6 @@ export async function apiGetMealPlanSummary(planId: number) {
   });
   return asJson<any>(res);
 }
-
 
 // (6) Log meals
 export async function apiLogMeal(opts: {
@@ -741,7 +764,9 @@ export async function apiGetStepsRange(start: string, end: string) {
   const res = await fetch(`${BASE_URL}${EP.stepsRange}?${qs.toString()}`, {
     headers: await authHeaders(),
   });
-  return asJson<{ success: boolean; count: number; stepRecords: StepRecord[] }>(res);
+  return asJson<{ success: boolean; count: number; stepRecords: StepRecord[] }>(
+    res
+  );
 }
 
 // Get statistics for a period
@@ -754,8 +779,8 @@ export async function apiGetStepsStats(
   const res = await fetch(`${BASE_URL}${EP.stepsStats}?${qs.toString()}`, {
     headers: await authHeaders(),
   });
-  return asJson<{ 
-    success: boolean; 
+  return asJson<{
+    success: boolean;
     period: string;
     dateRange: { start: string; end: string };
     stats: StepStats | WeeklyStepStats[] | MonthlyStepStats[];
@@ -768,7 +793,11 @@ export async function apiGetWeeklyStepsStats(start: string, end: string) {
   const res = await fetch(`${BASE_URL}${EP.stepsWeekly}?${qs.toString()}`, {
     headers: await authHeaders(),
   });
-  return asJson<{ success: boolean; count: number; weeklyStats: WeeklyStepStats[] }>(res);
+  return asJson<{
+    success: boolean;
+    count: number;
+    weeklyStats: WeeklyStepStats[];
+  }>(res);
 }
 
 // Get monthly aggregated stats
@@ -777,7 +806,11 @@ export async function apiGetMonthlyStepsStats(start: string, end: string) {
   const res = await fetch(`${BASE_URL}${EP.stepsMonthly}?${qs.toString()}`, {
     headers: await authHeaders(),
   });
-  return asJson<{ success: boolean; count: number; monthlyStats: MonthlyStepStats[] }>(res);
+  return asJson<{
+    success: boolean;
+    count: number;
+    monthlyStats: MonthlyStepStats[];
+  }>(res);
 }
 
 // Get current streak
@@ -810,5 +843,4 @@ export async function apiDeleteSteps(date: string) {
     headers: await authHeaders(),
   });
   return asJson<{ success: boolean; message: string }>(res);
-
 }
