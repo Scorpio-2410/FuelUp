@@ -1,6 +1,6 @@
 // routes/nutritionRoutes.js
 const express = require("express");
-const NutritionController = require("../controllers/nutritionController");
+const NutritionController = require("../controllers/nutritionProfileController");
 const { authenticateToken } = require("../middleware/auth");
 
 const router = express.Router();

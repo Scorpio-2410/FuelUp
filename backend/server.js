@@ -9,6 +9,7 @@ const { verifySmtp } = require("./utils/mailer");
 /* ---------------- Route groups ---------------- */
 const userRoutes = require("./routes/userRoutes");
 const fitnessProfileRoutes = require("./routes/fitnessProfileRoutes");
+const nutritionProfileRoutes = require("./routes/nutritionProfileRoutes");
 const fitnessPlanRoutes = require("./routes/fitnessPlanRoutes");
 const planExerciseRoutes = require("./routes/planExerciseRoutes"); // exercises saved to a plan
 const exerciseSearchRoutes = require("./routes/exerciseSearchRoutes"); // ExerciseDB proxy
@@ -41,6 +42,8 @@ app.use("/api/users", userRoutes);
 
 // Fitness namespace
 app.use("/api/fitness", fitnessProfileRoutes); // /api/fitness/profile (GET/PUT)
+// Nutrition namespace (preferences + targets)
+app.use("/api/nutrition", nutritionProfileRoutes); // /api/nutrition/profile (GET/PUT)
 app.use("/api/fitness/plans", fitnessPlanRoutes); // CRUD plans
 app.use("/api/fitness/plans/:id/exercises", planExerciseRoutes); // list/add/remove exercises for a plan
 app.use("/api", aiWorkoutRoutes); // <-- Mount the AI route with other /api routes
