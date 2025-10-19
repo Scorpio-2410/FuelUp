@@ -11,7 +11,8 @@ import { StepsHeader } from '../components/StepsAnalysis/StepsHeader';
 import { ProgressBar } from '../components/StepsAnalysis/ProgressBar';
 import { StepsLevel } from '../components/StepsAnalysis/StepsLevel';
 import { StatsCards } from '../components/StepsAnalysis/StatsCards';
-import Animated, { 
+import HistoryChart from "../components/Archive/HistoryChart";
+import Animated, {
   FadeIn,
   useSharedValue,
   withTiming
@@ -121,16 +122,16 @@ export default function StepsAnalytics() {
         const today = new Date().toISOString().split('T')[0];
         const lastShownKey = `streak_alert_shown_${today}`;
         const alreadyShown = await AsyncStorage.getItem(lastShownKey);
-        
+
         // Only show if:
         // 1. User has steps >= goal
         // 2. Haven't shown today
         // 3. User has a streak > 0
         // 4. Not currently loading
-        if (!alreadyShown && 
-            stepsData.steps >= stepsData.goal && 
-            stepsData.currentStreak > 0 && 
-            !isLoading) {
+        if (!alreadyShown &&
+          stepsData.steps >= stepsData.goal &&
+          stepsData.currentStreak > 0 &&
+          !isLoading) {
           setShowStreakAlert(true);
           await AsyncStorage.setItem(lastShownKey, 'true');
         }
@@ -149,21 +150,21 @@ export default function StepsAnalytics() {
         const lostAlertKey = `streak_lost_alert_shown_${today}`;
         const previousStreakKey = 'previous_streak_count';
         const alreadyShown = await AsyncStorage.getItem(lostAlertKey);
-        
+
         // Get stored previous streak
         const storedPrevStreak = await AsyncStorage.getItem(previousStreakKey);
         const previousStreak = storedPrevStreak ? parseInt(storedPrevStreak) : 0;
-        
+
         // Check if streak was lost (had streak before, now it's 0)
-        if (!alreadyShown && 
-            previousStreak > 0 && 
-            stepsData.currentStreak === 0 && 
-            !isLoading) {
+        if (!alreadyShown &&
+          previousStreak > 0 &&
+          stepsData.currentStreak === 0 &&
+          !isLoading) {
           setLostStreakCount(previousStreak);
           setShowStreakLostAlert(true);
           await AsyncStorage.setItem(lostAlertKey, 'true');
         }
-        
+
         // Update stored streak for next time
         if (stepsData.currentStreak > 0) {
           await AsyncStorage.setItem(previousStreakKey, stepsData.currentStreak.toString());
@@ -206,7 +207,7 @@ export default function StepsAnalytics() {
             <StepsAnalyticsHeader />
 
             {/* Today's Steps */}
-            <StepsHeader 
+            <StepsHeader
               steps={stepsData.steps}
               goal={stepsData.goal}
               currentStreak={stepsData.currentStreak}
@@ -216,7 +217,7 @@ export default function StepsAnalytics() {
 
             {/* Progress Bar */}
             <Animated.View entering={FadeIn.delay(750).duration(900)}>
-              <ProgressBar 
+              <ProgressBar
                 progress={stepsData.steps}
                 goal={stepsData.goal}
                 isLoading={isLoading}
@@ -226,14 +227,14 @@ export default function StepsAnalytics() {
             </Animated.View>
 
             {/* Step Levels */}
-            <StepsLevel 
+            <StepsLevel
               steps={stepsData.steps}
               isLoading={isLoading}
               hasError={hasError}
             />
 
             {/* Stats Cards */}
-            <StatsCards 
+            <StatsCards
               serverStats={serverStats}
               serverStreak={serverStreak}
               serverYesterdaySteps={serverYesterdaySteps}
@@ -243,6 +244,13 @@ export default function StepsAnalytics() {
               todaySteps={stepsData.steps}
             />
           </View>
+
+          {/* Inline historical chart (renders inside this screen, not modal) */}
+          <View style={{ marginTop: 16 }}>
+            <HistoryChart days={30} metric="steps" />
+          </View>
+
+
         </RefreshScroll>
       </SafeAreaView>
 

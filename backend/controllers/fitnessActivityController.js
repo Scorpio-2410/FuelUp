@@ -223,6 +223,56 @@ class FitnessActivityController {
       res.status(500).json({ error: "Failed to delete activity" });
     }
   }
+
+  static async getHistoricalActivities(req, res) {
+    try {
+      const { start, end, days } = req.query;
+      const endDate = end ? new Date(end) : new Date();
+      let startDate;
+      if (start) {
+        startDate = new Date(start);
+      } else if (days) {
+        startDate = new Date(endDate);
+        startDate.setDate(endDate.getDate() - parseInt(days, 10) + 1);
+      } else {
+        startDate = new Date();
+        startDate.setDate(endDate.getDate() - 29); // default 30 days
+      }
+
+      // format YYYY-MM-DD for model methods that expect strings
+      const pad = n => String(n).padStart(2, '0');
+      const fmt = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+      const startStr = fmt(startDate);
+      const endStr = fmt(endDate);
+
+      // reuse existing model method that returns activities in range
+      const activities = await FitnessActivity.findByUserAndDateRange(req.userId, startStr, endStr);
+
+      // aggregate per-day (model fields: date (YYYY-MM-DD), caloriesBurned, durationMinutes)
+      const byDay = {};
+      activities.forEach(a => {
+        const d = (a.date && a.date.slice ? a.date.slice(0,10) : fmt(new Date(a.date)));
+        if (!byDay[d]) byDay[d] = { date: d, calories: 0, durationMinutes: 0, count: 0 };
+        byDay[d].calories += Number(a.caloriesBurned || 0);
+        byDay[d].durationMinutes += Number(a.durationMinutes || 0);
+        byDay[d].count += 1;
+      });
+
+      // fill missing days
+      const dayMs = 24 * 60 * 60 * 1000;
+      const out = [];
+      for (let t = new Date(startDate).setHours(0,0,0,0); t <= new Date(endDate).setHours(0,0,0,0); t += dayMs) {
+        const dStr = fmt(new Date(t));
+        if (byDay[dStr]) out.push(byDay[dStr]);
+        else out.push({ date: dStr, calories: 0, durationMinutes: 0, count: 0 });
+      }
+
+      return res.json({ success: true, dateRange: { start: startStr, end: endStr }, data: out });
+    } catch (e) {
+      console.error("getHistoricalActivities error:", e);
+      return res.status(500).json({ error: "Failed to fetch historical activities" });
+    }
+  }
 }
 
 module.exports = FitnessActivityController;

@@ -1,5 +1,5 @@
 // backend/controllers/scheduleController.js
-const Schedule = require("../models/schedule");
+const Schedule = require("../models/Schedule");
 const Event = require("../models/event");
 const { pool } = require("../config/database");
 

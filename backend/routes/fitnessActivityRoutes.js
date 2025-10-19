@@ -28,4 +28,7 @@ router.put("/:id", FitnessActivityController.updateActivity);
 // DELETE /api/fitness/activities/:id - Delete an activity
 router.delete("/:id", FitnessActivityController.deleteActivity);
 
+// GET historical aggregated activities
+router.get('/historical', FitnessActivityController.getHistoricalActivities);
+
 module.exports = router;
