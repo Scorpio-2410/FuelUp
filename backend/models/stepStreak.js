@@ -14,6 +14,7 @@ class StepStreak {
 
   // Create or update a step record for a user on a specific date
   // SQL updates whenever you POST to /api/steps - can be multiple times per day
+  // Only updates if new step count is higher than existing (prevents data loss)
   static async upsert(data) {
     const r = await pool.query(
       `
@@ -21,9 +22,21 @@ class StepStreak {
       VALUES ($1, $2, $3, $4)
       ON CONFLICT (user_id, date)
       DO UPDATE SET
-        step_count = EXCLUDED.step_count,
-        calories = EXCLUDED.calories,
-        updated_at = NOW()
+        step_count = CASE 
+          WHEN EXCLUDED.step_count > step_streaks.step_count 
+          THEN EXCLUDED.step_count 
+          ELSE step_streaks.step_count 
+        END,
+        calories = CASE 
+          WHEN EXCLUDED.step_count > step_streaks.step_count 
+          THEN EXCLUDED.calories 
+          ELSE step_streaks.calories 
+        END,
+        updated_at = CASE 
+          WHEN EXCLUDED.step_count > step_streaks.step_count 
+          THEN NOW() 
+          ELSE step_streaks.updated_at 
+        END
       RETURNING *`,
       [
         data.userId,
