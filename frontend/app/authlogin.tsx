@@ -1,6 +1,6 @@
 // app/authlogin.tsx
 import React, { useState } from "react";
-import { View, Text, Alert, Pressable, Image, TextInput, ScrollView } from "react-native";
+import { View, Text, Alert, Pressable, Image, TextInput, ScrollView, TouchableWithoutFeedback, Keyboard } from "react-native";
 import { router } from "expo-router";
 import {
   SafeAreaView,
@@ -13,6 +13,7 @@ import * as Haptics from "expo-haptics";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import SwipeNavigate from "../components/SwipeNavigate";
 import { useAnimatedStyle, withRepeat, withSpring, withTiming, withSequence } from "react-native-reanimated";
+import { LinearGradient } from "expo-linear-gradient";
 import ProfileField from "../components/User/ProfileField";
 import AnimatedBackground from "../components/Auth/AnimatedBackground";
 import FeatureCard from "../components/Auth/FeatureCard";
@@ -138,11 +139,11 @@ export default function AuthLogin() {
           style={{ flex: 1, backgroundColor: '#0A0A0A' }}
           className="flex-1"
         >
+          {/* Animated Background - always rendered */}
+          <AnimatedBackground stage={stage} />
+          
             {stage === "landing" ? (
               <View className="flex-1">
-                {/* Animated Background */}
-                <AnimatedBackground />
-                
                 {/* ScrollView for full content */}
                 <ScrollView 
                   showsVerticalScrollIndicator={false}
@@ -251,10 +252,15 @@ export default function AuthLogin() {
                 </ScrollView>
               </View>
             ) : (
-              <Animated.View 
-                entering={ZoomIn.duration(400).springify()}
-                className="flex-1 px-5 pt-4"
+              <ScrollView
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+                className="flex-1"
               >
+                <Animated.View 
+                  entering={ZoomIn.duration(400).springify()}
+                  className="px-5 pt-4"
+                >
                   {/* Enhanced back button */}
                   <Pressable
                     onPress={() => {
@@ -286,27 +292,31 @@ export default function AuthLogin() {
                       resizeMode="contain"
                       className="w-16 h-16 mb-4 rounded-xl"
                       style={{
-                        shadowColor: "#10B981",
-                        shadowOffset: { width: 0, height: 4 },
-                        shadowOpacity: 0.3,
-                        shadowRadius: 8,
+                        shadowColor: "#3B82F6",
+                        shadowOffset: { width: 0, height: 8 },
+                        shadowOpacity: 0.4,
+                        shadowRadius: 16,
                       }}
                     />
-                    <Text className="text-white text-3xl font-black">Welcome back</Text>
+                    <View className="items-center">
+                      <Text className="text-white text-3xl font-black mb-2">Welcome back</Text>
+                      <View className="h-1 w-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full" />
+                    </View>
                   </Animated.View>
 
                   {/* Login form */}
-                  <Animated.View
-                    entering={FadeInDown.delay(400).duration(600)}
-                    className="bg-neutral-900/50 rounded-3xl p-6"
-                    style={{
-                      shadowColor: "#000",
-                      shadowOffset: { width: 0, height: 8 },
-                      shadowOpacity: 0.3,
-                      shadowRadius: 16,
-                      elevation: 8,
-                    }}
-                  >
+                  <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                    <Animated.View
+                      entering={FadeInDown.delay(400).duration(600)}
+                      className="bg-neutral-900/98 rounded-3xl p-8 border border-neutral-700"
+                      style={{
+                        shadowColor: "#000",
+                        shadowOffset: { width: 0, height: 16 },
+                        shadowOpacity: 0.5,
+                        shadowRadius: 32,
+                        elevation: 12,
+                      }}
+                    >
                     <ProfileField
                       label="Email or Username"
                       textInputProps={{
@@ -319,77 +329,77 @@ export default function AuthLogin() {
                       }}
                     />
 
-                    <View className="mb-6">
-                      <Text className="text-gray-300 mb-3 font-medium">Password</Text>
-                      <View className="relative">
-                        <TextInput
-                          value={password}
-                          onChangeText={setPassword}
-                          secureTextEntry={!pwVisible}
-                          placeholder="Enter your password"
-                          autoCapitalize="none"
-                          autoCorrect={false}
-                          autoComplete="off"
-                          textContentType="password"
-                          className="bg-neutral-800/50 text-white rounded-xl px-4 py-4 pr-12 border border-neutral-700"
-                          style={{
-                            shadowColor: "#000",
-                            shadowOffset: { width: 0, height: 2 },
-                            shadowOpacity: 0.1,
-                            shadowRadius: 4,
-                            elevation: 2,
-                          }}
-                        />
+                    <ProfileField
+                      label="Password"
+                      textInputProps={{
+                        value: password,
+                        onChangeText: setPassword,
+                        secureTextEntry: !pwVisible,
+                        placeholder: "Enter your password",
+                        autoCapitalize: "none",
+                        autoCorrect: false,
+                        autoComplete: "off",
+                        textContentType: "password",
+                      }}
+                      rightAccessory={
                         <Pressable
                           onPress={() => {
                             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                             setPwVisible(!pwVisible);
                           }}
-                          className="absolute right-3 top-3 p-2 rounded-lg bg-neutral-700/50"
+                          className="p-2 rounded-lg bg-neutral-700"
                           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                          style={{
+                            shadowColor: "#000",
+                            shadowOffset: { width: 0, height: 1 },
+                            shadowOpacity: 0.1,
+                            shadowRadius: 2,
+                            elevation: 1,
+                          }}
                         >
                           <Ionicons
                             name={pwVisible ? "eye-off" : "eye"}
-                            size={20}
+                            size={18}
                             color="#9CA3AF"
                           />
                         </Pressable>
-                      </View>
-                    </View>
+                      }
+                    />
 
                     <Pressable
                       onPress={onLogin}
                       disabled={loading}
-                      className="rounded-2xl py-4"
+                      className="rounded-2xl py-5 mt-2 bg-emerald-500"
                       style={{
-                        backgroundColor: loading ? `${signinColor.bg}80` : signinColor.bg,
-                        shadowColor: signinColor.shadow,
-                        shadowOffset: { width: 0, height: 4 },
+                        shadowColor: "#10B981",
+                        shadowOffset: { width: 0, height: 8 },
                         shadowOpacity: 0.5,
-                        shadowRadius: 8,
-                        elevation: 6,
+                        shadowRadius: 16,
+                        elevation: 8,
                       }}
                     >
-                      <Text className="text-white text-center font-bold text-base">
-                        {loading ? "Signing in..." : "Sign In"}
+                      <Text className="text-white text-center font-bold text-lg tracking-wide">
+                        {loading ? "Signing in..." : "SIGN IN"}
                       </Text>
                     </Pressable>
 
-                    <View className="mt-6 items-center">
+                    <View className="mt-8 items-center">
                       <Pressable
                         onPress={() => {
                           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                           router.push("/authreset");
                         }}
-                        className="px-4 py-2 rounded-lg"
+                        className="px-4 py-2"
                       >
-                        <Text className="text-emerald-400 font-medium">
+                        <Text className="text-blue-400 font-semibold text-sm tracking-wide">
                           Forgot password?
                         </Text>
                       </Pressable>
                     </View>
-                  </Animated.View>
+                    </Animated.View>
+                  </TouchableWithoutFeedback>
                 </Animated.View>
+              </ScrollView>
             )}
         </SafeAreaView>
       </GestureHandlerRootView>

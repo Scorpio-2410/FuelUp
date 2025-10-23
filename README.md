@@ -7,6 +7,7 @@ FuelUp is a personal fitness and nutrition companion that fits your life — ble
 
 ## Overview
 FuelUp adapts to your schedule, culture, and goals to deliver a holistic plan that stays practical and motivating. Whether you want just nutrition support or a full fitness stack with workouts, FuelUp personalises the journey and grows with you.
+FuelUp are compatible with both Android and iOS
 
 
 ## Core Features

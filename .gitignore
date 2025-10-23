@@ -68,3 +68,6 @@ android/app/build/
 # Misc caches
 .tmp/
 .cache/
+
+# Cursor rules (personal preferences)
+.cursorrules

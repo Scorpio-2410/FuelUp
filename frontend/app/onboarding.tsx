@@ -1,3 +1,4 @@
+// app/onboarding.tsx
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
@@ -54,8 +55,7 @@ function Header({
           backgroundColor: "#000",
           flexDirection: "row",
           alignItems: "center",
-        }}
-      >
+        }}>
         {canGoBack ? (
           <Pressable onPress={onBack} hitSlop={12} style={{ marginRight: 12 }}>
             <ArrowLeft size={24} color="white" />
@@ -330,7 +330,7 @@ export default function Onboarding() {
         return;
       }
 
-      // 5) Save nutrition
+      // 5) Save nutrition — allow continuing if route isn't mounted yet
       try {
         await apiUpsertNutritionProfile({
           dailyCalorieTarget: null,
@@ -343,8 +343,7 @@ export default function Onboarding() {
             : null,
         });
       } catch (e: any) {
-        redirectToStart(e?.message || "Failed to save nutrition details");
-        return;
+        console.warn("Nutrition profile save skipped:", e?.message || e);
       }
 
       // success → to homepage
@@ -378,7 +377,6 @@ export default function Onboarding() {
         }
         canGoBack={step !== "profile"}
         onBack={goBack}
-        // Remove default horizontal padding from Header
       />
 
       <ScrollView className="flex-1 px-5">
@@ -397,8 +395,7 @@ export default function Onboarding() {
               disabled={!!validateProfile(user)}
               className={`rounded-xl p-3 my-8 bg-green-600 ${
                 validateProfile(user) ? "opacity-50" : ""
-              }`}
-            >
+              }`}>
               <Text className="text-white text-center font-semibold">
                 Continue
               </Text>
@@ -413,7 +410,6 @@ export default function Onboarding() {
               onPress={() => {
                 const err = validateFitness();
                 if (err) {
-                  // Do nothing, error message is shown inline
                   return;
                 }
                 goNext();
@@ -421,8 +417,7 @@ export default function Onboarding() {
               disabled={!!validateFitness()}
               className={`rounded-xl p-3 my-8 bg-green-600 ${
                 validateFitness() ? "opacity-50" : ""
-              }`}
-            >
+              }`}>
               <Text className="text-white text-center font-semibold">
                 Continue
               </Text>

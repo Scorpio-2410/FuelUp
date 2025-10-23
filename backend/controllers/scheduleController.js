@@ -45,6 +45,24 @@ const mondayOfLocal = (d) => {
   return x; // local Monday 00:00
 };
 
+/** Safely read JSONB preferences from schedules table */
+async function readSchedulePrefs(scheduleId) {
+  const { rows } = await pool.query(
+    `SELECT preferences FROM schedules WHERE id=$1`,
+    [scheduleId]
+  );
+  const raw = rows[0]?.preferences;
+  if (!raw) return {};
+  if (typeof raw === "string") {
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return {};
+    }
+  }
+  return raw;
+}
+
 /**
  * Compute free windows per local day from a list of events.
  * - Groups by local YYYY-MM-DD using the *start* timestamp.
@@ -209,22 +227,23 @@ const ScheduleController = {
     }
   },
 
-  /* -------------------- SUGGEST WINDOWS (unchanged semantics) -------------------- */
+  /* -------------------- SUGGEST WINDOWS -------------------- */
   async suggestTimes(req, res) {
     try {
       const horizonDays = Number(req.body?.horizonDays ?? 7);
       const schedule = await ensureSchedule(req.userId);
 
-      const [{ rows: fRows }, { rows: nRows }] = await Promise.all([
-        pool.query(`SELECT * FROM fitness_profiles WHERE user_id=$1`, [
-          req.userId,
-        ]),
-        pool.query(`SELECT * FROM nutrition_profiles WHERE user_id=$1`, [
-          req.userId,
-        ]),
+      // read fitness (days per week only; no session_length_min column)
+      const [{ rows: fRows }] = await Promise.all([
+        pool.query(
+          `SELECT days_per_week FROM fitness_profiles WHERE user_id=$1`,
+          [req.userId]
+        ),
       ]);
       const fitness = fRows[0] || {};
-      const nutrition = nRows[0] || {};
+
+      // read schedule preferences (JSONB)
+      const prefs = await readSchedulePrefs(schedule.id);
 
       const from = new Date();
       from.setHours(0, 0, 0, 0);
@@ -242,9 +261,15 @@ const ScheduleController = {
 
       const daysPerWeek = Math.max(
         1,
-        Math.min(6, Number(fitness.days_per_week ?? 3))
+        Math.min(6, Number(fitness.days_per_week ?? prefs.days_per_week ?? 3))
       );
-      const sessionMin = Math.max(20, Number(fitness.session_length_min ?? 45));
+
+      // Use preference if provided, otherwise default to 45 minutes.
+      const sessionMinPref = Number(prefs.workout_session_minutes);
+      const sessionMin = Math.max(
+        20,
+        isNaN(sessionMinPref) ? 45 : sessionMinPref
+      );
 
       // Walk each day; treat empty days as 06:00–22:00 free
       const cur = new Date(from);
@@ -289,35 +314,6 @@ const ScheduleController = {
         cur.setDate(cur.getDate() + 1);
       }
 
-      // Optional: propose one evening meal-prep
-      const mealPrepMin = nutrition?.macros ? 120 : 90;
-      const cur2 = new Date(from);
-      let addedMeal = false;
-      while (cur2 < to && !addedMeal) {
-        const key = ymdLocal(cur2);
-        const slots = freeByDay.get(key) || [
-          { start: atLocal(key, 6), end: atLocal(key, 22) },
-        ];
-        for (const slot of slots) {
-          const startH = slot.start.getHours();
-          const len = Math.floor((slot.end - slot.start) / 60000);
-          if (startH >= 16 && len >= mealPrepMin) {
-            const start = new Date(slot.start);
-            const end = new Date(start.getTime() + mealPrepMin * 60000);
-            suggestions.push({
-              type: "meal_prep",
-              title: "Meal Prep",
-              start_at: start.toISOString(),
-              end_at: end.toISOString(),
-              reason: `Evening block ≥ ${mealPrepMin} min.`,
-            });
-            addedMeal = true;
-            break;
-          }
-        }
-        cur2.setDate(cur2.getDate() + 1);
-      }
-
       res.json({ suggestions });
     } catch (e) {
       console.error("suggestTimes error:", e);
@@ -330,26 +326,36 @@ const ScheduleController = {
     try {
       const schedule = await ensureSchedule(req.userId);
 
+      // Only fetch columns that exist
       const { rows: fRows } = await pool.query(
-        `SELECT days_per_week, session_length_min FROM fitness_profiles WHERE user_id=$1`,
+        `SELECT days_per_week FROM fitness_profiles WHERE user_id=$1`,
         [req.userId]
       );
       const fitness = fRows[0] || {};
-      const daysPerWeek = Math.max(
-        1,
-        Math.min(6, Number(fitness.days_per_week ?? 3))
-      );
-      const sessionMin = Math.max(20, Number(fitness.session_length_min ?? 45));
 
-      const { rows: sRows } = await pool.query(
-        `SELECT preferences FROM schedules WHERE id=$1`,
-        [schedule.id]
+      // Preferences may contain: preferred_workout_days (array of 0..6),
+      // workout_session_minutes (number), days_per_week override, etc.
+      const prefs = await readSchedulePrefs(schedule.id);
+
+      // How many days we *want* this week
+      const targetPerWeek = Math.max(
+        1,
+        Math.min(6, Number(prefs.days_per_week ?? fitness.days_per_week ?? 3))
       );
-      const prefs = sRows[0]?.preferences || {};
-      // If present, should be numbers in JS getDay() semantics: 0..6 (Sun..Sat)
+
+      // Session length: default 120 minutes unless explicitly configured
+      const sessionMinPref = Number(prefs.workout_session_minutes);
+      const sessionMin = Math.max(
+        20,
+        isNaN(sessionMinPref) ? 120 : sessionMinPref
+      );
+
+      // Preferred weekdays (0..6). If not set, fall back to Mon/Wed/Fri, then Tue/Thu/Sat.
       const preferredDays = Array.isArray(prefs.preferred_workout_days)
-        ? prefs.preferred_workout_days.map(Number)
-        : null;
+        ? prefs.preferred_workout_days
+            .map(Number)
+            .filter((n) => n >= 0 && n <= 6)
+        : [1, 3, 5, 2, 4, 6];
 
       // ----- Bound to the current local week -----
       const today = new Date();
@@ -357,31 +363,54 @@ const ScheduleController = {
       const weekEndOpen = new Date(weekStart);
       weekEndOpen.setDate(weekEndOpen.getDate() + 7); // next Mon 00:00
 
-      // existing events within this week
+      // Existing events within this week
       const existing = await Event.listForSchedule(schedule.id, {
         from: weekStart.toISOString(),
         to: weekEndOpen.toISOString(),
       });
 
-      const freeByDay = computeFreeSlotsLocal(existing, 6, 22);
+      // Mark which weekdays already have a workout (any workout, not just auto-planned)
+      const existingWorkoutDays = new Set(
+        existing
+          .filter((e) => String(e.category).toLowerCase() === "workout")
+          .map((e) => {
+            const d = new Date(e.startAt || e.start_at);
+            return d.getDay(); // 0..6 local
+          })
+      );
 
-      // choose weekdays (local)
-      let targetWeekdays = [];
-      if (preferredDays && preferredDays.length) {
-        targetWeekdays = preferredDays.slice(0, daysPerWeek);
-      } else {
-        // Mon/Wed/Fri default, then Tue/Thu/Sat
-        targetWeekdays = [1, 3, 5, 2, 4, 6].slice(0, daysPerWeek);
+      // Count how many workouts already scheduled this week
+      const existingCount = Array.from(existingWorkoutDays).length;
+
+      // If we've already met or exceeded the target, nothing to do
+      if (existingCount >= targetPerWeek) {
+        return res.status(200).json({
+          success: true,
+          created_count: 0,
+          events: [],
+          message: "Weekly workout target already satisfied.",
+        });
       }
+
+      const remainingNeeded = Math.max(0, targetPerWeek - existingCount);
+
+      // Free-time map for this week (06:00–22:00 bounds)
+      const freeByDay = computeFreeSlotsLocal(existing, 6, 22);
 
       const created = [];
       let planned = 0;
 
-      // iterate ONLY inside this week (local)
+      // Walk the week once; if a day is preferred AND doesn't already have a workout,
+      // place ONE session (AM preferred, then PM, then longest window).
       const cursor = new Date(weekStart);
-      while (cursor < weekEndOpen && planned < daysPerWeek) {
-        const weekday = cursor.getDay(); // 0..6 local
-        if (!targetWeekdays.includes(weekday)) {
+      while (cursor < weekEndOpen && planned < remainingNeeded) {
+        const weekday = cursor.getDay(); // local 0..6
+
+        // Skip non-preferred days or days that already have a workout
+        if (
+          !preferredDays.includes(weekday) ||
+          existingWorkoutDays.has(weekday)
+        ) {
           cursor.setDate(cursor.getDate() + 1);
           continue;
         }
@@ -423,14 +452,17 @@ const ScheduleController = {
             recurrence_rule: "none",
             recurrence_until: null,
           });
+
           created.push(ev);
           planned++;
+          // Mark this weekday as now having a workout to prevent another on the same day
+          existingWorkoutDays.add(weekday);
         }
 
         cursor.setDate(cursor.getDate() + 1);
       }
 
-      res.status(201).json({
+      return res.status(201).json({
         success: true,
         created_count: created.length,
         events: created,
