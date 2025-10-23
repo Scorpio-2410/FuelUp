@@ -232,8 +232,8 @@ export default function FitnessProfile({
                   paddingBottom: 128,
                 }}
               >
-                <SaveButton onSave={handleSave} saving={saving} />
                 <DiscardButton onDiscard={onClose} disabled={saving} />
+                <SaveButton onSave={handleSave} saving={saving} />
               </View>
             </>
           )}
