@@ -63,12 +63,17 @@ export default function ExerciseDetailModal({
         const source = (exercise.source || "").toLowerCase();
         let item = null;
 
-        if (source === "local" || /^\\d+$/.test(String(extId))) {
+        if (source === "local" || /^\d+$/.test(String(extId))) {
           // treat as local DB id
           try {
             const r2 = await apiGetLocalExerciseDetail(extId);
             item = r2.item;
-            setGifUri(item?.gif_url || item?.image_url || null);
+            // Prefer local media; if missing, fallback to public image using external_id
+            const localMedia = item?.gif_url || item?.image_url || null;
+            if (localMedia) setGifUri(localMedia);
+            else if (item?.external_id)
+              setGifUri(getExerciseImageUri(item.external_id, "180"));
+            else setGifUri(null);
           } catch (err) {
             // fallback to public if local fails
             try {
@@ -271,9 +276,17 @@ export default function ExerciseDetailModal({
             )}
           </View>
 
-          {/* Instructions */}
-          {Array.isArray(detail?.instructions) &&
-          detail.instructions.length > 0 ? (
+          {/* Instructions (fallback to local notes split by newline) */}
+          {(() => {
+            const steps = Array.isArray(detail?.instructions)
+              ? detail.instructions
+              : detail?.notes
+              ? String(detail.notes)
+                  .split(/\r?\n+/)
+                  .map((s) => s.trim())
+                  .filter(Boolean)
+              : [];
+            return steps.length > 0 ? (
             <>
               <Text
                 style={{
@@ -285,7 +298,7 @@ export default function ExerciseDetailModal({
               >
                 Instructions
               </Text>
-              {detail.instructions.map((step: string, idx: number) => (
+              {steps.map((step: string, idx: number) => (
                 <View
                   key={idx}
                   style={{ flexDirection: "row", gap: 10, marginBottom: 10 }}
@@ -309,7 +322,8 @@ export default function ExerciseDetailModal({
                 </View>
               ))}
             </>
-          ) : null}
+            ) : null;
+          })()}
 
           {!!toast && (
             <Text style={{ color: "#22c55e", marginTop: 8 }}>{toast}</Text>
