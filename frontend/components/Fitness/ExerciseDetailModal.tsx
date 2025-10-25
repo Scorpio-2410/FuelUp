@@ -287,41 +287,41 @@ export default function ExerciseDetailModal({
                   .filter(Boolean)
               : [];
             return steps.length > 0 ? (
-            <>
-              <Text
-                style={{
-                  color: "white",
-                  fontSize: 18,
-                  fontWeight: "700",
-                  marginBottom: 10,
-                }}
-              >
-                Instructions
-              </Text>
-              {steps.map((step: string, idx: number) => (
-                <View
-                  key={idx}
-                  style={{ flexDirection: "row", gap: 10, marginBottom: 10 }}
+              <>
+                <Text
+                  style={{
+                    color: "white",
+                    fontSize: 18,
+                    fontWeight: "700",
+                    marginBottom: 10,
+                  }}
                 >
+                  Instructions
+                </Text>
+                {steps.map((step: string, idx: number) => (
                   <View
-                    style={{
-                      width: 24,
-                      height: 24,
-                      borderRadius: 12,
-                      backgroundColor: "#4ade80",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      marginTop: 2,
-                    }}
+                    key={idx}
+                    style={{ flexDirection: "row", gap: 10, marginBottom: 10 }}
                   >
-                    <Text style={{ color: "#0a0a0a", fontWeight: "800" }}>
-                      {idx + 1}
-                    </Text>
+                    <View
+                      style={{
+                        width: 24,
+                        height: 24,
+                        borderRadius: 12,
+                        backgroundColor: "#4ade80",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        marginTop: 2,
+                      }}
+                    >
+                      <Text style={{ color: "#0a0a0a", fontWeight: "800" }}>
+                        {idx + 1}
+                      </Text>
+                    </View>
+                    <Text style={{ color: "#d1d5db", flex: 1 }}>{step}</Text>
                   </View>
-                  <Text style={{ color: "#d1d5db", flex: 1 }}>{step}</Text>
-                </View>
-              ))}
-            </>
+                ))}
+              </>
             ) : null;
           })()}
 
