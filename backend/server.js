@@ -27,6 +27,9 @@ const mealPlanRoutes = require("./routes/mealPlanRoutes"); // create plan, add m
 const stepStreakRoutes = require("./routes/stepStreakRoutes");
 const fitnessActivityRoutes = require("./routes/fitnessActivityRoutes"); // step tracking and analytics
 
+/* ---- Workout Sessions ---- */
+const workoutSessionRoutes = require("./routes/workoutSessionRoutes");
+
 const app = express();
 const PORT = process.env.PORT || 4000;
 
@@ -55,6 +58,9 @@ app.use("/api/exercises/local", localExerciseRoutes);
 
 // Schedule
 app.use("/api/schedule", scheduleRoutes); // /, /events, /events/:id
+
+// Workout Sessions (tracking completed workouts)
+app.use("/api/workout-sessions", workoutSessionRoutes);
 
 // Target Questions
 app.use("/api/questions", targetQuestionRoutes);

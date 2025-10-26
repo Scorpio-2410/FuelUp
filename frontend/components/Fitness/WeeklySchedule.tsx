@@ -33,6 +33,8 @@ import {
   apiAutoPlanWorkouts,
   apiSchedulePlansWeekly,
   apiPlanAndScheduleAi,
+  apiListPlans,
+  apiCreateWorkoutSession,
 } from "../../constants/api";
 import ExerciseDetailModal from "./ExerciseDetailModal";
 
@@ -250,6 +252,7 @@ export default function WeeklySchedule({ onClose }: Props) {
     return d;
   });
   const [isEditingExisting, setIsEditingExisting] = useState(false); // Track if editing or creating new
+  const [useUserPlans, setUseUserPlans] = useState(false); // Track if user wants to use their own plans
 
   // Session viewer and exercise detail modals
   const [sessionOpen, setSessionOpen] = useState(false);
@@ -258,11 +261,22 @@ export default function WeeklySchedule({ onClose }: Props) {
     focus?: string;
     dayIndex?: number | null;
     exercises: any[];
+    // For per-occurrence edits
+    dbId?: number;
+    occurrenceStartISO?: string;
+    durationMs?: number;
   } | null>(null);
   const [exerciseModalOpen, setExerciseModalOpen] = useState(false);
   const [selectedExercise, setSelectedExercise] = useState<any | null>(null);
+  // Single-occurrence edit time picker
+  const [showSingleEditTimePicker, setShowSingleEditTimePicker] =
+    useState(false);
+  const [singleEditNewTime, setSingleEditNewTime] = useState<Date | null>(null);
 
   // Workout tracker: completed exercises and rest timer
+  const [workoutStarted, setWorkoutStarted] = useState(false); // Track if user started the workout
+  const [workoutElapsedSeconds, setWorkoutElapsedSeconds] = useState(0); // Track elapsed workout time
+  const workoutTimerRef = useRef<any>(null);
   const [completedExercises, setCompletedExercises] = useState<Set<number>>(
     new Set()
   );
@@ -274,6 +288,8 @@ export default function WeeklySchedule({ onClose }: Props) {
   // Clean up timer on unmount or when session closes
   useEffect(() => {
     if (!sessionOpen) {
+      setWorkoutStarted(false);
+      setWorkoutElapsedSeconds(0);
       setCompletedExercises(new Set());
       setRestTimerActive(false);
       setRestTimeRemaining(0);
@@ -281,8 +297,33 @@ export default function WeeklySchedule({ onClose }: Props) {
         clearInterval(restIntervalRef.current);
         restIntervalRef.current = null;
       }
+      if (workoutTimerRef.current) {
+        clearInterval(workoutTimerRef.current);
+        workoutTimerRef.current = null;
+      }
     }
   }, [sessionOpen]);
+
+  // Workout elapsed timer
+  useEffect(() => {
+    if (workoutStarted) {
+      workoutTimerRef.current = setInterval(() => {
+        setWorkoutElapsedSeconds((prev) => prev + 1);
+      }, 1000);
+
+      return () => {
+        if (workoutTimerRef.current) {
+          clearInterval(workoutTimerRef.current);
+          workoutTimerRef.current = null;
+        }
+      };
+    } else {
+      if (workoutTimerRef.current) {
+        clearInterval(workoutTimerRef.current);
+        workoutTimerRef.current = null;
+      }
+    }
+  }, [workoutStarted]);
 
   // Rest timer countdown
   useEffect(() => {
@@ -480,9 +521,47 @@ export default function WeeklySchedule({ onClose }: Props) {
   const handleAutoPlan = useCallback(async () => {
     if (planning) return;
 
-    // First, show the time picker to let user select their preferred workout time
-    setIsEditingExisting(false);
-    setShowWorkoutTimePicker(true);
+    // First, ask user if they want AI-generated or their own plans
+    Alert.alert(
+      "Workout Schedule",
+      "How would you like to create your workout schedule?",
+      [
+        {
+          text: "AI-Generated",
+          onPress: () => {
+            // Show time picker for AI-generated workouts
+            setUseUserPlans(false);
+            setIsEditingExisting(false);
+            setShowWorkoutTimePicker(true);
+          },
+        },
+        {
+          text: "Use My Plans",
+          onPress: async () => {
+            // Load user's plans and let them schedule each one
+            try {
+              const { plans } = await apiListPlans();
+
+              if (!plans || plans.length === 0) {
+                Alert.alert(
+                  "No Plans Found",
+                  "You don't have any workout plans yet. Create a plan first or choose AI-Generated."
+                );
+                return;
+              }
+
+              // Set flag and show time picker
+              setUseUserPlans(true);
+              setIsEditingExisting(false);
+              setShowWorkoutTimePicker(true);
+            } catch (e: any) {
+              Alert.alert("Error", e?.message || "Failed to load plans");
+            }
+          },
+        },
+        { text: "Cancel", style: "cancel" },
+      ]
+    );
   }, [planning]);
 
   const handleEditWorkoutEvents = useCallback(async () => {
@@ -552,81 +631,88 @@ export default function WeeklySchedule({ onClose }: Props) {
               minute: "2-digit",
             })}`
           );
-        } else {
-          // Create new workouts (original logic)
-          let created_count = 0;
-          let infoMsg: string | undefined;
-          let shouldTryAutoPlan = false;
-
+        } else if (useUserPlans) {
+          // User chose to schedule their own plans
           try {
             const r0 = await apiSchedulePlansWeekly({
               workoutHour,
               workoutMinute,
             });
-            created_count = r0?.created_count ?? 0;
-            infoMsg = (r0 as any)?.message;
-            console.log("[Suggest] schedulePlansWeekly result:", {
+            const created_count = r0?.created_count ?? 0;
+            const infoMsg = (r0 as any)?.message;
+
+            await loadWeek();
+
+            if (created_count && created_count > 0) {
+              Alert.alert(
+                "Plans Scheduled",
+                `Added ${created_count} workout${
+                  created_count > 1 ? "s" : ""
+                } from your plans at ${selectedTime.toLocaleTimeString(
+                  undefined,
+                  {
+                    hour: "numeric",
+                    minute: "2-digit",
+                  }
+                )}`
+              );
+            } else {
+              Alert.alert(
+                "No Plans Scheduled",
+                infoMsg ||
+                  "You may not have any active workout plans to schedule."
+              );
+            }
+          } catch (e: any) {
+            console.error("[Suggest] schedulePlansWeekly failed:", e?.message);
+            Alert.alert(
+              "Scheduling failed",
+              e?.message || "Failed to schedule your plans. Please try again."
+            );
+          }
+        } else {
+          // AI-generated workouts
+          let created_count = 0;
+          let infoMsg: string | undefined;
+
+          try {
+            console.log("[Suggest] AI plan generation with force_ai=true");
+            const r1 = await apiPlanAndScheduleAi({
+              force_ai: true,
+              workoutHour,
+              workoutMinute,
+            });
+            created_count = r1?.created_count ?? 0;
+            infoMsg = (r1 as any)?.message;
+            console.log("[Suggest] AI plan result:", {
               created_count,
               message: infoMsg,
             });
           } catch (e: any) {
-            console.log("[Suggest] schedulePlansWeekly failed:", e?.message);
-          }
-
-          if (!created_count) {
-            try {
-              console.log(
-                "[Suggest] Trying AI plan generation with force_ai=true"
-              );
-              const r1 = await apiPlanAndScheduleAi({
-                force_ai: true,
-                workoutHour,
-                workoutMinute,
-              });
-              created_count = r1?.created_count ?? 0;
-              infoMsg = infoMsg || (r1 as any)?.message;
-              console.log("[Suggest] AI plan result:", {
-                created_count,
-                message: infoMsg,
-              });
-            } catch (e: any) {
-              console.error("[Suggest] AI plan generation failed:", e?.message);
-              if (
-                e?.message?.includes("AI plan") ||
-                e?.message?.includes("generation failed")
-              ) {
-                shouldTryAutoPlan = true;
-              }
-            }
-          }
-
-          if (!created_count && shouldTryAutoPlan) {
-            try {
-              console.log("[Suggest] Falling back to legacy auto-planner");
-              const r2 = await apiAutoPlanWorkouts();
-              created_count = r2?.created_count ?? 0;
-              infoMsg = infoMsg || (r2 as any)?.message;
-              console.log("[Suggest] Auto-plan result:", {
-                created_count,
-                message: infoMsg,
-              });
-            } catch (e: any) {
-              console.error("[Suggest] Auto-plan also failed:", e?.message);
-            }
+            console.error("[Suggest] AI plan generation failed:", e?.message);
+            Alert.alert(
+              "AI Generation Failed",
+              e?.message ||
+                "Failed to generate AI workout plan. Please try again."
+            );
           }
 
           await loadWeek();
           if (created_count && created_count > 0) {
             Alert.alert(
-              "Workout suggestions",
-              `Added ${created_count} workout${
+              "AI Workouts Created",
+              `Added ${created_count} AI-generated workout${
                 created_count > 1 ? "s" : ""
-              } based on your schedule.`
+              } at ${selectedTime.toLocaleTimeString(undefined, {
+                hour: "numeric",
+                minute: "2-digit",
+              })}`
             );
-          } else {
+          } else if (!infoMsg || !infoMsg.includes("Failed")) {
             Alert.alert(
-              "Workout suggestions",
-              infoMsg || "No suitable free slots found in the current week."
+              "No Workouts Created",
+              infoMsg ||
+                "Unable to generate workouts based on your fitness profile."
             );
           }
         }
@@ -637,9 +723,10 @@ export default function WeeklySchedule({ onClose }: Props) {
         );
       } finally {
         setPlanning(false);
+        setUseUserPlans(false); // Reset flag
       }
     },
-    [isEditingExisting, loadWeek, monday]
+    [isEditingExisting, useUserPlans, loadWeek, monday]
   );
 
   const handleDeleteAllWorkouts = useCallback(async () => {
@@ -787,6 +874,7 @@ export default function WeeklySchedule({ onClose }: Props) {
               alignItems: "center",
               flexDirection: "row",
               justifyContent: "center",
+              zIndex: 2,
             }}
           >
             <TouchableOpacity
@@ -980,11 +1068,25 @@ export default function WeeklySchedule({ onClose }: Props) {
                         Array.isArray(data.exercises) &&
                         data.exercises.length > 0
                       ) {
+                        // compute occurrence start/end for scope-aware edits
+                        const occStart = new Date(
+                          `${item.dateKey}T${item.start}:00`
+                        );
+                        const occEnd = new Date(
+                          `${item.dateKey}T${item.end}:00`
+                        );
+                        const durationMs = Math.max(
+                          0,
+                          occEnd.getTime() - occStart.getTime()
+                        );
                         setSessionData({
                           title: item.title,
                           focus: data.focus || "Workout",
                           dayIndex: data.day_index || null,
                           exercises: data.exercises,
+                          dbId: Number(item.dbId),
+                          occurrenceStartISO: occStart.toISOString(),
+                          durationMs,
                         });
                         setSessionOpen(true);
                         return;
@@ -1124,7 +1226,43 @@ export default function WeeklySchedule({ onClose }: Props) {
                   }}
                 >
                   <TouchableOpacity
-                    onPress={() => setSessionOpen(false)}
+                    onPress={() => {
+                      // If workout is started, confirm before closing
+                      if (workoutStarted) {
+                        Alert.alert(
+                          "Stop Workout?",
+                          "Are you sure you want to stop this workout? Your progress will be lost.",
+                          [
+                            {
+                              text: "No",
+                              style: "cancel",
+                            },
+                            {
+                              text: "Yes",
+                              style: "destructive",
+                              onPress: () => {
+                                setSessionOpen(false);
+                                setWorkoutStarted(false);
+                                setWorkoutElapsedSeconds(0);
+                                setCompletedExercises(new Set());
+                                setRestTimerActive(false);
+                                setRestTimeRemaining(0);
+                                if (restIntervalRef.current) {
+                                  clearInterval(restIntervalRef.current);
+                                  restIntervalRef.current = null;
+                                }
+                                if (workoutTimerRef.current) {
+                                  clearInterval(workoutTimerRef.current);
+                                  workoutTimerRef.current = null;
+                                }
+                              },
+                            },
+                          ]
+                        );
+                      } else {
+                        setSessionOpen(false);
+                      }
+                    }}
                     style={{ marginRight: 10, padding: 6 }}
                   >
                     <Ionicons name="arrow-back" size={24} color="#fff" />
@@ -1140,6 +1278,129 @@ export default function WeeklySchedule({ onClose }: Props) {
                   >
                     {sessionData?.title || "Workout"}
                   </Text>
+
+                  {/* Workout Timer - shown when workout is active */}
+                  {workoutStarted && (
+                    <View
+                      style={{
+                        backgroundColor: "#1F2937",
+                        paddingHorizontal: 12,
+                        paddingVertical: 6,
+                        borderRadius: 8,
+                        marginRight: 8,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: GREEN,
+                          fontWeight: "700",
+                          fontSize: 16,
+                          fontVariant: ["tabular-nums"],
+                        }}
+                      >
+                        {Math.floor(workoutElapsedSeconds / 60)}:
+                        {String(workoutElapsedSeconds % 60).padStart(2, "0")}
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Start Workout Button */}
+                  {!workoutStarted && (
+                    <TouchableOpacity
+                      onPress={() => setWorkoutStarted(true)}
+                      style={{
+                        backgroundColor: GREEN,
+                        paddingHorizontal: 12,
+                        paddingVertical: 6,
+                        borderRadius: 8,
+                        marginRight: 8,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: "#000",
+                          fontWeight: "700",
+                          fontSize: 14,
+                        }}
+                      >
+                        Start Workout
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+
+                  {/* Edit button - hidden when workout is active */}
+                  {!!sessionData?.dbId && !workoutStarted && (
+                    <TouchableOpacity
+                      onPress={() => {
+                        // Open quick actions for this occurrence
+                        const occISO = sessionData?.occurrenceStartISO;
+                        const dbId = sessionData?.dbId;
+                        if (!occISO || !dbId) return;
+                        Alert.alert(
+                          "Edit this workout",
+                          "What would you like to do?",
+                          [
+                            {
+                              text: "Change time",
+                              onPress: () => setShowSingleEditTimePicker(true),
+                            },
+                            {
+                              text: "Delete",
+                              style: "destructive",
+                              onPress: () => {
+                                // Ask scope for delete
+                                Alert.alert(
+                                  "Delete scope",
+                                  "Apply to which occurrences?",
+                                  [
+                                    {
+                                      text: "Only this day",
+                                      onPress: async () => {
+                                        try {
+                                          await apiDeleteEvent(dbId, {
+                                            apply_to: "single",
+                                            occurrence_at: occISO,
+                                          });
+                                          setSessionOpen(false);
+                                          await loadWeek();
+                                        } catch (e: any) {
+                                          Alert.alert(
+                                            "Delete failed",
+                                            e?.message || "Please try again."
+                                          );
+                                        }
+                                      },
+                                    },
+                                    {
+                                      text: "All in series",
+                                      style: "destructive",
+                                      onPress: async () => {
+                                        try {
+                                          await apiDeleteEvent(dbId);
+                                          setSessionOpen(false);
+                                          await loadWeek();
+                                        } catch (e: any) {
+                                          Alert.alert(
+                                            "Delete failed",
+                                            e?.message || "Please try again."
+                                          );
+                                        }
+                                      },
+                                    },
+                                    { text: "Cancel", style: "cancel" },
+                                  ]
+                                );
+                              },
+                            },
+                            { text: "Cancel", style: "cancel" },
+                          ]
+                        );
+                      }}
+                      style={{ padding: 6 }}
+                    >
+                      <Ionicons name="create-outline" size={22} color="#fff" />
+                    </TouchableOpacity>
+                  )}
                 </View>
 
                 {/* Build an interleaved list: exercise, rest, exercise, ... */}
@@ -1271,7 +1532,7 @@ export default function WeeklySchedule({ onClose }: Props) {
                         keyExtractor={(row) => row.key}
                         contentContainerStyle={{
                           padding: 16,
-                          paddingBottom: 120,
+                          paddingBottom: workoutStarted ? 200 : 120,
                         }}
                         renderItem={({ item: row }) => {
                           if (row.type === "rest") {
@@ -1318,6 +1579,7 @@ export default function WeeklySchedule({ onClose }: Props) {
                             >
                               {/* Checkbox */}
                               <TouchableOpacity
+                                disabled={!workoutStarted}
                                 onPress={() =>
                                   toggleExerciseComplete(
                                     exerciseIndex,
@@ -1336,6 +1598,7 @@ export default function WeeklySchedule({ onClose }: Props) {
                                   alignItems: "center",
                                   justifyContent: "center",
                                   marginRight: 12,
+                                  opacity: workoutStarted ? 1 : 0.5,
                                 }}
                               >
                                 {isCompleted && (
@@ -1383,6 +1646,91 @@ export default function WeeklySchedule({ onClose }: Props) {
                           );
                         }}
                       />
+
+                      {/* Finish Workout Button */}
+                      {workoutStarted && (
+                        <View style={{ padding: 16, paddingTop: 0 }}>
+                          <TouchableOpacity
+                            onPress={async () => {
+                              try {
+                                // Count completed exercises
+                                const exercisesCompleted =
+                                  completedExercises.size;
+                                const totalExercises =
+                                  sessionData?.exercises?.length || 0;
+
+                                // Save workout session to database
+                                await apiCreateWorkoutSession({
+                                  workout_name: sessionData?.title || "Workout",
+                                  event_id: sessionData?.dbId,
+                                  duration_seconds: workoutElapsedSeconds,
+                                  completed_at: new Date().toISOString(),
+                                  exercises_completed: exercisesCompleted,
+                                  total_exercises: totalExercises,
+                                });
+
+                                Alert.alert(
+                                  "Well done! 🎉",
+                                  "Congratulations on completing this workout!",
+                                  [
+                                    {
+                                      text: "OK",
+                                      onPress: () => {
+                                        // Stop the workout timer
+                                        setWorkoutStarted(false);
+                                        setWorkoutElapsedSeconds(0);
+                                        if (workoutTimerRef.current) {
+                                          clearInterval(
+                                            workoutTimerRef.current
+                                          );
+                                          workoutTimerRef.current = null;
+                                        }
+                                        // Close the session modal
+                                        setSessionOpen(false);
+                                        // Reset other states
+                                        setCompletedExercises(new Set());
+                                        setRestTimerActive(false);
+                                        setRestTimeRemaining(0);
+                                        if (restIntervalRef.current) {
+                                          clearInterval(
+                                            restIntervalRef.current
+                                          );
+                                          restIntervalRef.current = null;
+                                        }
+                                      },
+                                    },
+                                  ]
+                                );
+                              } catch (error) {
+                                console.error(
+                                  "Error saving workout session:",
+                                  error
+                                );
+                                Alert.alert(
+                                  "Error",
+                                  "Failed to save workout session. Please try again."
+                                );
+                              }
+                            }}
+                            style={{
+                              backgroundColor: GREEN,
+                              paddingVertical: 16,
+                              borderRadius: 12,
+                              alignItems: "center",
+                            }}
+                          >
+                            <Text
+                              style={{
+                                color: "#000",
+                                fontWeight: "800",
+                                fontSize: 16,
+                              }}
+                            >
+                              Finish Workout
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
                     </>
                   );
                 })()}
@@ -1394,6 +1742,196 @@ export default function WeeklySchedule({ onClose }: Props) {
                 exercise={selectedExercise}
                 onClose={() => setExerciseModalOpen(false)}
               />
+
+              {/* Single-occurrence time picker - shows first, then scope prompt */}
+              {sessionData?.dbId && (
+                <Modal
+                  visible={showSingleEditTimePicker}
+                  transparent
+                  animationType="slide"
+                >
+                  <TouchableOpacity
+                    activeOpacity={1}
+                    onPress={() => setShowSingleEditTimePicker(false)}
+                    style={{
+                      flex: 1,
+                      justifyContent: "center",
+                      alignItems: "center",
+                      backgroundColor: "rgba(0,0,0,0.5)",
+                      paddingBottom: 280,
+                    }}
+                  >
+                    <TouchableOpacity
+                      activeOpacity={1}
+                      onPress={(e) => e.stopPropagation()}
+                      style={{
+                        backgroundColor: "white",
+                        borderRadius: 16,
+                        padding: 24,
+                        width: "85%",
+                        maxWidth: 400,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 20,
+                          fontWeight: "700",
+                          color: "#065F46",
+                          marginBottom: 8,
+                          textAlign: "center",
+                        }}
+                      >
+                        Change Workout Time
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          color: TEXT_MUTED,
+                          marginBottom: 20,
+                          textAlign: "center",
+                        }}
+                      >
+                        Select your new workout time
+                      </Text>
+
+                      <DateTimePicker
+                        value={(() => {
+                          try {
+                            const d = new Date(
+                              sessionData?.occurrenceStartISO || new Date()
+                            );
+                            return d;
+                          } catch {
+                            return new Date();
+                          }
+                        })()}
+                        mode="time"
+                        display={Platform.OS === "ios" ? "spinner" : "default"}
+                        onChange={(_: any, d?: Date) => {
+                          if (d) setSingleEditNewTime(d);
+                        }}
+                        style={{ alignSelf: "center" }}
+                        textColor="#000000"
+                        themeVariant="light"
+                      />
+
+                      <View
+                        style={{ flexDirection: "row", gap: 10, marginTop: 24 }}
+                      >
+                        <TouchableOpacity
+                          onPress={() => {
+                            setShowSingleEditTimePicker(false);
+                            setSingleEditNewTime(null);
+                          }}
+                          style={{
+                            backgroundColor: "#FCA5A5",
+                            paddingVertical: 12,
+                            borderRadius: 12,
+                            alignItems: "center",
+                            flex: 1,
+                          }}
+                        >
+                          <Text style={{ fontWeight: "800", color: "black" }}>
+                            Cancel
+                          </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          onPress={() => {
+                            const selectedTime =
+                              singleEditNewTime ||
+                              new Date(
+                                sessionData?.occurrenceStartISO || new Date()
+                              );
+                            setShowSingleEditTimePicker(false);
+
+                            const dbId = sessionData?.dbId!;
+                            const occISO = sessionData?.occurrenceStartISO!;
+                            const duration =
+                              sessionData?.durationMs || 60 * 60 * 1000;
+                            const base = new Date(occISO);
+                            const newStart = new Date(base);
+                            newStart.setHours(
+                              selectedTime.getHours(),
+                              selectedTime.getMinutes(),
+                              0,
+                              0
+                            );
+                            const newEnd = new Date(
+                              newStart.getTime() + duration
+                            );
+
+                            // Show scope prompt after time is selected
+                            Alert.alert(
+                              "Apply change",
+                              "Apply to which occurrences?",
+                              [
+                                {
+                                  text: "Only this day",
+                                  onPress: async () => {
+                                    try {
+                                      await apiUpdateEvent(dbId, {
+                                        start_at: newStart.toISOString(),
+                                        end_at: newEnd.toISOString(),
+                                        apply_to: "single",
+                                        occurrence_at: occISO,
+                                      });
+                                      setSessionOpen(false);
+                                      await loadWeek();
+                                      setSingleEditNewTime(null);
+                                    } catch (e: any) {
+                                      Alert.alert(
+                                        "Update failed",
+                                        e?.message || "Please try again."
+                                      );
+                                    }
+                                  },
+                                },
+                                {
+                                  text: "All in series",
+                                  onPress: async () => {
+                                    try {
+                                      await apiUpdateEvent(dbId, {
+                                        start_at: newStart.toISOString(),
+                                        end_at: newEnd.toISOString(),
+                                        apply_to: "all",
+                                      });
+                                      setSessionOpen(false);
+                                      await loadWeek();
+                                      setSingleEditNewTime(null);
+                                    } catch (e: any) {
+                                      Alert.alert(
+                                        "Update failed",
+                                        e?.message || "Please try again."
+                                      );
+                                    }
+                                  },
+                                },
+                                {
+                                  text: "Cancel",
+                                  style: "cancel",
+                                  onPress: () => setSingleEditNewTime(null),
+                                },
+                              ]
+                            );
+                          }}
+                          style={{
+                            backgroundColor: LEMON,
+                            paddingVertical: 12,
+                            borderRadius: 12,
+                            alignItems: "center",
+                            flex: 1,
+                          }}
+                        >
+                          <Text style={{ fontWeight: "800", color: "black" }}>
+                            Confirm
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                </Modal>
+              )}
             </Modal>
           )}
 

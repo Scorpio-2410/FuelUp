@@ -56,8 +56,11 @@ export default function PlansSheet({ visible, onClose }: Props) {
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailItem, setDetailItem] = useState<any | null>(null);
 
-  const hasRoom = useMemo(() => (plans?.length || 0) < 3, [plans]);
   const MAX_ACTIVE_PLANS = 10;
+  const hasRoom = useMemo(
+    () => (plans?.length || 0) < MAX_ACTIVE_PLANS,
+    [plans]
+  );
 
   useEffect(() => {
     if (!visible) return;

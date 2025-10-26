@@ -47,6 +47,40 @@ const mondayOfLocal = (d) => {
   return x; // local Monday 00:00
 };
 
+// ---------- Recurrence helpers for single- vs future/all edits ----------
+const addDays = (d, n) => {
+  const x = new Date(d);
+  x.setDate(x.getDate() + n);
+  return x;
+};
+
+// Next occurrence strictly after 'from' given a recurrence rule.
+function nextOccurrenceAfter(from, rule) {
+  if (!rule || rule === "none") return null;
+  if (rule === "daily") return addDays(from, 1);
+  if (rule === "weekly") return addDays(from, 7);
+  if (rule === "weekday") {
+    // advance day-by-day until Mon–Fri
+    let x = addDays(from, 1);
+    while (true) {
+      const dow = x.getDay(); // 0..6 local
+      if (dow >= 1 && dow <= 5) return x;
+      x = addDays(x, 1);
+    }
+  }
+  return null;
+}
+
+function withTime(dateLike, hours, minutes, seconds = 0, ms = 0) {
+  const x = new Date(dateLike);
+  x.setHours(hours, minutes, seconds, ms);
+  return x;
+}
+
+function msDiff(a, b) {
+  return new Date(a).getTime() - new Date(b).getTime();
+}
+
 /** Safely read JSONB preferences from schedules table */
 async function readSchedulePrefs(scheduleId) {
   const { rows } = await pool.query(
@@ -209,8 +243,143 @@ const ScheduleController = {
       if (patch.category)
         patch.category = String(patch.category).toLowerCase().trim();
 
-      const updated = await owned.evt.update(patch);
-      res.json({ success: true, event: updated });
+      // Support scoped updates for recurring events
+      const applyTo = (req.body?.apply_to || "all").toString(); // "single" | "future" | "all"
+      const occurrenceAtRaw = req.body?.occurrence_at;
+
+      // Remove control fields from base update patch
+      delete patch.apply_to;
+      delete patch.occurrence_at;
+
+      const base = owned.evt;
+      const isRecurring =
+        (base.recurrenceRule || base.recurrence_rule) &&
+        (base.recurrenceRule || base.recurrence_rule) !== "none";
+
+      if (!isRecurring || applyTo === "all" || !occurrenceAtRaw) {
+        const updated = await base.update(patch);
+        return res.json({ success: true, event: updated });
+      }
+
+      const rule = base.recurrenceRule || base.recurrence_rule;
+      const occStart = new Date(occurrenceAtRaw);
+      if (isNaN(occStart.getTime())) {
+        return res.status(400).json({ error: "Invalid occurrence_at" });
+      }
+
+      const baseStart = new Date(base.startAt || base.start_at);
+      const baseEnd =
+        base.endAt || base.end_at ? new Date(base.endAt || base.end_at) : null;
+      const baseDuration = baseEnd
+        ? msDiff(baseEnd, baseStart)
+        : 60 * 60 * 1000; // default 60m
+
+      console.log("[updateEvent:scoped] Base event info:", {
+        baseId: base.id,
+        baseStart: baseStart.toISOString(),
+        rule,
+        baseRecurrenceUntil: base.recurrenceUntil,
+        occurrenceAt: occStart.toISOString(),
+        applyTo,
+      });
+
+      // Desired updated start/end for the occurrence or future series
+      const desiredStart = patch.start_at ? new Date(patch.start_at) : occStart;
+      const desiredEnd = patch.end_at
+        ? new Date(patch.end_at)
+        : new Date(desiredStart.getTime() + baseDuration);
+
+      console.log("[updateEvent:scoped] Desired times:", {
+        desiredStart: desiredStart.toISOString(),
+        desiredEnd: desiredEnd.toISOString(),
+      });
+
+      // 1) Truncate the original series to end just BEFORE this occurrence
+      const newUntil = new Date(occStart.getTime() - 1000);
+      console.log(
+        "[updateEvent:scoped] Truncating base series to:",
+        newUntil.toISOString()
+      );
+      await base.update({ recurrence_until: newUntil.toISOString() });
+
+      // 2) Depending on scope, create replacement event(s)
+      if (applyTo === "single") {
+        // Create a one-time occurrence on the chosen time/date
+        const created = await Event.create({
+          scheduleId: base.scheduleId,
+          category: base.category,
+          title: patch.title ?? base.title,
+          startAt: desiredStart.toISOString(),
+          endAt: desiredEnd ? desiredEnd.toISOString() : null,
+          notes: Object.prototype.hasOwnProperty.call(patch, "notes")
+            ? patch.notes
+            : base.notes,
+          recurrence_rule: "none",
+          recurrence_until: null,
+        });
+
+        // Recreate the remainder of the series after the occurrence
+        const next = nextOccurrenceAfter(occStart, rule);
+        if (next) {
+          const restoredStart = withTime(
+            next,
+            baseStart.getHours(),
+            baseStart.getMinutes(),
+            baseStart.getSeconds(),
+            0
+          );
+          const restoredEnd = baseEnd
+            ? withTime(
+                next,
+                baseEnd.getHours(),
+                baseEnd.getMinutes(),
+                baseEnd.getSeconds(),
+                0
+              )
+            : null;
+          await Event.create({
+            scheduleId: base.scheduleId,
+            category: base.category,
+            title: base.title,
+            startAt: restoredStart.toISOString(),
+            endAt: restoredEnd ? restoredEnd.toISOString() : null,
+            notes: base.notes,
+            recurrence_rule: rule,
+            recurrence_until: base.recurrenceUntil || null,
+          });
+        }
+
+        return res.json({ success: true, event: created });
+      }
+
+      // applyTo === "future": create a new series from this occurrence forward with desired changes
+      console.log("[updateEvent:future] Creating new series:", {
+        scheduleId: base.scheduleId,
+        category: patch.category ?? base.category,
+        title: patch.title ?? base.title,
+        startAt: desiredStart.toISOString(),
+        endAt: desiredEnd ? desiredEnd.toISOString() : null,
+        recurrence_rule: rule,
+        recurrence_until: base.recurrenceUntil || null,
+        originalNotes: base.notes,
+        patchNotes: patch.notes,
+      });
+
+      const futureSeries = await Event.create({
+        scheduleId: base.scheduleId,
+        category: patch.category ?? base.category,
+        title: patch.title ?? base.title,
+        startAt: desiredStart.toISOString(),
+        endAt: desiredEnd ? desiredEnd.toISOString() : null,
+        notes: Object.prototype.hasOwnProperty.call(patch, "notes")
+          ? patch.notes
+          : base.notes,
+        recurrence_rule: rule,
+        recurrence_until: base.recurrenceUntil || null,
+      });
+
+      console.log("[updateEvent:future] Created new series:", futureSeries);
+      return res.json({ success: true, event: futureSeries });
     } catch (e) {
       console.error("updateEvent error:", e);
       res.status(500).json({ error: "Failed to update event" });
@@ -221,8 +390,71 @@ const ScheduleController = {
     try {
       const owned = await assertOwnsEvent(req.userId, req.params.id);
       if (!owned) return res.status(404).json({ error: "Event not found" });
-      await owned.evt.delete();
-      res.json({ success: true });
+
+      const applyTo = (req.query?.apply_to || "all").toString();
+      const occurrenceAtRaw = req.query?.occurrence_at;
+
+      const base = owned.evt;
+      const isRecurring =
+        (base.recurrenceRule || base.recurrence_rule) &&
+        (base.recurrenceRule || base.recurrence_rule) !== "none";
+
+      if (!isRecurring || applyTo === "all" || !occurrenceAtRaw) {
+        await base.delete();
+        return res.json({ success: true });
+      }
+
+      const rule = base.recurrenceRule || base.recurrence_rule;
+      const occStart = new Date(occurrenceAtRaw);
+      if (isNaN(occStart.getTime())) {
+        return res.status(400).json({ error: "Invalid occurrence_at" });
+      }
+
+      // Truncate the original series up to before the occurrence
+      const newUntil = new Date(occStart.getTime() - 1000);
+      await base.update({ recurrence_until: newUntil.toISOString() });
+
+      if (applyTo === "single") {
+        // restore remainder after the single skipped day
+        const baseStart = new Date(base.startAt || base.start_at);
+        const baseEnd =
+          base.endAt || base.end_at
+            ? new Date(base.endAt || base.end_at)
+            : null;
+        const next = nextOccurrenceAfter(occStart, rule);
+        if (next) {
+          const restoredStart = withTime(
+            next,
+            baseStart.getHours(),
+            baseStart.getMinutes(),
+            baseStart.getSeconds(),
+            0
+          );
+          const restoredEnd = baseEnd
+            ? withTime(
+                next,
+                baseEnd.getHours(),
+                baseEnd.getMinutes(),
+                baseEnd.getSeconds(),
+                0
+              )
+            : null;
+          await Event.create({
+            scheduleId: base.scheduleId,
+            category: base.category,
+            title: base.title,
+            startAt: restoredStart.toISOString(),
+            endAt: restoredEnd ? restoredEnd.toISOString() : null,
+            notes: base.notes,
+            recurrence_rule: rule,
+            recurrence_until: base.recurrenceUntil || null,
+          });
+        }
+        return res.json({ success: true });
+      }
+
+      // applyTo === "future": nothing more to do (we already truncated before occurrence)
+      return res.json({ success: true });
     } catch (e) {
       console.error("deleteEvent error:", e);
       res.status(500).json({ error: "Failed to delete event" });

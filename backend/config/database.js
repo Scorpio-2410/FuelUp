@@ -476,6 +476,59 @@ const initializeDatabase = async () => {
       BEFORE UPDATE ON fitness_activities FOR EACH ROW EXECUTE FUNCTION set_updated_at();
     `);
 
+    /* =========== WORKOUT SESSIONS (completed workouts) =========== */
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS workout_sessions (
+        id                 INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        user_id            INTEGER,
+        workout_name       VARCHAR(255),
+        plan_id            INTEGER,
+        event_id           INTEGER,
+        duration_seconds   INTEGER,
+        completed_at       TIMESTAMPTZ,
+        exercises_completed INTEGER,
+        total_exercises     INTEGER,
+        notes              TEXT,
+        created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      -- Backfill/ensure expected columns with proper defaults and constraints
+      ALTER TABLE workout_sessions
+        ADD COLUMN IF NOT EXISTS user_id INTEGER,
+        ADD COLUMN IF NOT EXISTS workout_name VARCHAR(255),
+        ADD COLUMN IF NOT EXISTS plan_id INTEGER,
+        ADD COLUMN IF NOT EXISTS event_id INTEGER,
+        ADD COLUMN IF NOT EXISTS duration_seconds INTEGER,
+        ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ,
+        ADD COLUMN IF NOT EXISTS exercises_completed INTEGER,
+        ADD COLUMN IF NOT EXISTS total_exercises INTEGER,
+        ADD COLUMN IF NOT EXISTS notes TEXT,
+        ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
+      -- Ensure essential defaults/constraints (best-effort, idempotent)
+      ALTER TABLE workout_sessions ALTER COLUMN workout_name SET NOT NULL;
+      ALTER TABLE workout_sessions ALTER COLUMN duration_seconds SET NOT NULL;
+      ALTER TABLE workout_sessions ALTER COLUMN duration_seconds SET DEFAULT 0;
+      ALTER TABLE workout_sessions ALTER COLUMN completed_at SET NOT NULL;
+      ALTER TABLE workout_sessions ALTER COLUMN completed_at SET DEFAULT NOW();
+
+      -- Ensure a DATE column exists for fast grouping/streaks
+      ALTER TABLE workout_sessions ADD COLUMN IF NOT EXISTS date DATE;
+      -- Ensure default for date
+      ALTER TABLE workout_sessions ALTER COLUMN date SET DEFAULT (NOW()::date);
+      -- Allow NULLs on date to avoid migration failures; app will write it from completed_at
+      ALTER TABLE workout_sessions ALTER COLUMN date DROP NOT NULL;
+
+  -- Remove any legacy calories column if present (we are not tracking calories here)
+  ALTER TABLE workout_sessions DROP COLUMN IF EXISTS total_calories_burned;
+
+      -- Create indexes (will succeed once columns exist)
+      CREATE INDEX IF NOT EXISTS idx_workout_sessions_user_id ON workout_sessions(user_id);
+      CREATE INDEX IF NOT EXISTS idx_workout_sessions_completed_at ON workout_sessions(completed_at);
+      CREATE INDEX IF NOT EXISTS idx_workout_sessions_user_date ON workout_sessions(user_id, completed_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_workout_sessions_date ON workout_sessions(date);
+    `);
+
     console.log("Schema initialization complete.");
   } catch (err) {
     console.error("Database initialization error:", err.message);

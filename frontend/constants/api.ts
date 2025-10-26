@@ -148,6 +148,12 @@ const EP = {
   mealsLog: "/api/meals/log",
   mealsGet: "/api/meals",
   dailyCalories: (date: string) => `/api/daily-calories/${date}`,
+
+  // ---------- Workout Sessions ----------
+  workoutSessions: "/api/workout-sessions",
+  workoutSessionById: (id: string | number) => `/api/workout-sessions/${id}`,
+  workoutSessionsStreak: "/api/workout-sessions/streak",
+  workoutSessionsRange: "/api/workout-sessions/range",
 };
 
 /* -------------------- helpers -------------------- */
@@ -514,6 +520,9 @@ export async function apiUpdateEvent(
     start_at: string;
     end_at: string | null;
     notes: string | null;
+    // Scoped update controls (optional)
+    apply_to: "single" | "future" | "all";
+    occurrence_at: string; // ISO datetime for the occurrence being edited
   }>
 ) {
   const res = await fetch(`${BASE_URL}${EP.events}/${id}`, {
@@ -523,8 +532,15 @@ export async function apiUpdateEvent(
   });
   return asJson<{ success: boolean; event: any }>(res);
 }
-export async function apiDeleteEvent(id: number | string) {
-  const res = await fetch(`${BASE_URL}${EP.events}/${id}`, {
+export async function apiDeleteEvent(
+  id: number | string,
+  opts?: { apply_to?: "single" | "future" | "all"; occurrence_at?: string }
+) {
+  const q = new URLSearchParams();
+  if (opts?.apply_to) q.set("apply_to", opts.apply_to);
+  if (opts?.occurrence_at) q.set("occurrence_at", opts.occurrence_at);
+  const url = `${BASE_URL}${EP.events}/${id}${q.toString() ? `?${q}` : ""}`;
+  const res = await fetch(url, {
     method: "DELETE",
     headers: await authHeaders(),
   });
@@ -1051,4 +1067,120 @@ export async function apiGetDailyCalorieSummary(date: string) {
     headers: await authHeaders(),
   });
   return asJson<{ ok: boolean; summary: DailyCalorieSummary }>(res);
+}
+
+/* -------------------- Workout Sessions -------------------- */
+export interface WorkoutSession {
+  id: number;
+  user_id: number;
+  workout_name: string;
+  plan_id?: number;
+  event_id?: number;
+  duration_seconds: number;
+  completed_at: string;
+  exercises_completed?: number;
+  total_exercises?: number;
+  notes?: string;
+  created_at: string;
+}
+
+// Create a new workout session
+export async function apiCreateWorkoutSession(payload: {
+  workout_name: string;
+  plan_id?: number;
+  event_id?: number;
+  duration_seconds: number;
+  completed_at?: string;
+  exercises_completed?: number;
+  total_exercises?: number;
+  notes?: string;
+}) {
+  const res = await fetch(`${BASE_URL}${EP.workoutSessions}`, {
+    method: "POST",
+    headers: await authHeaders(),
+    body: JSON.stringify(payload),
+  });
+  return asJson<{ success: boolean; session: WorkoutSession }>(res);
+}
+
+// List workout sessions with pagination
+export async function apiListWorkoutSessions(params?: {
+  limit?: number;
+  offset?: number;
+}) {
+  const query = new URLSearchParams();
+  if (params?.limit) query.set("limit", params.limit.toString());
+  if (params?.offset) query.set("offset", params.offset.toString());
+
+  const url = `${BASE_URL}${EP.workoutSessions}${
+    query.toString() ? `?${query}` : ""
+  }`;
+  const res = await fetch(url, {
+    headers: await authHeaders(),
+  });
+  return asJson<{
+    success: boolean;
+    sessions: WorkoutSession[];
+    total: number;
+    limit: number;
+    offset: number;
+  }>(res);
+}
+
+// Get a specific workout session by ID
+export async function apiGetWorkoutSession(id: string | number) {
+  const res = await fetch(`${BASE_URL}${EP.workoutSessionById(id)}`, {
+    headers: await authHeaders(),
+  });
+  return asJson<{ success: boolean; session: WorkoutSession }>(res);
+}
+
+// Get workout streak information
+export async function apiGetWorkoutStreak() {
+  const res = await fetch(`${BASE_URL}${EP.workoutSessionsStreak}`, {
+    headers: await authHeaders(),
+  });
+  return asJson<{
+    success: boolean;
+    streak: number;
+    totalWorkouts: number;
+  }>(res);
+}
+
+// Get workout sessions within a date range
+export async function apiGetWorkoutSessionsByDateRange(
+  from: string,
+  to: string
+) {
+  const query = new URLSearchParams({ from, to });
+  const res = await fetch(`${BASE_URL}${EP.workoutSessionsRange}?${query}`, {
+    headers: await authHeaders(),
+  });
+  return asJson<{
+    success: boolean;
+    sessions: WorkoutSession[];
+    count: number;
+  }>(res);
+}
+
+// Update a workout session
+export async function apiUpdateWorkoutSession(
+  id: string | number,
+  updates: Partial<WorkoutSession>
+) {
+  const res = await fetch(`${BASE_URL}${EP.workoutSessionById(id)}`, {
+    method: "PUT",
+    headers: await authHeaders(),
+    body: JSON.stringify(updates),
+  });
+  return asJson<{ success: boolean; session: WorkoutSession }>(res);
+}
+
+// Delete a workout session
+export async function apiDeleteWorkoutSession(id: string | number) {
+  const res = await fetch(`${BASE_URL}${EP.workoutSessionById(id)}`, {
+    method: "DELETE",
+    headers: await authHeaders(),
+  });
+  return asJson<{ success: boolean; message: string }>(res);
 }
