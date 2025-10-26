@@ -71,8 +71,6 @@ const initializeDatabase = async () => {
       CREATE TRIGGER trg_schedules_updated_at
       BEFORE UPDATE ON schedules FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
-    // =========== EVENTS (with recurrence) ===========
-    await client.query(`
       CREATE TABLE IF NOT EXISTS events (
         id               INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
         schedule_id      INTEGER NOT NULL REFERENCES schedules(id) ON DELETE CASCADE,
@@ -115,6 +113,7 @@ const initializeDatabase = async () => {
         diet_restrictions     TEXT,
         updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+
       DROP TRIGGER IF EXISTS trg_nutrition_profiles_updated_at ON nutrition_profiles;
       CREATE TRIGGER trg_nutrition_profiles_updated_at
       BEFORE UPDATE ON nutrition_profiles FOR EACH ROW EXECUTE FUNCTION set_updated_at();
@@ -131,7 +130,9 @@ const initializeDatabase = async () => {
         created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+
       CREATE INDEX IF NOT EXISTS idx_meal_plans_user ON meal_plans(user_id);
+
       DROP TRIGGER IF EXISTS trg_meal_plans_updated_at ON meal_plans;
       CREATE TRIGGER trg_meal_plans_updated_at
       BEFORE UPDATE ON meal_plans FOR EACH ROW EXECUTE FUNCTION set_updated_at();
@@ -151,8 +152,10 @@ const initializeDatabase = async () => {
         created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+
       CREATE INDEX IF NOT EXISTS idx_meals_user_time ON meals (user_id, logged_at);
       CREATE INDEX IF NOT EXISTS idx_meals_plan      ON meals (meal_plan_id);
+
       DROP TRIGGER IF EXISTS trg_meals_updated_at ON meals;
       CREATE TRIGGER trg_meals_updated_at
       BEFORE UPDATE ON meals FOR EACH ROW EXECUTE FUNCTION set_updated_at();
@@ -222,6 +225,7 @@ const initializeDatabase = async () => {
         days_per_week      INTEGER,
         updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+
       DROP TRIGGER IF EXISTS trg_fitness_profiles_updated_at ON fitness_profiles;
       CREATE TRIGGER trg_fitness_profiles_updated_at
       BEFORE UPDATE ON fitness_profiles FOR EACH ROW EXECUTE FUNCTION set_updated_at();
@@ -419,6 +423,7 @@ const initializeDatabase = async () => {
         used       BOOLEAN NOT NULL DEFAULT FALSE,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+
       CREATE INDEX IF NOT EXISTS idx_prt_user   ON password_reset_tokens(user_id);
       CREATE INDEX IF NOT EXISTS idx_prt_expire ON password_reset_tokens(expires_at);
     `);
