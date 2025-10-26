@@ -35,6 +35,7 @@ import {
   apiPlanAndScheduleAi,
   apiListPlans,
   apiCreateWorkoutSession,
+  apiListPlanExercises,
 } from "../../constants/api";
 import ExerciseDetailModal from "./ExerciseDetailModal";
 
@@ -1058,16 +1059,11 @@ export default function WeeklySchedule({ onClose }: Props) {
               }}
               renderItem={({ item }) => (
                 <TouchableOpacity
-                  onPress={() => {
+                  onPress={async () => {
                     // If this is a workout with embedded exercises in notes JSON, open session viewer
                     try {
                       const data = item?.notes ? JSON.parse(item.notes) : null;
-                      if (
-                        item.category === "workout" &&
-                        data &&
-                        Array.isArray(data.exercises) &&
-                        data.exercises.length > 0
-                      ) {
+                      if (item.category === "workout" && data) {
                         // compute occurrence start/end for scope-aware edits
                         const occStart = new Date(
                           `${item.dateKey}T${item.start}:00`
@@ -1079,17 +1075,62 @@ export default function WeeklySchedule({ onClose }: Props) {
                           0,
                           occEnd.getTime() - occStart.getTime()
                         );
-                        setSessionData({
-                          title: item.title,
-                          focus: data.focus || "Workout",
-                          dayIndex: data.day_index || null,
-                          exercises: data.exercises,
-                          dbId: Number(item.dbId),
-                          occurrenceStartISO: occStart.toISOString(),
-                          durationMs,
-                        });
-                        setSessionOpen(true);
-                        return;
+
+                        let exercises: any[] = Array.isArray(data.exercises)
+                          ? data.exercises
+                          : [];
+
+                        // If this event is linked to a plan, refresh exercises live from the plan
+                        const planId = data.plan_id || data.planId;
+                        if (planId) {
+                          try {
+                            const res: any = await apiListPlanExercises(planId);
+                            const items = Array.isArray(res?.items)
+                              ? res.items
+                              : [];
+                            if (items.length) {
+                              exercises = items.map((r: any) => ({
+                                // Use externalId from plan-exercise row to fetch details correctly
+                                id: r.externalId ?? r.id ?? null,
+                                externalId: r.externalId ?? r.id ?? null,
+                                // Mark as public ExerciseDB unless explicitly local
+                                source: (
+                                  r.source || "exercisedb"
+                                ).toLowerCase(),
+                                name: r.name || "Exercise",
+                                // Keep camelCase from backend but session UI reads these optional fields safely
+                                gif_url: r.gifUrl || null,
+                                body_part: r.bodyPart || null,
+                                target: r.target || null,
+                                equipment: r.equipment || null,
+                                // defaults so session UI is interactive
+                                sets: 3,
+                                reps: "10",
+                                rest_seconds: 60,
+                                estimated_seconds: 120,
+                              }));
+                            }
+                          } catch (e) {
+                            // If fetching fails, fall back to embedded snapshot
+                          }
+                        }
+
+                        if (exercises && exercises.length > 0) {
+                          setSessionData({
+                            title: item.title,
+                            focus:
+                              (data as any).focus ||
+                              (data as any).plan_name ||
+                              "Workout",
+                            dayIndex: (data as any).day_index || null,
+                            exercises,
+                            dbId: Number(item.dbId),
+                            occurrenceStartISO: occStart.toISOString(),
+                            durationMs,
+                          });
+                          setSessionOpen(true);
+                          return;
+                        }
                       }
                     } catch {}
                     openEditFor(item);
@@ -1577,38 +1618,40 @@ export default function WeeklySchedule({ onClose }: Props) {
                                 alignItems: "center",
                               }}
                             >
-                              {/* Checkbox */}
-                              <TouchableOpacity
-                                disabled={!workoutStarted}
-                                onPress={() =>
-                                  toggleExerciseComplete(
-                                    exerciseIndex,
-                                    Number(ex?.rest_seconds) || 0
-                                  )
-                                }
-                                style={{
-                                  width: 32,
-                                  height: 32,
-                                  borderRadius: 16,
-                                  borderWidth: 2,
-                                  borderColor: isCompleted ? GREEN : TEXT_MUTED,
-                                  backgroundColor: isCompleted
-                                    ? GREEN
-                                    : "transparent",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  marginRight: 12,
-                                  opacity: workoutStarted ? 1 : 0.5,
-                                }}
-                              >
-                                {isCompleted && (
-                                  <Ionicons
-                                    name="checkmark"
-                                    size={20}
-                                    color="#000"
-                                  />
-                                )}
-                              </TouchableOpacity>
+                              {/* Checkbox - only show after workout starts */}
+                              {workoutStarted && (
+                                <TouchableOpacity
+                                  onPress={() =>
+                                    toggleExerciseComplete(
+                                      exerciseIndex,
+                                      Number(ex?.rest_seconds) || 0
+                                    )
+                                  }
+                                  style={{
+                                    width: 32,
+                                    height: 32,
+                                    borderRadius: 16,
+                                    borderWidth: 2,
+                                    borderColor: isCompleted
+                                      ? GREEN
+                                      : TEXT_MUTED,
+                                    backgroundColor: isCompleted
+                                      ? GREEN
+                                      : "transparent",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    marginRight: 12,
+                                  }}
+                                >
+                                  {isCompleted && (
+                                    <Ionicons
+                                      name="checkmark"
+                                      size={20}
+                                      color="#000"
+                                    />
+                                  )}
+                                </TouchableOpacity>
+                              )}
 
                               {/* Exercise Info */}
                               <TouchableOpacity

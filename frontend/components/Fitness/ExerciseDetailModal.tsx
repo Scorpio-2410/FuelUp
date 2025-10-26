@@ -63,29 +63,24 @@ export default function ExerciseDetailModal({
         const source = (exercise.source || "").toLowerCase();
         let item = null;
 
-        if (source === "local" || /^\d+$/.test(String(extId))) {
-          // treat as local DB id
+        if (source === "local") {
+          // Local-first lookup
           try {
             const r2 = await apiGetLocalExerciseDetail(extId);
             item = r2.item;
-            // Prefer local media; if missing, fallback to public image using external_id
             const localMedia = item?.gif_url || item?.image_url || null;
             if (localMedia) setGifUri(localMedia);
             else if (item?.external_id)
               setGifUri(getExerciseImageUri(item.external_id, "180"));
             else setGifUri(null);
           } catch (err) {
-            // fallback to public if local fails
-            try {
-              const r = await apiGetExerciseDetail(extId);
-              item = r.item;
-              setGifUri(getExerciseImageUri(extId, "180"));
-            } catch (err2) {
-              throw err2;
-            }
+            // fallback to public
+            const r = await apiGetExerciseDetail(extId);
+            item = r.item;
+            setGifUri(getExerciseImageUri(extId, "180"));
           }
         } else {
-          // prefer public ExerciseDB lookup first
+          // Public-first lookup for non-local sources (e.g., exercisedb)
           try {
             const r = await apiGetExerciseDetail(extId);
             item = r.item;
