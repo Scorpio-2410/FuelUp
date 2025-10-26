@@ -482,7 +482,58 @@ const ScheduleController = {
       // Read preferences early so we can honor days_per_week when generating AI plan
       const prefsEarly = await readSchedulePrefs(schedule.id);
 
-      // 1) Check for existing non-archived fitness plan
+      // CLEAR OUT OLD AI-GENERATED PLANS AND EVENTS
+      // This allows users to regenerate when they change their days_per_week preference
+      console.log(
+        "[planAndScheduleAi] Clearing old AI-generated plans and events..."
+      );
+
+      // 1) Find all AI-generated fitness plans (identified by notes containing "Auto-created from AI suggestion")
+      const { rows: aiPlans } = await pool.query(
+        `SELECT id FROM fitness_plans 
+         WHERE user_id=$1 
+         AND status <> 'archived' 
+         AND (notes ILIKE '%Auto-created from AI suggestion%' OR notes ILIKE '%AI Weekly Plan%')`,
+        [req.userId]
+      );
+
+      // 2) Delete those plans (this will cascade delete their exercises)
+      if (aiPlans && aiPlans.length > 0) {
+        const planIds = aiPlans.map((p) => p.id);
+        await pool.query(`DELETE FROM fitness_plans WHERE id = ANY($1)`, [
+          planIds,
+        ]);
+        console.log(
+          `[planAndScheduleAi] Deleted ${planIds.length} old AI-generated plans`
+        );
+
+        // 3) Delete events that reference these plans
+        const existingEvents = await Event.listForSchedule(schedule.id);
+        for (const ev of existingEvents) {
+          try {
+            const notes = ev.notes;
+            if (!notes) continue;
+            const obj = typeof notes === "string" ? JSON.parse(notes) : notes;
+            if (
+              obj &&
+              (obj.type === "workout_session" || obj.type === "plan_session") &&
+              planIds.includes(obj.plan_id)
+            ) {
+              await pool.query(`DELETE FROM events WHERE id=$1`, [
+                ev.dbId || ev.id,
+              ]);
+            }
+          } catch (e) {
+            // ignore parse errors
+          }
+        }
+        console.log(
+          "[planAndScheduleAi] Deleted old events associated with AI plans"
+        );
+      }
+
+      // 1) Check for existing non-archived fitness plan (non-AI generated)
+      // We already deleted AI plans above, so only manually created plans remain
       const { rows: existingPlans } = await pool.query(
         `SELECT id, name FROM fitness_plans WHERE user_id=$1 AND status <> 'archived' ORDER BY created_at DESC LIMIT 1`,
         [req.userId]
@@ -491,7 +542,8 @@ const ScheduleController = {
       let plan = null;
       let aiPlan = null;
 
-      if (!existingPlans || existingPlans.length === 0) {
+      // Always generate a new AI plan since we cleared the old ones
+      if (true) {
         // Generate an AI plan via internal HTTP to our own endpoint
         const { rows: fRows } = await pool.query(
           `SELECT goal, activity_level, days_per_week, height_cm, weight_kg FROM fitness_profiles WHERE user_id=$1 LIMIT 1`,
@@ -549,11 +601,9 @@ const ScheduleController = {
             "[planAndScheduleAi] AI plan generation failed or returned invalid data:",
             resp.data
           );
-          return res
-            .status(500)
-            .json({
-              error: "AI plan generation failed - no workout data returned",
-            });
+          return res.status(500).json({
+            error: "AI plan generation failed - no workout data returned",
+          });
         }
 
         console.log("[planAndScheduleAi] AI plan generated successfully:", {
@@ -564,78 +614,6 @@ const ScheduleController = {
 
         // We don't create a single master plan anymore - we'll create individual plans per day below
         plan = null;
-      } else {
-        // Use the existing plan; we can still generate sessions from AI if requested
-        plan = new FitnessPlan({
-          id: existingPlans[0].id,
-          user_id: req.userId,
-          name: existingPlans[0].name,
-          status: "active",
-          notes: null,
-          created_at: new Date(),
-          updated_at: new Date(),
-        });
-
-        // If caller explicitly asked to regenerate schedule from AI even when plan exists
-        if (req.body?.force_ai) {
-          const baseUrl =
-            process.env.BASE_URL ||
-            `http://localhost:${process.env.PORT || 4000}`;
-          const { rows: fRows } = await pool.query(
-            `SELECT goal, activity_level, days_per_week, height_cm, weight_kg FROM fitness_profiles WHERE user_id=$1 LIMIT 1`,
-            [req.userId]
-          );
-          const prof = fRows[0] || {};
-
-          const desiredDays = Math.max(
-            1,
-            Math.min(
-              7, // Allow up to 7 days per week
-              Number(
-                req.body?.days_per_week ??
-                  req.body?.daysPerWeek ??
-                  prefsEarly.days_per_week ??
-                  prof.days_per_week ??
-                  4
-              )
-            )
-          );
-
-          console.log(
-            "[planAndScheduleAi force_ai] Days per week resolution:",
-            {
-              from_request_body:
-                req.body?.days_per_week ?? req.body?.daysPerWeek ?? null,
-              from_schedule_prefs: prefsEarly.days_per_week ?? null,
-              from_fitness_profile: prof.days_per_week ?? null,
-              final_desired_days: desiredDays,
-            }
-          );
-
-          const resp = await axios.post(
-            `${baseUrl}/api/ai/suggest-workout`,
-            {
-              goal: prof.goal || null,
-              activityLevel: prof.activity_level || null,
-              daysPerWeek: desiredDays,
-              height: prof.height_cm || null,
-              weight: prof.weight_kg || null,
-              exercises_per_day: req.body?.exercises_per_day || undefined,
-            },
-            {
-              timeout: 30000,
-              headers: { Authorization: req.headers.authorization || "" },
-            }
-          );
-          // Extract workout object from response
-          aiPlan = resp.data?.workout || resp.data;
-        } else {
-          return res.status(200).json({
-            success: true,
-            created_count: 0,
-            message: "A fitness plan already exists. No new plan created.",
-          });
-        }
       }
 
       const planned = aiPlan?.days || [];
