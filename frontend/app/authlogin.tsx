@@ -139,11 +139,11 @@ export default function AuthLogin() {
           style={{ flex: 1, backgroundColor: '#0A0A0A' }}
           className="flex-1"
         >
-          {/* Animated Background - always rendered */}
-          <AnimatedBackground stage={stage} />
-          
             {stage === "landing" ? (
               <View className="flex-1">
+                {/* Animated Background */}
+                <AnimatedBackground />
+                
                 {/* ScrollView for full content */}
                 <ScrollView 
                   showsVerticalScrollIndicator={false}
