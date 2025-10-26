@@ -4,7 +4,7 @@
 // It will check for FATSECRET_CONSUMER_KEY / FATSECRET_CONSUMER_SECRET in env and run a sample search.
 
 require('dotenv').config();
-const fatsecret = require('./utils/fatsecretClient');
+const fatsecret = require('../utils/fatsecretClient');
 
 (async ()=>{
   try{

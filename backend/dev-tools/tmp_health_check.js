@@ -1,4 +1,4 @@
-(async ()=>{
+ (async ()=>{
   try{
     const res = await fetch('http://localhost:4000/health');
     const txt = await res.text();

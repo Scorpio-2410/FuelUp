@@ -1,4 +1,4 @@
-(async ()=>{
+ (async ()=>{
   const url = process.env.URL || 'http://localhost:4000/api/foodRecommendation/recommend';
   const token = process.env.TEST_TOKEN || 'eyJhbGciOiJI...';
   const sampleBody = {
