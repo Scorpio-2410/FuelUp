@@ -305,19 +305,8 @@ const initializeDatabase = async () => {
         updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
 
-      -- ✅ SAFE BLOCK: only create index if category_id exists
-      DO $$
-      BEGIN
-        IF EXISTS (
-          SELECT 1 FROM information_schema.columns
-          WHERE table_name = 'exercises' AND column_name = 'category_id'
-        ) THEN
-          CREATE INDEX IF NOT EXISTS idx_exercises_category ON exercises (category_id);
-        ELSE
-          RAISE NOTICE 'Skipping idx_exercises_category: column does not exist.';
-        END IF;
-      END
-      $$;
+      -- create index for exercises.category_id (idempotent)
+      CREATE INDEX IF NOT EXISTS idx_exercises_category ON exercises (category_id);
 
       DROP TRIGGER IF EXISTS trg_exercises_updated_at ON exercises;
       CREATE TRIGGER trg_exercises_updated_at
