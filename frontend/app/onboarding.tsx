@@ -1,3 +1,4 @@
+// app/onboarding.tsx
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
@@ -21,6 +22,7 @@ import {
   apiSignup,
   storeToken,
 } from "../constants/api";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import ProfileForm from "../components/User/ProfileForm";
 import FitnessStep from "../components/Onboarding/FitnessStep";
@@ -325,12 +327,30 @@ export default function Onboarding() {
           heightCm: Number.isNaN(heightCm) ? null : heightCm,
           weightKg: Number.isNaN(weightKg) ? null : weightKg,
         });
+
+        // Save user's unit preference so Fitness Profile remembers it
+        try {
+          console.log("[Onboarding] Saving unit prefs:", {
+            heightUnit: fitness.heightUnit || "cm",
+            weightUnit: fitness.weightUnit || "kg",
+          });
+          await AsyncStorage.setItem(
+            "fu_pref_height_unit",
+            fitness.heightUnit || "cm"
+          );
+          await AsyncStorage.setItem(
+            "fu_pref_weight_unit",
+            fitness.weightUnit || "kg"
+          );
+        } catch (e) {
+          console.warn("[Onboarding] Failed to save unit prefs:", e);
+        }
       } catch (e: any) {
         redirectToStart(e?.message || "Failed to save fitness details");
         return;
       }
 
-      // 5) Save nutrition
+      // 5) Save nutrition — allow continuing if route isn't mounted yet
       try {
         await apiUpsertNutritionProfile({
           dailyCalorieTarget: null,
@@ -343,8 +363,7 @@ export default function Onboarding() {
             : null,
         });
       } catch (e: any) {
-        redirectToStart(e?.message || "Failed to save nutrition details");
-        return;
+        console.warn("Nutrition profile save skipped:", e?.message || e);
       }
 
       // success → to homepage
@@ -378,7 +397,6 @@ export default function Onboarding() {
         }
         canGoBack={step !== "profile"}
         onBack={goBack}
-        // Remove default horizontal padding from Header
       />
 
       <ScrollView className="flex-1 px-5">
@@ -413,7 +431,6 @@ export default function Onboarding() {
               onPress={() => {
                 const err = validateFitness();
                 if (err) {
-                  // Do nothing, error message is shown inline
                   return;
                 }
                 goNext();

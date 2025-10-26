@@ -11,6 +11,7 @@ type Props = {
   onChange: (v: NutritionDraft) => void;
   onSubmit: () => void;
   submitLabel?: string;
+  hideSubmit?: boolean;
 };
 
 function Chip({
@@ -74,6 +75,7 @@ export default function NutritionStep({
   onChange,
   onSubmit,
   submitLabel,
+  hideSubmit = false,
 }: Props) {
   const toggle = (arr: string[], item: string) =>
     arr.includes(item) ? arr.filter((x) => x !== item) : [...arr, item];
@@ -135,17 +137,19 @@ export default function NutritionStep({
         ))}
       </View>
 
-      <Pressable
-        onPress={onSubmit}
-        disabled={!isCuisineSelected}
-        className={`rounded-2xl p-4 mt-10 bg-green-600 shadow-lg ${
-          !isCuisineSelected ? "opacity-50" : ""
-        }`}
-      >
-        <Text className="text-white text-center font-semibold text-lg">
-          {submitLabel || "Complete onboarding"}
-        </Text>
-      </Pressable>
+      {!hideSubmit && (
+        <Pressable
+          onPress={onSubmit}
+          disabled={!isCuisineSelected}
+          className={`rounded-2xl p-4 mt-10 bg-green-600 shadow-lg ${
+            !isCuisineSelected ? "opacity-50" : ""
+          }`}
+        >
+          <Text className="text-white text-center font-semibold text-lg">
+            {submitLabel || "Complete onboarding"}
+          </Text>
+        </Pressable>
+      )}
     </View>
   );
 }

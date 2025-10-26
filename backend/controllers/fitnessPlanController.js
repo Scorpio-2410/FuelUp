@@ -11,15 +11,19 @@ class FitnessPlanController {
         return res.status(400).json({ error: "Plan name is required" });
       }
 
-      // max 3 non-archived
+      // max N non-archived (configurable via env)
+      const MAX_ACTIVE = parseInt(
+        process.env.MAX_ACTIVE_FITNESS_PLANS || "10",
+        10
+      );
       const { rows } = await pool.query(
         "SELECT COUNT(*)::int AS c FROM fitness_plans WHERE user_id=$1 AND status <> 'archived'",
         [userId]
       );
-      if (rows[0].c >= 3) {
-        return res
-          .status(400)
-          .json({ error: "You can only have up to 3 active/draft plans" });
+      if (rows[0].c >= MAX_ACTIVE) {
+        return res.status(400).json({
+          error: `You can only have up to ${MAX_ACTIVE} active/draft plans`,
+        });
       }
 
       // Only name, status, notes now

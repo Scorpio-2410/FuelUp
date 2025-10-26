@@ -17,7 +17,8 @@ export default function WeeklySchedulePopUp({
       animationType="slide"
       transparent
       visible={visible}
-      onRequestClose={onClose}>
+      onRequestClose={onClose}
+    >
       <View style={styles.overlay}>
         <View style={styles.modalContainer}>
           <WeeklySchedule onClose={onClose} />
@@ -36,6 +37,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#1a1a1a",
     width: "100%",
     height: "100%", // cover whole screen
-    paddingTop: 4, // pushes content a touch lower
+    paddingTop: 4, // minimal nudge; header spacing handled inside WeeklySchedule
   },
 });

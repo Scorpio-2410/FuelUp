@@ -8,6 +8,7 @@ import {
   ScrollView,
   TextInput,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -18,6 +19,9 @@ import {
   apiListPlanExercises,
   apiRemoveExerciseFromPlan,
   apiUpdatePlan,
+  apiGetFitnessProfile,
+  apiSuggestWorkout,
+  apiAddExerciseToPlan,
 } from "../../constants/api";
 import ExerciseDetailModal from "./ExerciseDetailModal";
 
@@ -50,12 +54,13 @@ export default function PlansSheet({ visible, onClose }: Props) {
 
   // exercise detail
   const [detailOpen, setDetailOpen] = useState(false);
-  const [detailItem, setDetailItem] = useState<{
-    id: string;
-    name: string;
-  } | null>(null);
+  const [detailItem, setDetailItem] = useState<any | null>(null);
 
-  const hasRoom = useMemo(() => (plans?.length || 0) < 3, [plans]);
+  const MAX_ACTIVE_PLANS = 10;
+  const hasRoom = useMemo(
+    () => (plans?.length || 0) < MAX_ACTIVE_PLANS,
+    [plans]
+  );
 
   useEffect(() => {
     if (!visible) return;
@@ -107,6 +112,55 @@ export default function PlansSheet({ visible, onClose }: Props) {
     }
   }
 
+  async function deleteAllAIPlans() {
+    if (busy) return;
+
+    // Delete ALL plans (not just AI-generated ones)
+    if (plans.length === 0) {
+      Alert.alert("No Plans", "There are no workout plans to delete.");
+      return;
+    }
+
+    Alert.alert(
+      "Delete All Workout Plans",
+      `Are you sure you want to delete all ${plans.length} workout plan${
+        plans.length > 1 ? "s" : ""
+      }? This cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            setBusy(true);
+            try {
+              let deleted = 0;
+              for (const plan of plans) {
+                try {
+                  await apiDeletePlan(plan.id);
+                  deleted++;
+                } catch (e) {
+                  console.warn("Failed to delete plan:", plan.id, e);
+                }
+              }
+              await load();
+              Alert.alert(
+                "Plans Deleted",
+                `Successfully deleted ${deleted} workout plan${
+                  deleted > 1 ? "s" : ""
+                }.`
+              );
+            } catch (e: any) {
+              Alert.alert("Delete failed", e?.message || "Please try again.");
+            } finally {
+              setBusy(false);
+            }
+          },
+        },
+      ]
+    );
+  }
+
   async function saveEdit() {
     if (!editing) return;
     setBusy(true);
@@ -140,7 +194,8 @@ export default function PlansSheet({ visible, onClose }: Props) {
   }
 
   function openExerciseDetail(exRow: any) {
-    setDetailItem({ id: String(exRow.externalId), name: exRow.name });
+    // keep the full plan exercise row (includes source, externalId, gifUrl, etc.)
+    setDetailItem(exRow);
     setDetailOpen(true);
   }
 
@@ -152,7 +207,8 @@ export default function PlansSheet({ visible, onClose }: Props) {
           backgroundColor: "#0a0a0a",
           paddingTop: Math.max(insets.top, 10),
           paddingBottom: Math.max(insets.bottom, 10),
-        }}>
+        }}
+      >
         {/* Header */}
         <View
           style={{
@@ -163,12 +219,14 @@ export default function PlansSheet({ visible, onClose }: Props) {
             flexDirection: "row",
             alignItems: "center",
             gap: 8,
-          }}>
+          }}
+        >
           <TouchableOpacity onPress={onClose} style={{ padding: 6 }}>
             <Ionicons name="close" size={24} color="#fff" />
           </TouchableOpacity>
           <Text
-            style={{ color: "#fff", fontWeight: "800", fontSize: 18, flex: 1 }}>
+            style={{ color: "#fff", fontWeight: "800", fontSize: 18, flex: 1 }}
+          >
             My Plans
           </Text>
 
@@ -181,28 +239,135 @@ export default function PlansSheet({ visible, onClose }: Props) {
               borderRadius: 10,
               backgroundColor: hasRoom ? "#16a34a" : "#334155",
               marginRight: 6,
-            }}>
+            }}
+          >
             <Ionicons name="add" size={18} color="#fff" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={async () => {
+              if (busy) return;
+              setBusy(true);
+              try {
+                // call suggest workout
+                const { profile } = await apiGetFitnessProfile();
+                // backend returns camelCase fields (toJSON), use those keys
+                const payload: any = {
+                  goal: profile?.goal || "general",
+                  activityLevel: profile?.activityLevel || "moderate",
+                  daysPerWeek: profile?.daysPerWeek || 3,
+                  height: profile?.heightCm || undefined,
+                  weight: profile?.weightKg || undefined,
+                  exercises_per_day: 5,
+                };
+
+                const aiResp = await apiSuggestWorkout(payload);
+                const workout = aiResp?.workout || aiResp?.workout_text || null;
+                if (!workout || !workout.days) {
+                  console.warn("AI returned no days", aiResp);
+                  Alert.alert(
+                    "No plans generated",
+                    "The AI did not return any workout days."
+                  );
+                } else {
+                  // respect plan limit (3 active/draft max)
+                  const existingCount = plans?.length || 0;
+                  const remaining = Math.max(
+                    0,
+                    MAX_ACTIVE_PLANS - existingCount
+                  );
+                  if (remaining <= 0) {
+                    Alert.alert(
+                      "Plan limit reached",
+                      `You already have the maximum number of active plans (${MAX_ACTIVE_PLANS}). Please archive or delete a plan first.`
+                    );
+                  } else {
+                    const daysToCreate = workout.days.slice(0, remaining);
+                    let createdAny = false;
+                    for (const day of daysToCreate) {
+                      const name = `${day.day} - ${day.focus}`;
+                      try {
+                        const created = await apiCreatePlan({
+                          name,
+                          notes: "Auto-created from AI suggestion",
+                        });
+                        const plan = created?.plan;
+                        if (!plan) continue;
+                        createdAny = true;
+                        // add exercises (catch per-exercise errors so one failure doesn't abort)
+                        for (const ex of day.exercises || []) {
+                          try {
+                            // AI-generated plans reference local DB exercise ids (ex.exercise_id),
+                            // so mark the source as 'local' when adding so the detail modal
+                            // and lookups use the local DB route and media.
+                            await apiAddExerciseToPlan(
+                              plan.id,
+                              ex.exercise_id || ex.external_id || ex.id,
+                              ex.name || ex.exercise_name || "Exercise",
+                              { source: "local" }
+                            );
+                          } catch (e) {
+                            console.warn("failed to add exercise", e);
+                          }
+                        }
+                      } catch (err: any) {
+                        console.warn("failed to create plan", err);
+                        // If it's a known API limit error, show friendly alert
+                        if (err?.status === 400 && err?.payload?.error) {
+                          Alert.alert(
+                            "Could not create plan",
+                            err.payload.error || "Unknown error"
+                          );
+                        }
+                      }
+                    }
+                    if (createdAny) await load();
+                    if (workout.days.length > remaining) {
+                      Alert.alert(
+                        "Partial import",
+                        `Only ${remaining} plans were created because of the 3-plan limit.`
+                      );
+                    }
+                  }
+                }
+              } finally {
+                setBusy(false);
+              }
+            }}
+            disabled={busy}
+            style={{
+              paddingHorizontal: 10,
+              paddingVertical: 6,
+              borderRadius: 10,
+              backgroundColor: "#2563eb",
+              marginRight: 6,
+            }}
+          >
+            <Text style={{ color: "#fff", fontWeight: "700" }}>
+              Suggest Workouts
+            </Text>
           </TouchableOpacity>
 
           {plans.length > 0 && (
             <TouchableOpacity
-              onPress={() => deletePlan(plans[0].id)}
+              onPress={deleteAllAIPlans}
               disabled={busy}
               style={{
                 paddingHorizontal: 10,
                 paddingVertical: 6,
                 borderRadius: 10,
-                backgroundColor: "#1f2937",
-              }}>
-              <Ionicons name="trash" size={18} color="#94a3b8" />
+                backgroundColor: "#991b1b",
+              }}
+            >
+              <Ionicons name="trash" size={18} color="#fff" />
             </TouchableOpacity>
           )}
         </View>
 
         {loading ? (
           <View
-            style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+            style={{ flex: 1, alignItems: "center", justifyContent: "center" }}
+          >
             <ActivityIndicator />
           </View>
         ) : (
@@ -210,7 +375,8 @@ export default function PlansSheet({ visible, onClose }: Props) {
             contentContainerStyle={{
               padding: 14,
               paddingBottom: Math.max(insets.bottom + 20, 40),
-            }}>
+            }}
+          >
             {plans.map((pl) => {
               const list = exByPlan[pl.id] || [];
               return (
@@ -222,7 +388,8 @@ export default function PlansSheet({ visible, onClose }: Props) {
                     borderRadius: 14,
                     borderWidth: 1,
                     borderColor: "#111827",
-                  }}>
+                  }}
+                >
                   {/* plan row header */}
                   <View
                     style={{
@@ -231,14 +398,16 @@ export default function PlansSheet({ visible, onClose }: Props) {
                       paddingHorizontal: 12,
                       paddingVertical: 10,
                       gap: 10,
-                    }}>
+                    }}
+                  >
                     <Text
                       style={{
                         color: "#fff",
                         fontWeight: "700",
                         fontSize: 16,
                         flex: 1,
-                      }}>
+                      }}
+                    >
                       {pl.name}
                     </Text>
 
@@ -249,7 +418,8 @@ export default function PlansSheet({ visible, onClose }: Props) {
                         paddingVertical: 6,
                         borderRadius: 10,
                         backgroundColor: "#111827",
-                      }}>
+                      }}
+                    >
                       <Ionicons
                         name="create-outline"
                         size={18}
@@ -266,7 +436,8 @@ export default function PlansSheet({ visible, onClose }: Props) {
                         borderRadius: 10,
                         backgroundColor: "#111827",
                         marginLeft: 6,
-                      }}>
+                      }}
+                    >
                       <Ionicons name="trash" size={18} color="#fca5a5" />
                     </TouchableOpacity>
                   </View>
@@ -278,7 +449,8 @@ export default function PlansSheet({ visible, onClose }: Props) {
                         paddingHorizontal: 12,
                         paddingTop: 0,
                         paddingBottom: 8,
-                      }}>
+                      }}
+                    >
                       {pl.notes}
                     </Text>
                   )}
@@ -294,17 +466,20 @@ export default function PlansSheet({ visible, onClose }: Props) {
                           backgroundColor: "#0f172a",
                           borderRadius: 12,
                           padding: 12,
-                        }}>
+                        }}
+                      >
                         {/* No image here to avoid 422 issues */}
                         <TouchableOpacity
                           style={{ flex: 1 }}
-                          onPress={() => openExerciseDetail(row)}>
+                          onPress={() => openExerciseDetail(row)}
+                        >
                           <Text
                             style={{
                               color: "#fff",
                               fontWeight: "600",
                               flexShrink: 1,
-                            }}>
+                            }}
+                          >
                             {row.name}
                           </Text>
                         </TouchableOpacity>
@@ -318,7 +493,8 @@ export default function PlansSheet({ visible, onClose }: Props) {
                             borderRadius: 10,
                             backgroundColor: "#991b1b",
                             marginLeft: 10,
-                          }}>
+                          }}
+                        >
                           <Ionicons name="remove" size={18} color="#fff" />
                         </TouchableOpacity>
                       </View>
@@ -342,7 +518,8 @@ export default function PlansSheet({ visible, onClose }: Props) {
         visible={!!editing}
         transparent
         animationType="fade"
-        onRequestClose={() => setEditing(null)}>
+        onRequestClose={() => setEditing(null)}
+      >
         <View
           style={{
             flex: 1,
@@ -352,7 +529,8 @@ export default function PlansSheet({ visible, onClose }: Props) {
             paddingTop: insets.top + 18,
             paddingBottom: insets.bottom + 18,
             paddingHorizontal: 18,
-          }}>
+          }}
+        >
           <View
             style={{
               width: Math.min(W - 32, 520),
@@ -361,14 +539,16 @@ export default function PlansSheet({ visible, onClose }: Props) {
               borderWidth: 1,
               borderColor: "#1f2937",
               padding: 16,
-            }}>
+            }}
+          >
             <Text
               style={{
                 color: "#fff",
                 fontWeight: "800",
                 fontSize: 16,
                 marginBottom: 10,
-              }}>
+              }}
+            >
               Edit Plan
             </Text>
 
@@ -415,7 +595,8 @@ export default function PlansSheet({ visible, onClose }: Props) {
                 justifyContent: "flex-end",
                 gap: 10,
                 marginTop: 14,
-              }}>
+              }}
+            >
               <TouchableOpacity
                 onPress={() => setEditing(null)}
                 style={{
@@ -423,7 +604,8 @@ export default function PlansSheet({ visible, onClose }: Props) {
                   paddingVertical: 10,
                   borderRadius: 10,
                   backgroundColor: "#111827",
-                }}>
+                }}
+              >
                 <Text style={{ color: "#cbd5e1" }}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -434,7 +616,8 @@ export default function PlansSheet({ visible, onClose }: Props) {
                   paddingVertical: 10,
                   borderRadius: 10,
                   backgroundColor: "#16a34a",
-                }}>
+                }}
+              >
                 <Text style={{ color: "#fff", fontWeight: "700" }}>Save</Text>
               </TouchableOpacity>
             </View>
@@ -445,11 +628,9 @@ export default function PlansSheet({ visible, onClose }: Props) {
       {/* Exercise detail modal (shows image there) */}
       <ExerciseDetailModal
         visible={detailOpen}
-        exercise={
-          detailItem
-            ? ({ id: detailItem.id, name: detailItem.name } as any)
-            : null
-        }
+        // pass the full plan exercise row so the modal can use
+        // externalId / external_id and source to resolve images/instructions
+        exercise={detailItem ? (detailItem as any) : null}
         onClose={() => setDetailOpen(false)}
       />
     </Modal>

@@ -39,7 +39,7 @@ export const NightStarField: React.FC<NightStarFieldProps> = ({
         y: Math.random() * height,
         size: Math.random() * 2.5 + 1, // 1-3.5px for more visible stars
         opacity: Math.random() * 0.7 + 0.5, // 0.5-1.2 for brighter stars
-        animationDelay: Math.random() * 3000, // 0-3s delay for varied timing
+        animationDelay: Math.random() * 1000, // 0-1s delay (reduced from 3s but keeps staggered effect)
       });
     }
     
@@ -51,7 +51,7 @@ export const NightStarField: React.FC<NightStarFieldProps> = ({
       const generatedStars = generateStars();
       setStars(generatedStars);
       
-      // Initialize animated values for each star
+      // Initialize animated values for each star (start invisible for staggered effect)
       starAnimatedValues.current = generatedStars.map(() => new Animated.Value(0));
       
       // Mix of animation styles for diversity (20% twinkling, 80% steady)

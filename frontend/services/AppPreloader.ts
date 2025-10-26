@@ -2,7 +2,8 @@
 // Handles all data loading during splash screen for smooth app startup
 // Eliminates white screen by preloading essential data in background
 
-import { apiGetMe, readProfileCache, writeProfileCache } from '../constants/api';
+import { apiGetMe, readProfileCache, writeProfileCache, K_TOKEN } from '../constants/api';
+import * as SecureStore from 'expo-secure-store';
 import { ExpoStepsService } from './stepsService';
 import { StepsStorageService } from '../utils/stepsStorage';
 
@@ -69,14 +70,30 @@ export class AppPreloader {
         this.preloadedData.userProfile = cached;
       }
 
-      // 2) Fetch fresh data from API in background
-      const { user } = await apiGetMe();
-      if (user) {
-        this.preloadedData.userProfile = user;
-        await writeProfileCache(user);
+      // 2) Check if user is authenticated before making API call
+      try {
+        const token = await SecureStore.getItemAsync(K_TOKEN);
+        if (!token) {
+          // No token available, skip API call
+          return;
+        }
+      } catch (tokenError) {
+        // SecureStore not available or token check failed, skip API call
+        return;
+      }
+
+      // 3) Try to fetch fresh data from API
+      try {
+        const { user } = await apiGetMe();
+        if (user) {
+          this.preloadedData.userProfile = user;
+          await writeProfileCache(user);
+        }
+      } catch (apiError) {
+        // Silent fail - user not logged in
       }
     } catch (error) {
-      console.warn('Failed to preload user profile:', error);
+      // Silent fail
     }
   }
 
@@ -136,7 +153,7 @@ export class AppPreloader {
 
   // Run smooth progress animation over 4 seconds
   private async runSmoothProgress(): Promise<void> {
-    const totalDuration = 4000; // 4 seconds
+    const totalDuration = 3000; // 4 seconds
     const updateInterval = 50; // Update every 50ms
     const totalSteps = totalDuration / updateInterval; // 80 steps
     const progressPerStep = 99 / totalSteps; // Go from 1% to 100%

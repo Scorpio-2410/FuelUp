@@ -11,5 +11,6 @@ router.get("/recipes/:id", ctrl.getRecipe);
 router.post("/recipes/save", ctrl.saveRecipe);
 router.post("/meals/log", authenticateToken, ctrl.logMeal);
 router.get("/meals", authenticateToken, ctrl.getUserMeals);
+router.get("/daily-calories/:date", authenticateToken, ctrl.getDailyCalorieSummary);
 
 module.exports = router;

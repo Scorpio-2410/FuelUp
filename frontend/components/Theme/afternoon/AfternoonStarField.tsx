@@ -38,7 +38,7 @@ export const AfternoonStarField: React.FC<AfternoonStarFieldProps> = ({
         y: Math.random() * topAreaHeight, // Only in top 40%
         size: Math.random() * 1.8 + 0.8, // Smaller stars (0.8-2.6px)
         opacity: Math.random() * 0.4 + 0.2, // Dimmer for twilight (0.2-0.6)
-        animationDelay: Math.random() * 4000, // 0-4s delay
+        animationDelay: Math.random() * 400, // 0-0.4s delay for faster appearance
       });
     }
     
@@ -49,8 +49,8 @@ export const AfternoonStarField: React.FC<AfternoonStarFieldProps> = ({
     const generatedStars = generateStars();
     setStars(generatedStars);
     
-    // Initialize animated values for each star
-    starAnimatedValues.current = generatedStars.map(() => new Animated.Value(0));
+    // Initialize animated values for each star with immediate visibility
+    starAnimatedValues.current = generatedStars.map((star) => new Animated.Value(star.opacity * 0.7));
     
     // Mix of animation styles for diversity (10% night-style)
     generatedStars.forEach((star, index) => {

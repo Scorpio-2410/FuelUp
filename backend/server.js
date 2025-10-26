@@ -9,21 +9,28 @@ const { verifySmtp } = require("./utils/mailer");
 /* ---------------- Route groups ---------------- */
 const userRoutes = require("./routes/userRoutes");
 const fitnessProfileRoutes = require("./routes/fitnessProfileRoutes");
+const nutritionProfileRoutes = require("./routes/nutritionProfileRoutes");
 const fitnessPlanRoutes = require("./routes/fitnessPlanRoutes");
 const planExerciseRoutes = require("./routes/planExerciseRoutes"); // exercises saved to a plan
 const exerciseSearchRoutes = require("./routes/exerciseSearchRoutes"); // ExerciseDB proxy
+const localExerciseRoutes = require("./routes/localExerciseRoutes");
 const scheduleRoutes = require("./routes/scheduleRoutes");
 const targetQuestionRoutes = require("./routes/targetQuestionRoutes");
 const quotesRoutes = require("./routes/quotesRoutes");
 const foodRecommendationRoutes = require("./routes/foodRecommendationRoutes");
 
+const aiWorkoutRoutes = require("./routes/aiWorkoutRoutes");
 
 /* ---- NEW: FatSecret catalogs + Meal Planner ---- */
 const foodRoutes = require("./routes/foodRoutes"); // foods/recipes browse + save
 const mealPlanRoutes = require("./routes/mealPlanRoutes"); // create plan, add meal, summary
 
 /* ---- Step Tracking ---- */
-const stepStreakRoutes = require("./routes/stepStreakRoutes"); // step tracking and analytics
+const stepStreakRoutes = require("./routes/stepStreakRoutes");
+const fitnessActivityRoutes = require("./routes/fitnessActivityRoutes"); // step tracking and analytics
+
+/* ---- Workout Sessions ---- */
+const workoutSessionRoutes = require("./routes/workoutSessionRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -40,14 +47,22 @@ app.use("/api/users", userRoutes);
 
 // Fitness namespace
 app.use("/api/fitness", fitnessProfileRoutes); // /api/fitness/profile (GET/PUT)
+// Nutrition namespace (preferences + targets)
+app.use("/api/nutrition", nutritionProfileRoutes); // /api/nutrition/profile (GET/PUT)
 app.use("/api/fitness/plans", fitnessPlanRoutes); // CRUD plans
 app.use("/api/fitness/plans/:id/exercises", planExerciseRoutes); // list/add/remove exercises for a plan
+app.use("/api", aiWorkoutRoutes); // <-- Mount the AI route with other /api routes
 
 // ExerciseDB proxy (public catalog; no caching)
 app.use("/api/exercises", exerciseSearchRoutes); // GET / (search via q/target), GET /:id, GET /:id/image
+// Local DB-backed exercise details (by numeric DB id)
+app.use("/api/exercises/local", localExerciseRoutes);
 
 // Schedule
 app.use("/api/schedule", scheduleRoutes); // /, /events, /events/:id
+
+// Workout Sessions (tracking completed workouts)
+app.use("/api/workout-sessions", workoutSessionRoutes);
 
 // Target Questions
 app.use("/api/questions", targetQuestionRoutes);
@@ -79,6 +94,9 @@ app.use("/api/steps", stepStreakRoutes);
 //Ai Food Recommendations
 app.use("/api/food", foodRecommendationRoutes);
 
+
+// Fitness Activities
+app.use("/api/fitness/activities", fitnessActivityRoutes);
 
 /* ---------------- Root + health ---------------- */
 app.get("/", (req, res) => {

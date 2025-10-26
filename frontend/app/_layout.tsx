@@ -2,14 +2,11 @@ import "react-native-gesture-handler";
 import "react-native-reanimated";
 import "../global.css";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import {
-  DarkTheme,
-  DefaultTheme,
-} from "@react-navigation/native";
+import { DarkTheme, DefaultTheme } from "@react-navigation/native";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useColorScheme } from "../components/useColorScheme";
 import AppLoadingScreen from "../components/AppLoadingScreen";
@@ -19,7 +16,8 @@ import AppPreloader from "../services/AppPreloader";
 export { ErrorBoundary } from "expo-router";
 
 // DO NOT set initialRouteName; let index.tsx decide via Redirect
-SplashScreen.preventAutoHideAsync();
+// Ensure we don't crash if called twice in dev (Fast Refresh / StrictMode)
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
@@ -33,13 +31,19 @@ export default function RootLayout() {
     if (error) throw error;
   }, [error]);
 
+  // Guard to avoid double-calling hideAsync in dev
+  const splashHiddenRef = useRef(false);
+
   useEffect(() => {
-    if (loaded) {
-      // Add error handling for splash screen
-      SplashScreen.hideAsync().catch((error) => {
-        console.warn('SplashScreen hide error:', error);
-        // Continue execution even if splash screen fails
-      });
+    if (loaded && !splashHiddenRef.current) {
+      // Hide native splash exactly once when fonts are ready
+      SplashScreen.hideAsync()
+        .catch((error) => {
+          console.warn("SplashScreen hide error:", error);
+        })
+        .finally(() => {
+          splashHiddenRef.current = true;
+        });
       // Mark fonts as loaded in preloader
       const preloader = AppPreloader.getInstance();
       preloader.markFontsLoaded();
@@ -50,7 +54,7 @@ export default function RootLayout() {
     // Start preloading when fonts are loaded
     if (loaded) {
       const preloader = AppPreloader.getInstance();
-      
+
       // Set up completion callback
       preloader.setProgressCallback((progressData) => {
         if (progressData.progress >= 100) {
@@ -64,7 +68,7 @@ export default function RootLayout() {
 
       // Start preloading
       preloader.preloadAll().catch((error) => {
-        console.error('Preloading failed:', error);
+        console.error("Preloading failed:", error);
         // Still proceed even if preloading fails
         setTimeout(() => {
           setPreloadingComplete(true);
@@ -91,7 +95,15 @@ function RootLayoutNav() {
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="targetquestions" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="steps-analytics" options={{ headerShown: false }} />
+        <Stack.Screen name="steps-analytics" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="steps-performance-chart"
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="calories-formula"
+          options={{ headerShown: false }}
+        />
 
         {/* Auth + onboarding: hide headers */}
         <Stack.Screen name="authlogin" options={{ headerShown: false }} />

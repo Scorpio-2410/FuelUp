@@ -296,10 +296,13 @@ const initializeDatabase = async () => {
         muscle_group VARCHAR(80),
         equipment    VARCHAR(120),
         difficulty   VARCHAR(40),
-        duration_min INTEGER,
-        sets         INTEGER,
-        reps         INTEGER,
-        rest_seconds INTEGER,
+        -- consolidated metadata columns
+        secondary_muscles TEXT,
+        category VARCHAR(80),
+        external_id VARCHAR(64),
+        gif_url TEXT,
+        video_url TEXT,
+        image_url TEXT,
         notes        TEXT,
         created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -311,6 +314,19 @@ const initializeDatabase = async () => {
       DROP TRIGGER IF EXISTS trg_exercises_updated_at ON exercises;
       CREATE TRIGGER trg_exercises_updated_at
       BEFORE UPDATE ON exercises FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+      -- Migration helpers: add new columns if missing, drop legacy columns if present
+      ALTER TABLE exercises ADD COLUMN IF NOT EXISTS secondary_muscles TEXT;
+      ALTER TABLE exercises ADD COLUMN IF NOT EXISTS category VARCHAR(80);
+  ALTER TABLE exercises ADD COLUMN IF NOT EXISTS target VARCHAR(80);
+      ALTER TABLE exercises ADD COLUMN IF NOT EXISTS external_id VARCHAR(64);
+      ALTER TABLE exercises ADD COLUMN IF NOT EXISTS gif_url TEXT;
+      ALTER TABLE exercises ADD COLUMN IF NOT EXISTS video_url TEXT;
+      ALTER TABLE exercises ADD COLUMN IF NOT EXISTS image_url TEXT;
+      -- remove legacy columns safely if they exist
+      ALTER TABLE exercises DROP COLUMN IF EXISTS duration_min;
+      ALTER TABLE exercises DROP COLUMN IF EXISTS sets;
+      ALTER TABLE exercises DROP COLUMN IF EXISTS reps;
+      ALTER TABLE exercises DROP COLUMN IF EXISTS rest_seconds;
     `);
 
     /* =========== PLAN EXERCISES =========== */
@@ -432,6 +448,86 @@ const initializeDatabase = async () => {
       DROP TRIGGER IF EXISTS trg_step_streaks_updated_at ON step_streaks;
       CREATE TRIGGER trg_step_streaks_updated_at
       BEFORE UPDATE ON step_streaks FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    `);
+
+    /* =========== FITNESS ACTIVITIES (exercise tracking) =========== */
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS fitness_activities (
+        id              INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        user_id         INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        date            DATE NOT NULL,
+        activity_type   VARCHAR(50) NOT NULL CHECK (activity_type IN ('cardio', 'strength', 'flexibility', 'sports', 'other')),
+        exercise_name   VARCHAR(255) NOT NULL,
+        duration_minutes INTEGER NOT NULL CHECK (duration_minutes > 0),
+        calories_burned INTEGER NOT NULL CHECK (calories_burned >= 0),
+        intensity       VARCHAR(20) DEFAULT 'moderate' CHECK (intensity IN ('low', 'moderate', 'high', 'very_high')),
+        notes           TEXT,
+        external_id     VARCHAR(100), -- For exercises from external APIs
+        created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_fitness_activities_user ON fitness_activities(user_id);
+      CREATE INDEX IF NOT EXISTS idx_fitness_activities_date ON fitness_activities(date);
+      CREATE INDEX IF NOT EXISTS idx_fitness_activities_user_date ON fitness_activities(user_id, date DESC);
+      CREATE INDEX IF NOT EXISTS idx_fitness_activities_type ON fitness_activities(activity_type);
+
+      DROP TRIGGER IF EXISTS trg_fitness_activities_updated_at ON fitness_activities;
+      CREATE TRIGGER trg_fitness_activities_updated_at
+      BEFORE UPDATE ON fitness_activities FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    `);
+
+    /* =========== WORKOUT SESSIONS (completed workouts) =========== */
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS workout_sessions (
+        id                 INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        user_id            INTEGER,
+        workout_name       VARCHAR(255),
+        plan_id            INTEGER,
+        event_id           INTEGER,
+        duration_seconds   INTEGER,
+        completed_at       TIMESTAMPTZ,
+        exercises_completed INTEGER,
+        total_exercises     INTEGER,
+        notes              TEXT,
+        created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      -- Backfill/ensure expected columns with proper defaults and constraints
+      ALTER TABLE workout_sessions
+        ADD COLUMN IF NOT EXISTS user_id INTEGER,
+        ADD COLUMN IF NOT EXISTS workout_name VARCHAR(255),
+        ADD COLUMN IF NOT EXISTS plan_id INTEGER,
+        ADD COLUMN IF NOT EXISTS event_id INTEGER,
+        ADD COLUMN IF NOT EXISTS duration_seconds INTEGER,
+        ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ,
+        ADD COLUMN IF NOT EXISTS exercises_completed INTEGER,
+        ADD COLUMN IF NOT EXISTS total_exercises INTEGER,
+        ADD COLUMN IF NOT EXISTS notes TEXT,
+        ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
+      -- Ensure essential defaults/constraints (best-effort, idempotent)
+      ALTER TABLE workout_sessions ALTER COLUMN workout_name SET NOT NULL;
+      ALTER TABLE workout_sessions ALTER COLUMN duration_seconds SET NOT NULL;
+      ALTER TABLE workout_sessions ALTER COLUMN duration_seconds SET DEFAULT 0;
+      ALTER TABLE workout_sessions ALTER COLUMN completed_at SET NOT NULL;
+      ALTER TABLE workout_sessions ALTER COLUMN completed_at SET DEFAULT NOW();
+
+      -- Ensure a DATE column exists for fast grouping/streaks
+      ALTER TABLE workout_sessions ADD COLUMN IF NOT EXISTS date DATE;
+      -- Ensure default for date
+      ALTER TABLE workout_sessions ALTER COLUMN date SET DEFAULT (NOW()::date);
+      -- Allow NULLs on date to avoid migration failures; app will write it from completed_at
+      ALTER TABLE workout_sessions ALTER COLUMN date DROP NOT NULL;
+
+  -- Remove any legacy calories column if present (we are not tracking calories here)
+  ALTER TABLE workout_sessions DROP COLUMN IF EXISTS total_calories_burned;
+
+      -- Create indexes (will succeed once columns exist)
+      CREATE INDEX IF NOT EXISTS idx_workout_sessions_user_id ON workout_sessions(user_id);
+      CREATE INDEX IF NOT EXISTS idx_workout_sessions_completed_at ON workout_sessions(completed_at);
+      CREATE INDEX IF NOT EXISTS idx_workout_sessions_user_date ON workout_sessions(user_id, completed_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_workout_sessions_date ON workout_sessions(date);
     `);
 
     console.log("Schema initialization complete.");

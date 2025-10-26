@@ -19,6 +19,12 @@ router.post("/suggest", ScheduleController.suggestTimes);
 // --- NEW: Auto-plan workouts into the calendar ---
 router.post("/auto-plan", ScheduleController.autoPlanWorkouts);
 
+// --- NEW: Generate an AI plan (if missing) and schedule each day weekly with exercises in notes ---
+router.post("/ai/plan-and-schedule", ScheduleController.planAndScheduleAi);
+
+// --- NEW: Schedule existing plans across the week and repeat every 7 days ---
+router.post("/schedule-plans", ScheduleController.schedulePlansWeekly);
+
 // --- Events under the user's schedule ---
 router.get("/events", ScheduleController.listEvents);
 router.post("/events", ScheduleController.createEvent);

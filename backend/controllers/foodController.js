@@ -225,3 +225,80 @@ exports.getUserMeals = async (req, res) => {
     client.release();
   }
 };
+
+/** Get daily calorie summary for a specific date */
+exports.getDailyCalorieSummary = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const userId = req.userId;
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+    const { date } = req.params;
+    if (!date) return res.status(400).json({ error: "Date parameter required (YYYY-MM-DD)" });
+
+    // Get user's daily calorie target from nutrition profile
+    const nutritionProfile = await client.query(
+      `SELECT daily_calorie_target FROM nutrition_profiles WHERE user_id = $1`,
+      [userId]
+    );
+    const target = nutritionProfile.rows[0]?.daily_calorie_target || 2000;
+
+    // Get consumed calories from meals for the date
+    const startOfDay = new Date(date + 'T00:00:00.000Z');
+    const endOfDay = new Date(date + 'T23:59:59.999Z');
+    
+    const mealsResult = await client.query(
+      `SELECT COALESCE(SUM(calories), 0) as consumed_calories
+       FROM meals 
+       WHERE user_id = $1 AND logged_at >= $2 AND logged_at <= $3`,
+      [userId, startOfDay, endOfDay]
+    );
+    const consumed = parseInt(mealsResult.rows[0].consumed_calories) || 0;
+
+    // Get burned calories from steps for the date
+    const stepsResult = await client.query(
+      `SELECT COALESCE(SUM(calories), 0) as burned_calories
+       FROM step_streaks 
+       WHERE user_id = $1 AND date = $2`,
+      [userId, date]
+    );
+    const stepsBurned = parseInt(stepsResult.rows[0].burned_calories) || 0;
+
+    // Get burned calories from fitness activities for the date
+    const activitiesResult = await client.query(
+      `SELECT COALESCE(SUM(calories_burned), 0) as burned_calories
+       FROM fitness_activities 
+       WHERE user_id = $1 AND date = $2`,
+      [userId, date]
+    );
+    const activitiesBurned = parseInt(activitiesResult.rows[0].burned_calories) || 0;
+
+    // Total burned calories (steps + activities)
+    const burned = stepsBurned + activitiesBurned;
+
+    // Calculate net calories and progress
+    const netCalories = consumed - burned;
+    const progress = target > 0 ? Math.round((consumed / target) * 100) : 0;
+
+    res.json({
+      ok: true,
+      summary: {
+        date,
+        consumed,
+        burned,
+        stepsBurned,
+        activitiesBurned,
+        target,
+        netCalories,
+        progress: Math.min(progress, 100), // Cap at 100%
+        remaining: Math.max(target - consumed, 0),
+        isOverTarget: consumed > target
+      }
+    });
+  } catch (e) {
+    console.error("getDailyCalorieSummary error:", e);
+    res.status(500).json({ error: e.message });
+  } finally {
+    client.release();
+  }
+};

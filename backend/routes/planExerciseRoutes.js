@@ -26,20 +26,25 @@ router.get("/", async (req, res) => {
     if (!(await assertUserOwnsPlan(req.userId, planId)))
       return res.status(404).json({ error: "Plan not found" });
 
+    // Join to local exercises where possible to pull secondary_muscles.
+    // p.external_id may contain either the local numeric id (stored as text)
+    // or the upstream external_id string; match both.
     const { rows } = await pool.query(
-      `SELECT id,
-              plan_id     AS "planId",
-              source,
-              external_id AS "externalId",
-              name,
-              gif_url     AS "gifUrl",
-              body_part   AS "bodyPart",
-              target,
-              equipment,
-              added_at    AS "addedAt"
-         FROM ${T_PLAN_EXERCISES}
-        WHERE plan_id=$1
-        ORDER BY added_at DESC`,
+      `SELECT p.id,
+              p.plan_id     AS "planId",
+              p.source,
+              p.external_id AS "externalId",
+              p.name,
+              p.gif_url     AS "gifUrl",
+              p.body_part   AS "bodyPart",
+              p.target,
+              p.equipment,
+              p.added_at    AS "addedAt",
+              e.secondary_muscles AS "secondaryMuscles"
+         FROM ${T_PLAN_EXERCISES} p
+         LEFT JOIN exercises e ON (e.id::text = p.external_id OR e.external_id = p.external_id)
+        WHERE p.plan_id=$1
+        ORDER BY p.added_at DESC`,
       [planId]
     );
     res.json({ success: true, items: rows });
@@ -84,7 +89,37 @@ router.post("/", async (req, res) => {
       [planId, source, externalId, name, gifUrl, bodyPart, target, equipment]
     );
 
-    res.status(201).json({ success: true, item: ins.rows[0] });
+    // If the added item references a local exercise, attempt to fetch
+    // additional metadata (like secondary_muscles) from the exercises table
+    const item = ins.rows[0];
+    try {
+      if ((item.source || "").toLowerCase() === "local") {
+        // externalId may be a numeric local id or the upstream external_id string.
+        const maybeNum = Number(item.externalId);
+        let exq;
+        if (Number.isFinite(maybeNum)) {
+          exq = await pool.query(
+            `SELECT secondary_muscles FROM exercises WHERE id=$1 LIMIT 1`,
+            [maybeNum]
+          );
+        } else {
+          exq = await pool.query(
+            `SELECT secondary_muscles FROM exercises WHERE external_id=$1 LIMIT 1`,
+            [String(item.externalId)]
+          );
+        }
+        if (exq && exq.rows && exq.rows[0]) {
+          item.secondaryMuscles = exq.rows[0].secondary_muscles;
+        } else {
+          item.secondaryMuscles = null;
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to fetch local exercise metadata", err);
+      item.secondaryMuscles = null;
+    }
+
+    res.status(201).json({ success: true, item });
   } catch (e) {
     console.error("add plan exercise error:", e);
     res.status(500).json({ error: "Failed to add exercise to plan" });

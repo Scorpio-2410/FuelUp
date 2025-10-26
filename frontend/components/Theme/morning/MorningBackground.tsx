@@ -33,7 +33,7 @@ const MorningStarField = () => {
         y: Math.random() * upperScreenHeight, // Only in upper 40%
         size: Math.random() * 2 + 1, // Smaller stars for morning
         opacity: Math.random() * 0.4 + 0.2, // More subtle opacity
-        animationDelay: Math.random() * 3000,
+        animationDelay: Math.random() * 300,
       });
     }
     
@@ -44,9 +44,9 @@ const MorningStarField = () => {
     const generatedStars = generateStars();
     setStars(generatedStars);
     
-    // Create animated values for each star
-    starAnimatedValues.current = generatedStars.map(() => 
-      new Animated.Value(0)
+    // Create animated values for each star with immediate visibility
+    starAnimatedValues.current = generatedStars.map((star) => 
+      new Animated.Value(star.opacity * 0.6)
     );
     
     // Animate stars with staggered delays

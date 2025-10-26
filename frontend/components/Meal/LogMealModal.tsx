@@ -77,12 +77,15 @@ export default function LogMealModal({
   useEffect(() => {
     if (visible && prefillData) {
       if (prefillData.name) setName(prefillData.name);
-      if (prefillData.calories) setCalories(String(prefillData.calories));
-      if (prefillData.protein_g) setProtein(String(prefillData.protein_g));
-      if (prefillData.carbs_g) setCarbs(String(prefillData.carbs_g));
-      if (prefillData.fat_g) setFat(String(prefillData.fat_g));
+      if (prefillData.calories)
+        setCalories(String(Math.round(prefillData.calories)));
+      if (prefillData.protein_g)
+        setProtein(String(Math.round(prefillData.protein_g)));
+      if (prefillData.carbs_g)
+        setCarbs(String(Math.round(prefillData.carbs_g)));
+      if (prefillData.fat_g) setFat(String(Math.round(prefillData.fat_g)));
       if (prefillData.serving_size)
-        setServingSize(String(prefillData.serving_size));
+        setServingSize(String(Math.round(prefillData.serving_size)));
       if (prefillData.serving_unit) setServingUnit(prefillData.serving_unit);
     }
   }, [visible, prefillData]);
