@@ -130,56 +130,86 @@ function WheelPickerSheet(props: {
 
   useEffect(() => setTemp(date), [date, visible]);
 
-  // spinner on iOS, default on Android
   const DISPLAY_MODE: any = Platform.OS === "ios" ? "spinner" : "default";
 
   return (
     <Modal visible={visible} transparent animationType="slide">
-      <View
+      <TouchableOpacity
+        activeOpacity={1}
+        onPress={onCancel}
         style={{
           flex: 1,
-          justifyContent: "flex-end",
+          justifyContent: "center",
+          alignItems: "center",
           backgroundColor: "rgba(0,0,0,0.5)",
+          paddingBottom: 280,
         }}
       >
-        <View
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={(e) => e.stopPropagation()}
           style={{
             backgroundColor: "white",
-            borderTopLeftRadius: 16,
-            borderTopRightRadius: 16,
-            paddingBottom: 10,
+            borderRadius: 16,
+            padding: 24,
+            width: "85%",
+            maxWidth: 400,
           }}
         >
-          <View
+          <Text
             style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              paddingHorizontal: 12,
-              paddingTop: 8,
-              paddingBottom: 4,
+              fontSize: 18,
+              fontWeight: "700",
+              color: "#065F46",
+              marginBottom: 12,
+              textAlign: "center",
             }}
           >
-            <TouchableOpacity onPress={onCancel}>
-              <Text style={{ color: "#EF4444", fontWeight: "700" }}>
-                Cancel
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => onConfirm(temp)}>
-              <Text style={{ color: "#065F46", fontWeight: "700" }}>Done</Text>
-            </TouchableOpacity>
-          </View>
+            Select time
+          </Text>
 
           <DateTimePicker
             value={temp}
-            mode="datetime"
+            mode="time"
             display={DISPLAY_MODE}
             onChange={(_: any, d?: Date) => {
               if (d) setTemp(d);
             }}
             style={{ alignSelf: "center" }}
+            // Improve visibility on iOS (spinner text + AM/PM)
+            textColor="#000000"
+            themeVariant="light"
           />
-        </View>
-      </View>
+
+          <View style={{ flexDirection: "row", gap: 10, marginTop: 24 }}>
+            <TouchableOpacity
+              onPress={onCancel}
+              style={{
+                backgroundColor: "#FCA5A5",
+                paddingVertical: 12,
+                borderRadius: 12,
+                alignItems: "center",
+                flex: 1,
+              }}
+            >
+              <Text style={{ fontWeight: "800", color: "black" }}>Cancel</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => onConfirm(temp)}
+              style={{
+                backgroundColor: LEMON,
+                paddingVertical: 12,
+                borderRadius: 12,
+                alignItems: "center",
+                flex: 1,
+              }}
+            >
+              <Text style={{ fontWeight: "800", color: "black" }}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
     </Modal>
   );
 }
@@ -485,14 +515,14 @@ export default function WeeklySchedule({ onClose }: Props) {
     setEndDT(e);
   };
 
-  const handleCreate = async () => {
+  const handleCreate = async (): Promise<boolean> => {
     if (!title.trim()) {
       Alert.alert("Event title required");
-      return;
+      return false;
     }
     if (endDT <= startDT) {
       Alert.alert("End time must be after start time");
-      return;
+      return false;
     }
 
     setSaving(true);
@@ -511,8 +541,14 @@ export default function WeeklySchedule({ onClose }: Props) {
       clearForm();
       Alert.alert("Added", "Your event has been added to your schedule.");
       loadWeek();
+      return true;
     } catch (e: any) {
-      Alert.alert("Failed to create event", e?.message || "Please try again.");
+      // Collision or other error message from backend
+      Alert.alert(
+        "Failed to create event",
+        e?.message || "Please try a different time."
+      );
+      return false;
     } finally {
       setSaving(false);
     }
@@ -2224,8 +2260,8 @@ export default function WeeklySchedule({ onClose }: Props) {
                 <TouchableOpacity
                   disabled={saving}
                   onPress={async () => {
-                    await handleCreate();
-                    setCreateOpen(false);
+                    const ok = await handleCreate();
+                    if (ok) setCreateOpen(false);
                   }}
                   style={{
                     backgroundColor: LEMON,
@@ -2265,14 +2301,15 @@ export default function WeeklySchedule({ onClose }: Props) {
                 onCancel={() => setShowStartWheel(false)}
                 onConfirm={(d) => {
                   setShowStartWheel(false);
-                  setStartDT(d);
-                  if (d >= endDT) {
-                    const e = new Date(d.getTime() + 60 * 60 * 1000);
+                  // Combine selected date with chosen time
+                  const base = new Date(`${selectedDateKey}T00:00:00`);
+                  const newStart = new Date(base);
+                  newStart.setHours(d.getHours(), d.getMinutes(), 0, 0);
+                  setStartDT(newStart);
+                  if (newStart >= endDT) {
+                    const e = new Date(newStart.getTime() + 60 * 60 * 1000);
                     setEndDT(e);
                   }
-                  const key = ymd(d);
-                  setSelectedDateKey(key);
-                  setMonday(mondayOfWeek(key));
                 }}
               />
               <WheelPickerSheet
@@ -2281,7 +2318,10 @@ export default function WeeklySchedule({ onClose }: Props) {
                 onCancel={() => setShowEndWheel(false)}
                 onConfirm={(d) => {
                   setShowEndWheel(false);
-                  setEndDT(d);
+                  const base = new Date(`${selectedDateKey}T00:00:00`);
+                  const newEnd = new Date(base);
+                  newEnd.setHours(d.getHours(), d.getMinutes(), 0, 0);
+                  setEndDT(newEnd);
                 }}
               />
             </SafeAreaView>

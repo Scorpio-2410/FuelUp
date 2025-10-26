@@ -676,8 +676,7 @@ If constraints cannot be satisfied (for example the provided exercise list is to
   exercisesPerDay = Math.max(4, Math.min(8, exercisesPerDay));
 
   // Ensure we have enough Core/Abs candidates available when one or more days
-  // are planned for Core & Abs. If the current selected pool contains fewer
-  // than needed, fetch extra core-targeted exercises from the DB and append.
+  // are planned for Core & Abs. Fetch ALL abs exercises to ensure we have enough.
   try {
     const coreDays = plannedFocuses.filter((f) =>
       String(f || "")
@@ -686,41 +685,25 @@ If constraints cannot be satisfied (for example the provided exercise list is to
     ).length;
     if (coreDays > 0) {
       const desiredCore = coreDays * exercisesPerDay;
-      const isCoreLike = (e) => {
-        const txt = `${e?.target || ""} ${e?.muscle_group || ""} ${
-          e?.secondary_muscles || ""
-        }
-          } ${e?.name || ""}`
-          .toLowerCase()
-          .trim();
-        return (
-          /\bcore\b/.test(txt) ||
-          /\babs?\b/.test(txt) ||
-          /\babdom/.test(txt) ||
-          /\boblique(s)?\b/.test(txt)
-        );
-      };
+      // Count ONLY exercises where target='abs' (strict check)
       const dedupHas = (arr, id) =>
         arr.some((x) => Number(x.id) === Number(id));
-      let currentCore = selected.filter(isCoreLike).length;
+      let currentCore = selected.filter(
+        (e) => (e?.target || "").toLowerCase() === "abs"
+      ).length;
       if (
         currentCore < desiredCore &&
         typeof Exercise.findByTarget === "function"
       ) {
-        const stillNeeded = Math.max(0, desiredCore - currentCore);
-        const perToken = Math.ceil(stillNeeded / 2);
-        // Only fetch 'abs' targeted items
-        const addMore = async (token, limit) => {
-          try {
-            const rows = await Exercise.findByTarget(token, limit);
-            for (const r of rows || []) {
-              if (!dedupHas(selected, r.id)) selected.push(r);
-            }
-          } catch (e) {
-            /* ignore */
+        // Fetch ALL abs exercises available, up to a reasonable limit
+        try {
+          const rows = await Exercise.findByTarget("abs", 50);
+          for (const r of rows || []) {
+            if (!dedupHas(selected, r.id)) selected.push(r);
           }
-        };
-        await addMore("abs", perToken);
+        } catch (e) {
+          console.warn("Failed to fetch abs exercises:", e);
+        }
       }
     }
   } catch (err) {
@@ -736,17 +719,20 @@ If constraints cannot be satisfied (for example the provided exercise list is to
       .status(400)
       .json({ error: "No exercises available to build a plan" });
 
-  // create a rotation array that repeats pool as needed
+  // create a rotation array that repeats pool ONLY if pool is too small
   const rotation = [];
-  while (rotation.length < totalNeeded) {
-    // shuffle a copy of pool each pass to mix order
-    const copy = pool.slice();
-    for (let i = copy.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [copy[i], copy[j]] = [copy[j], copy[i]];
+  if (pool.length < totalNeeded) {
+    // Pool is too small, need to repeat exercises
+    while (rotation.length < totalNeeded) {
+      // shuffle a copy of pool each pass to mix order
+      const copy = pool.slice();
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      rotation.push(...copy);
+      if (rotation.length > totalNeeded * 3) break; // safety
     }
-    rotation.push(...copy);
-    if (rotation.length > totalNeeded * 3) break; // safety
   }
 
   let plan = { plan_name: `${goal || "Custom"} plan`, days: [] };
@@ -755,9 +741,8 @@ If constraints cannot be satisfied (for example the provided exercise list is to
   // (plannedFocuses already computed earlier for sampling)
 
   // convert pool to a mutable list of remaining exercises
-  // If the pool is smaller than totalNeeded we previously built a `rotation` that repeats/shuffles the pool
-  // so use that rotation as the source to allow repeats and avoid leaving later days empty.
-  const remaining = rotation.length ? rotation.slice() : pool.slice();
+  // Use rotation only if it was created (when pool is too small)
+  const remaining = rotation.length > 0 ? rotation.slice() : pool.slice();
 
   for (let d = 0; d < Math.max(1, parseInt(daysPerWeek || 1)); d++) {
     const dayExercises = [];
@@ -771,6 +756,9 @@ If constraints cannot be satisfied (for example the provided exercise list is to
     const seenIds = new Set();
     // Prefer exact normalized target matches first
     const targetTokens = focusToTargetTokens(focus);
+    const isCoreFocus =
+      focus.toLowerCase().includes("abs") ||
+      focus.toLowerCase().includes("core");
     if (targetTokens.length > 0) {
       for (
         let i = remaining.length - 1;
@@ -780,9 +768,15 @@ If constraints cannot be satisfied (for example the provided exercise list is to
         const candidate = remaining[i];
         const candTarget = (candidate.target || "").toLowerCase();
         if (!candTarget) continue;
+
+        // On Core & Abs days, ONLY accept exercises where target exactly = 'abs'
+        if (isCoreFocus && candTarget !== "abs") {
+          continue; // skip anything that's not exactly abs
+        }
+
         for (const t of targetTokens) {
           if (candTarget.includes(t)) {
-            if (seenIds.has(candidate.id)) break;
+            if (seenIds.has(candidate.id)) continue;
             const filled = heuristic(candidate);
             let estimated_seconds = filled.estimated_seconds || 0;
             if (
@@ -822,15 +816,15 @@ If constraints cannot be satisfied (for example the provided exercise list is to
     ) {
       const candidate = remaining[i];
       if (seenIds.has(candidate.id)) continue; // avoid duplicate in same day
-      // On Core & Abs days, only accept strict core/abs targets here
+      // On Core & Abs days, ONLY accept exercises where target exactly = 'abs'
       const isCoreFocus =
         focus.toLowerCase().includes("abs") ||
         focus.toLowerCase().includes("core");
       if (isCoreFocus) {
         const targ = (candidate.target || "").toLowerCase();
-        const strictAbs = /\babs?\b|abdom|oblique|core/.test(targ);
-        if (!strictAbs && !isCoreLikeExercise(candidate)) {
-          continue; // skip non-core even if it loosely matches
+        // Strict check: target must be exactly 'abs'
+        if (targ !== "abs") {
+          continue; // skip anything that's not exactly abs
         }
       }
       if (exerciseMatchesFocus(candidate, focus)) {
@@ -885,38 +879,28 @@ If constraints cannot be satisfied (for example the provided exercise list is to
     ) {
       let idx = -1;
       if (focus.toLowerCase().includes("core")) {
-        // pick only core-like candidates first
+        // For core days, ONLY pick exercises where target = 'abs'
         idx = remaining.findIndex(
-          (c) => !seenIds.has(c.id) && isCoreLikeExercise(c)
+          (c) => !seenIds.has(c.id) && (c.target || "").toLowerCase() === "abs"
         );
         if (
           idx === -1 &&
           !coreRefillAttempted &&
           typeof Exercise.findByTarget === "function"
         ) {
-          // try to refill remaining with more core items from DB
+          // try to refill remaining with abs-only exercises from DB
           try {
             coreRefillAttempted = true;
-            const tokens = [
-              "abdominals",
-              "abdominal",
-              "abs",
-              "core",
-              "oblique",
-              "rectus",
-              "transverse",
-            ];
-            for (const t of tokens) {
-              const rows = await Exercise.findByTarget(t, 5);
-              for (const r of rows || []) {
-                if (!remaining.find((x) => Number(x.id) === Number(r.id))) {
-                  remaining.push(r);
-                }
+            const rows = await Exercise.findByTarget("abs", 10);
+            for (const r of rows || []) {
+              if (!remaining.find((x) => Number(x.id) === Number(r.id))) {
+                remaining.push(r);
               }
             }
             // retry pick after refill
             idx = remaining.findIndex(
-              (c) => !seenIds.has(c.id) && isCoreLikeExercise(c)
+              (c) =>
+                !seenIds.has(c.id) && (c.target || "").toLowerCase() === "abs"
             );
           } catch (e) {
             // ignore
@@ -924,31 +908,19 @@ If constraints cannot be satisfied (for example the provided exercise list is to
         }
       }
 
-      // fallback for non-core days or if still no core found
-      if (idx === -1) {
+      // fallback for non-core days ONLY
+      // For Core & Abs days, DO NOT use loose matching or last resort - only strict abs
+      const isCoreDay =
+        focus.toLowerCase().includes("core") ||
+        focus.toLowerCase().includes("abs");
+      if (idx === -1 && !isCoreDay) {
         idx = remaining.findIndex(
           (c) => !seenIds.has(c.id) && looseMatchesFocus(c, focus)
         );
       }
-      if (idx === -1) {
-        // as a last resort, pick first non-seen only if not a strong mismatch for core days
+      if (idx === -1 && !isCoreDay) {
+        // as a last resort, pick first non-seen (but NOT for core days)
         idx = remaining.findIndex((c) => !seenIds.has(c.id));
-        if (
-          idx !== -1 &&
-          focus.toLowerCase().includes("core") &&
-          remaining[idx] &&
-          normalizeToken(
-            remaining[idx].target ||
-              remaining[idx].muscle_group ||
-              remaining[idx].secondary_muscles ||
-              remaining[idx].name
-          ) === "legs"
-        ) {
-          // push legs to back and continue searching
-          const leg = remaining.splice(idx, 1)[0];
-          remaining.push(leg);
-          continue;
-        }
       }
       if (idx === -1) break;
       const candidate = remaining.splice(idx, 1)[0];
@@ -1022,25 +994,15 @@ If constraints cannot be satisfied (for example the provided exercise list is to
       }
     }
 
-    // Attempt to ensure at least N focus-matching exercises for Core & Abs days when possible
-    if (focus.toLowerCase().includes("core")) {
-      const isCoreLike = (ex) => {
-        const nt = normalizeToken(
-          ex && ex.secondary_muscles ? ex.secondary_muscles : ex.name
-        );
-        const txt = `${ex?.name || ""} ${ex?.secondary_muscles || ""} ${
-          ex?.target || ""
-        }`
-          .toLowerCase()
-          .trim();
-        return (
-          nt === "core" ||
-          /\bplank\b/.test(txt) ||
-          /\bcrunch(es)?\b/.test(txt) ||
-          /\babs?\b/.test(txt)
-        );
-      };
-      let coreMatchesCount = dayExercises.filter(isCoreLike).length;
+    // Attempt to ensure at least N abs-targeted exercises for Core & Abs days when possible (strict abs only)
+    if (
+      focus.toLowerCase().includes("core") ||
+      focus.toLowerCase().includes("abs")
+    ) {
+      const isAbsStrict = (ex) => (ex?.target || "").toLowerCase() === "abs";
+      let coreMatchesCount = dayExercises.filter((e) =>
+        isAbsStrict({ target: e.target })
+      ).length;
       const desiredCore = Math.min(4, exercisesPerDay);
       if (coreMatchesCount < desiredCore) {
         // try to swap in core-targeted exercises from remaining
@@ -1051,26 +1013,23 @@ If constraints cannot be satisfied (for example the provided exercise list is to
         ) {
           const cand = remaining[i];
           if (!cand) continue;
-          const candNorm = normalizeToken(
-            cand.target ||
-              cand.muscle_group ||
-              cand.secondary_muscles ||
-              cand.name
-          );
-          if (
-            candNorm === "core" ||
-            /\babs?\b/.test(
-              `${cand?.name || ""} ${cand?.secondary_muscles || ""} ${
-                cand?.target || ""
-              }`.toLowerCase()
-            )
-          ) {
+          // STRICT: only consider candidates where target === 'abs'
+          if ((cand.target || "").toLowerCase() === "abs") {
+            // avoid duplicates within the same day
+            const alreadyInDay = dayExercises.some(
+              (e) => Number(e.exercise_id) === Number(cand.id)
+            );
+            if (alreadyInDay) {
+              continue;
+            }
             // replace the last non-core exercise in dayExercises
             const replaceIdx = dayExercises.findIndex((e) => {
+              // do not replace an abs exercise
+              // we don't have target on e, so rely on name/secondary_muscles heuristic to avoid obvious core moves
               const en = normalizeToken(
-                e && e.secondary_muscles ? e.secondary_muscles : e.name
+                (e && e.secondary_muscles ? e.secondary_muscles : e.name) || ""
               );
-              return en !== "core";
+              return en !== "core"; // keep any core-coded items
             });
             if (replaceIdx !== -1) {
               const removed = dayExercises.splice(replaceIdx, 1)[0];
@@ -1197,6 +1156,59 @@ If constraints cannot be satisfied (for example the provided exercise list is to
         const tk = tokensForExercise(source);
         if (tk) coverage.add(tk);
       }
+
+      // Enforce strict abs-only and no-duplicates for Core & Abs days
+      const isCoreDay =
+        String(day.focus || "")
+          .toLowerCase()
+          .includes("core") ||
+        String(day.focus || "")
+          .toLowerCase()
+          .includes("abs");
+      if (isCoreDay) {
+        // Build a map by id for quick lookups
+        const byIdLocal = byId;
+        // De-duplicate exercises within the day
+        const seenDay = new Set();
+        day.exercises = day.exercises.filter((ex) => {
+          const id = Number(ex.exercise_id);
+          if (seenDay.has(id)) return false;
+          seenDay.add(id);
+          return true;
+        });
+        // Keep only abs-targeted exercises
+        day.exercises = day.exercises.filter((ex) => {
+          const src = byIdLocal.get(Number(ex.exercise_id));
+          const tgt = src && src.target ? String(src.target).toLowerCase() : "";
+          return tgt === "abs";
+        });
+        // Fill with additional abs exercises from availableExercises if needed
+        const absPool = availableExercises.filter(
+          (ae) => (ae?.target || "").toLowerCase() === "abs"
+        );
+        for (const cand of absPool) {
+          if (
+            day.exercises.length >=
+            Math.max(4, Math.min(8, Number(exercisesPerDay) || 6))
+          )
+            break;
+          const dup = day.exercises.some(
+            (e) => Number(e.exercise_id) === Number(cand.id)
+          );
+          if (dup) continue;
+          day.exercises.push({
+            exercise_id: cand.id,
+            name: cand.name,
+            sets: 3,
+            reps: "10",
+            rest_seconds: 60,
+            estimated_seconds: 120,
+            secondary_muscles: cand.secondary_muscles || null,
+            external_id: cand.external_id || null,
+          });
+        }
+        // If still fewer than 4 (shouldn't happen given DB contents), leave as-is to avoid introducing non-abs
+      }
     }
 
     // Required coverage tokens
@@ -1232,6 +1244,18 @@ If constraints cannot be satisfied (for example the provided exercise list is to
           const cand = availableExercises.splice(candidateIdx, 1)[0];
           // insert into first day that doesn't already contain that token
           for (const day of planObj.days) {
+            // Do NOT alter Core & Abs days with non-abs tokens
+            const isCoreDay =
+              String(day.focus || "")
+                .toLowerCase()
+                .includes("core") ||
+              String(day.focus || "")
+                .toLowerCase()
+                .includes("abs");
+            const candIsAbs = (cand?.target || "").toLowerCase() === "abs";
+            if (isCoreDay && !candIsAbs) {
+              continue; // skip modifying core days with non-abs replacements
+            }
             const dayHas = day.exercises.some((ex) => {
               const eid = Number(ex.exercise_id);
               const src = byId.get(eid);
@@ -1259,6 +1283,11 @@ If constraints cannot be satisfied (for example the provided exercise list is to
                 const nt = normalizeToken(
                   s.target || s.muscle_group || s.secondary_muscles || s.name
                 );
+                // On core days, never replace an abs exercise
+                if (isCoreDay) {
+                  const isAbs = (s?.target || "").toLowerCase() === "abs";
+                  if (isAbs) return false;
+                }
                 return (
                   nt &&
                   nt !==
@@ -1271,6 +1300,11 @@ If constraints cannot be satisfied (for example the provided exercise list is to
                 );
               });
               if (replaceIdx !== -1) {
+                // Avoid inserting duplicates within the same day
+                const dup = day.exercises.some(
+                  (ex) => Number(ex.exercise_id) === Number(cand.id)
+                );
+                if (dup) continue;
                 day.exercises[replaceIdx] = {
                   exercise_id: cand.id,
                   name: cand.name,
@@ -1301,10 +1335,8 @@ If constraints cannot be satisfied (for example the provided exercise list is to
     return { plan: planObj };
   }
 
-  const validated = validateAndRepairPlan(
-    plan,
-    selected.slice(0, maxExercises)
-  );
+  // IMPORTANT: pass the full selected pool (not sliced) so all abs fetched are available for repair/enforcement
+  const validated = validateAndRepairPlan(plan, selected);
   if (validated && validated.error) {
     return res.status(500).json({ error: validated.error });
   }

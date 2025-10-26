@@ -47,6 +47,55 @@ const mondayOfLocal = (d) => {
   return x; // local Monday 00:00
 };
 
+// ---------- Collision detection helpers ----------
+function clampEnd(start, end) {
+  const s = new Date(start);
+  if (end) return new Date(end);
+  // default 60 minutes if missing
+  return new Date(s.getTime() + 60 * 60000);
+}
+
+function overlaps(aStart, aEnd, bStart, bEnd) {
+  const as = new Date(aStart).getTime();
+  const ae = new Date(aEnd).getTime();
+  const bs = new Date(bStart).getTime();
+  const be = new Date(bEnd).getTime();
+  return as < be && bs < ae;
+}
+
+function dayBoundsFor(dt) {
+  const d = new Date(dt);
+  const start = new Date(d);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(d);
+  end.setHours(23, 59, 59, 999);
+  return { start, end };
+}
+
+async function findConflicts(scheduleId, startISO, endISO) {
+  const s = new Date(startISO);
+  const e = clampEnd(s, endISO);
+  const { start: dayStart, end: dayEnd } = dayBoundsFor(s);
+
+  const existing = await Event.listForSchedule(scheduleId, {
+    from: dayStart.toISOString(),
+    to: dayEnd.toISOString(),
+  });
+
+  const conflicts = [];
+  for (const ev of existing) {
+    const evS = ev.startAt || ev.start_at;
+    const evE =
+      ev.endAt ||
+      ev.end_at ||
+      new Date(new Date(evS).getTime() + 60 * 60000).toISOString();
+    if (overlaps(s, e, evS, evE)) {
+      conflicts.push(ev);
+    }
+  }
+  return conflicts;
+}
+
 // ---------- Recurrence helpers for single- vs future/all edits ----------
 const addDays = (d, n) => {
   const x = new Date(d);
@@ -207,12 +256,44 @@ const ScheduleController = {
         .toLowerCase()
         .trim();
 
+      const startAt = req.body.start_at;
+      const endAt = req.body.end_at ?? null;
+
+      // Collision check before creation
+      const conflicts = await findConflicts(schedule.id, startAt, endAt);
+      if (conflicts.length) {
+        const first = conflicts[0];
+        const title = first.title || first.category || "event";
+        return res.status(409).json({
+          error: `Time conflict with "${title}" (${new Date(
+            first.startAt || first.start_at
+          ).toLocaleTimeString()} - ${new Date(
+            first.endAt ||
+              first.end_at ||
+              new Date(
+                new Date(first.startAt || first.start_at).getTime() + 60 * 60000
+              )
+          ).toLocaleTimeString()}). Please pick a different time.`,
+          conflict: {
+            id: first.dbId || first.id,
+            title: first.title,
+            start_at: first.startAt || first.start_at,
+            end_at:
+              first.endAt ||
+              first.end_at ||
+              new Date(
+                new Date(first.startAt || first.start_at).getTime() + 60 * 60000
+              ).toISOString(),
+          },
+        });
+      }
+
       const created = await Event.create({
         scheduleId: schedule.id,
         category,
         title: req.body.title,
-        startAt: req.body.start_at,
-        endAt: req.body.end_at ?? null,
+        startAt,
+        endAt,
         notes: req.body.notes ?? null,
         recurrence_rule: req.body.recurrence_rule || "none",
         recurrence_until: req.body.recurrence_until || null,
@@ -1030,6 +1111,20 @@ const ScheduleController = {
           exercises: s.exercises,
         };
 
+        // Collision check before creating
+        const conflicts = await findConflicts(
+          schedule.id,
+          s.base.toISOString(),
+          s.end.toISOString()
+        );
+        if (conflicts.length) {
+          console.log(
+            "[planAndScheduleAi] Skipping due to conflict at",
+            s.base.toISOString()
+          );
+          continue;
+        }
+
         const ev = await Event.create({
           scheduleId: schedule.id,
           category: "workout",
@@ -1048,6 +1143,12 @@ const ScheduleController = {
         plan_id: created.length > 0 ? created[0].id : null,
         created_count: created.length,
         events: created,
+        message:
+          created.length === 0
+            ? "No AI workouts were scheduled due to time conflicts. Please choose a different time."
+            : created.length < planned.length
+            ? "Some AI workouts were skipped due to time conflicts."
+            : undefined,
       });
     } catch (e) {
       console.error("planAndScheduleAi error:", e);
@@ -1231,6 +1332,20 @@ const ScheduleController = {
           exercises,
         };
 
+        // Collision check before creating
+        const conflicts = await findConflicts(
+          schedule.id,
+          start.toISOString(),
+          end.toISOString()
+        );
+        if (conflicts.length) {
+          console.log(
+            "[schedulePlansWeekly] Skipping due to conflict at",
+            start.toISOString()
+          );
+          continue;
+        }
+
         const ev = await Event.create({
           scheduleId: schedule.id,
           category: "workout",
@@ -1248,6 +1363,12 @@ const ScheduleController = {
         success: true,
         created_count: created.length,
         events: created,
+        message:
+          created.length === 0
+            ? "No workouts were scheduled due to time conflicts. Please pick a different time."
+            : created.length < plans.length
+            ? "Some workouts were skipped due to time conflicts."
+            : undefined,
       });
     } catch (e) {
       console.error("schedulePlansWeekly error:", e);
