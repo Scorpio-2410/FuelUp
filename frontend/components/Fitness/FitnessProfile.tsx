@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   Platform,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import FitnessStep, { Fitness } from "../Onboarding/FitnessStep";
 import {
@@ -131,6 +132,24 @@ export default function FitnessProfile({
   });
   const [updatingSchedule, setUpdatingSchedule] = useState(false);
 
+  // Persist user unit preferences between openings
+  const K_UNIT_HEIGHT = "fu_pref_height_unit";
+  const K_UNIT_WEIGHT = "fu_pref_weight_unit";
+
+  // Local converters to apply preferred display units on load
+  const cmToFtInLabel = (cm: number): string => {
+    if (!cm || isNaN(cm as any)) return "";
+    const totalInches = Math.round(Number(cm) / 2.54);
+    const ft = Math.floor(totalInches / 12);
+    const inch = Math.round(totalInches % 12);
+    return `${ft}'${inch}`;
+  };
+  const kgToLb = (kg: number | string): string => {
+    const n = Number(kg);
+    if (!n || isNaN(n)) return "";
+    return String(Math.round(n / 0.45359237));
+  };
+
   const hasUnsavedChanges =
     JSON.stringify(fitness) !== JSON.stringify(initialFitness);
 
@@ -144,8 +163,50 @@ export default function FitnessProfile({
           const { profile } = await apiGetFitnessProfile();
           if (mounted && profile) {
             const loadedFitness = { ...defaultFitness, ...toFitness(profile) };
-            setFitness(loadedFitness);
-            setInitialFitness(loadedFitness);
+            // Apply preferred unit display from storage if available
+            try {
+              const [prefH, prefW] = await Promise.all([
+                AsyncStorage.getItem(K_UNIT_HEIGHT),
+                AsyncStorage.getItem(K_UNIT_WEIGHT),
+              ]);
+              console.log("[FitnessProfile] Loaded unit prefs:", {
+                prefH,
+                prefW,
+              });
+              let show = { ...loadedFitness };
+              if (prefH === "ft") {
+                show.heightUnit = "ft";
+                const converted = cmToFtInLabel(Number(loadedFitness.height));
+                console.log(
+                  "[FitnessProfile] Converting height cm to ft:",
+                  loadedFitness.height,
+                  "→",
+                  converted
+                );
+                show.height = converted;
+              }
+              if (prefW === "lb") {
+                show.weightUnit = "lb";
+                const converted = kgToLb(loadedFitness.weight || "");
+                console.log(
+                  "[FitnessProfile] Converting weight kg to lb:",
+                  loadedFitness.weight,
+                  "→",
+                  converted
+                );
+                show.weight = converted;
+              }
+              console.log("[FitnessProfile] Final display units:", {
+                heightUnit: show.heightUnit,
+                weightUnit: show.weightUnit,
+              });
+              setFitness(show);
+              setInitialFitness(show);
+            } catch (e) {
+              console.warn("[FitnessProfile] Error applying unit prefs:", e);
+              setFitness(loadedFitness);
+              setInitialFitness(loadedFitness);
+            }
           } else if (mounted) {
             setFitness(defaultFitness);
             setInitialFitness(defaultFitness);
@@ -169,29 +230,79 @@ export default function FitnessProfile({
   const handleSave = async () => {
     setSaving(true);
     try {
+      // Local helpers to normalize to metric for storage
+      const toKg = (val: string, unit: "kg" | "lb") => {
+        const n = Number(val);
+        if (!n || isNaN(n)) return NaN;
+        return unit === "kg" ? Math.round(n) : Math.round(n * 0.45359237);
+      };
+      const parseFtInchesToCm = (raw: string): number => {
+        const s = String(raw).trim();
+        if (!s) return NaN;
+        let feet = NaN;
+        let inches = 0;
+        const two = s.match(/(\d+)\D+(\d+)/);
+        if (two) {
+          feet = parseInt(two[1], 10);
+          inches = parseInt(two[2], 10);
+        } else {
+          const one = s.match(/(\d+)/);
+          if (one) feet = parseInt(one[1], 10);
+        }
+        if (Number.isNaN(feet)) return NaN;
+        if (inches < 0 || inches > 11)
+          inches = Math.max(0, Math.min(11, inches));
+        const cm = (feet * 12 + inches) * 2.54;
+        return Math.round(cm);
+      };
+
       // Convert height/weight to numbers for backend
+      const heightCm =
+        (fitness.heightUnit as "cm" | "ft") === "cm"
+          ? Number(fitness.height)
+          : parseFtInchesToCm(String(fitness.height || ""));
+      const weightKg = toKg(
+        String(fitness.weight || ""),
+        (fitness.weightUnit as "kg" | "lb") || "kg"
+      );
+
       const payload = {
         goal: fitness.goal ?? null,
         activityLevel: fitness.activityLevel ?? null,
         daysPerWeek: fitness.daysPerWeek ? Number(fitness.daysPerWeek) : null,
-        heightCm: fitness.heightUnit === "cm" ? Number(fitness.height) : null,
-        weightKg: fitness.weightUnit === "kg" ? Number(fitness.weight) : null,
+        heightCm: Number.isNaN(heightCm) ? null : heightCm,
+        weightKg: Number.isNaN(weightKg) ? null : weightKg,
       };
 
-      // Check if days per week or goal changed
+      // Check if key fitness drivers changed (days, goal, activity level)
       const daysChanged = initialFitness.daysPerWeek !== fitness.daysPerWeek;
       const goalChanged = initialFitness.goal !== fitness.goal;
-      const fitnessChanged = daysChanged || goalChanged;
+      const activityChanged =
+        (initialFitness.activityLevel || "").toLowerCase() !==
+        (fitness.activityLevel || "").toLowerCase();
+      const fitnessChanged = daysChanged || goalChanged || activityChanged;
 
       await apiUpsertFitnessProfile(payload);
       setInitialFitness(fitness);
+
+      // Persist unit preferences when user saves
+      try {
+        console.log("[FitnessProfile] Saving unit prefs:", {
+          heightUnit: fitness.heightUnit || "cm",
+          weightUnit: fitness.weightUnit || "kg",
+        });
+        await AsyncStorage.setItem(K_UNIT_HEIGHT, fitness.heightUnit || "cm");
+        await AsyncStorage.setItem(K_UNIT_WEIGHT, fitness.weightUnit || "kg");
+      } catch (e) {
+        console.warn("[FitnessProfile] Failed to save unit prefs:", e);
+      }
 
       // Show prompt if fitness-related settings changed
       if (fitnessChanged) {
         setSaving(false);
         Alert.alert(
           "Fitness Preferences Updated",
-          "You've changed your fitness preferences. Would you like us to adjust your workout plan and workout times for you as well?",
+          "You've changed your fitness preferences. Would you like us to adjust your workout plan and workout times to match your new profile?",
           [
             {
               text: "No",

@@ -900,6 +900,11 @@ const ScheduleController = {
             height: prof.height_cm || null,
             weight: prof.weight_kg || null,
             exercises_per_day: req.body?.exercises_per_day || undefined,
+            // Forward flag to allow using the full exercise pool when requested
+            use_all:
+              typeof req.body?.use_all !== "undefined"
+                ? req.body.use_all
+                : true,
           },
           {
             timeout: 30000,

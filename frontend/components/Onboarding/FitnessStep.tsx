@@ -188,6 +188,28 @@ export default function FitnessStep({ value, onChange }: Props) {
     onChange({ ...value, heightUnit: u, height: newHeight });
   };
 
+  // Weight unit switch with conversion of current value
+  const toLb = (kgStr?: string) => {
+    const kg = Number(kgStr);
+    if (!kg || isNaN(kg)) return "";
+    return String(Math.round(kg / 0.45359237));
+  };
+  const toKg = (lbStr?: string) => {
+    const lb = Number(lbStr);
+    if (!lb || isNaN(lb)) return "";
+    return String(Math.round(lb * 0.45359237));
+  };
+  const setWeightUnit = (u: "kg" | "lb") => {
+    if (u === (value.weightUnit ?? "kg")) return;
+    let newWeight = "";
+    if (u === "lb") {
+      newWeight = toLb(value.weight);
+    } else {
+      newWeight = toKg(value.weight);
+    }
+    onChange({ ...value, weightUnit: u, weight: newWeight });
+  };
+
   return (
     <View className="mt-2 mb-12">
       {/* Goal (required) */}
@@ -309,16 +331,12 @@ export default function FitnessStep({ value, onChange }: Props) {
               <Chip
                 label="KG"
                 active={(value.weightUnit ?? "kg") === "kg"}
-                onPress={() =>
-                  onChange({ ...value, weightUnit: "kg", weight: "" })
-                }
+                onPress={() => setWeightUnit("kg")}
               />
               <Chip
                 label="LB"
                 active={(value.weightUnit ?? "kg") === "lb"}
-                onPress={() =>
-                  onChange({ ...value, weightUnit: "lb", weight: "" })
-                }
+                onPress={() => setWeightUnit("lb")}
               />
             </View>
           </View>

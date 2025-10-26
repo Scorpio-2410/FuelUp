@@ -414,6 +414,41 @@ function isCoreLikeExercise(ex) {
   return false;
 }
 
+// Helper: determine if an exercise is cardio/conditioning-like
+function isCardioLikeExercise(ex) {
+  if (!ex) return false;
+  const joined = `${ex?.target || ""} ${ex?.muscle_group || ""} ${
+    ex?.secondary_muscles || ""
+  } ${ex?.name || ""}`
+    .toLowerCase()
+    .trim();
+  // direct target for our DB
+  if (joined.includes("cardiovascular")) return true;
+  // common cardio indicators
+  const hints = [
+    "cardio",
+    "conditioning",
+    "hiit",
+    "run",
+    "running",
+    "jog",
+    "bike",
+    "biking",
+    "cycling",
+    "row",
+    "rowing",
+    "treadmill",
+    "elliptical",
+    "stair",
+    "stairmaster",
+    "jump rope",
+    "burpee",
+    "mountain climber",
+    "sled",
+  ];
+  return hints.some((h) => joined.includes(h));
+}
+
 exports.suggestWorkoutWithExercises = async (req, res) => {
   const { goal, activityLevel, daysPerWeek, height, weight } = req.body;
 
@@ -429,13 +464,23 @@ exports.suggestWorkoutWithExercises = async (req, res) => {
   }
 
   // Reduce prompt size: allow optional filtering and sampling
-  const maxExercises = Math.max(
+  const useAll =
+    String(
+      (req.query && req.query.use_all) || (req.body && req.body.use_all) || ""
+    )
+      .toLowerCase()
+      .trim() === "true";
+  let maxExercises = Math.max(
     5,
     Math.min(
       100,
       parseInt(req.query.max_exercises || req.body.max_exercises || "30")
     )
   );
+  // If use_all=true, include all fetched exercises (bounded by query cap)
+  if (useAll) {
+    maxExercises = Math.min(exercises.length, 1000);
+  }
   // Optional comma-separated targets in query or array in body
   const targetsParam = req.query.targets || req.body.targets;
   let preferredTargets = [];
@@ -462,7 +507,25 @@ exports.suggestWorkoutWithExercises = async (req, res) => {
   });
 
   // Build planned focuses early so we can bias sampling for required tokens
-  const plannedFocuses = getPlannedFocuses(daysPerWeek);
+  let plannedFocuses = getPlannedFocuses(daysPerWeek);
+  const isEnduranceGoal = String(goal || "")
+    .toLowerCase()
+    .includes("endurance");
+  try {
+    const d = Math.max(1, Number(daysPerWeek) || 1);
+    // For endurance goals, ensure at least one dedicated Cardio day when reasonable
+    if (
+      isEnduranceGoal &&
+      d >= 4 &&
+      !plannedFocuses.some((f) =>
+        String(f || "")
+          .toLowerCase()
+          .includes("cardio")
+      )
+    ) {
+      plannedFocuses[plannedFocuses.length - 1] = "Cardio & Conditioning";
+    }
+  } catch {}
   // tokens we ideally want represented in the sample (intersection with MUSCLE_GROUPS)
   const tokensNeededSet = new Set();
   for (const f of plannedFocuses) {
@@ -541,6 +604,24 @@ exports.suggestWorkoutWithExercises = async (req, res) => {
     }
   } catch (err) {
     console.warn("error building exerciseSamples", err && err.message);
+  }
+
+  // Endurance goal bias: pull in additional cardio-focused exercises to widen the pool
+  if (isEnduranceGoal && typeof Exercise.findByTarget === "function") {
+    try {
+      const cardioRows = await Exercise.findByTarget(
+        "cardiovascular system",
+        12
+      );
+      for (const r of cardioRows || []) {
+        if (!selected.find((s) => s.id === r.id)) selected.push(r);
+      }
+    } catch (err) {
+      console.warn(
+        "findByTarget failed for cardiovascular system",
+        err && err.message
+      );
+    }
   }
 
   // Fill remaining from matching/nonMatching as before
@@ -624,6 +705,32 @@ Schema (exact):
 If constraints cannot be satisfied (for example the provided exercise list is too small), return a JSON object: { "error": "short reason" }.
 `;
   // small heuristic to choose sets/reps/rest given a goal and exercise difficulty
+  // Activity-level aware rep/rest heuristic
+  function normalizeActivityLevel(level) {
+    const s = String(level || "").toLowerCase();
+    if (s.includes("very") && s.includes("active")) return "very_active";
+    if (
+      s.includes("sedentary") ||
+      s.includes("inactive") ||
+      s.includes("not very")
+    )
+      return "sedentary";
+    if (s.includes("light")) return "lightly_active";
+    if (s.includes("moderate")) return "moderately_active";
+    if (s.includes("active")) return "active";
+    return "moderately_active";
+  }
+  const activityNorm = normalizeActivityLevel(activityLevel);
+  const restAdjustByActivity = {
+    sedentary: 30,
+    lightly_active: 15,
+    moderately_active: 0,
+    active: -15,
+    very_active: -30,
+  };
+  const minSafeRest = 30; // seconds
+  const maxSafeRest = 180; // seconds
+
   const heuristic = (ex) => {
     const g = (goal || "").toLowerCase();
     const diff = (
@@ -655,6 +762,13 @@ If constraints cannot be satisfied (for example the provided exercise list is to
       derivedRest = diff === "beginner" ? 60 : diff === "advanced" ? 90 : 60;
     }
 
+    // Adjust rest based on activity level within safe bounds
+    const restAdj = restAdjustByActivity[activityNorm] ?? 0;
+    derivedRest = Math.min(
+      maxSafeRest,
+      Math.max(minSafeRest, derivedRest + restAdj)
+    );
+
     const timePerSetSec = Math.max(20, Math.round(derivedReps * 3));
     const estSeconds =
       derivedSets * timePerSetSec + (derivedSets - 1) * derivedRest;
@@ -667,12 +781,33 @@ If constraints cannot be satisfied (for example the provided exercise list is to
   };
 
   // Number of exercises per day: allow override via query/body, default to 6, clamp between 4 and 8
+  // Default exercises per day varies with activity level when not explicitly provided
+  function defaultExercisesPerDayForActivity(level) {
+    switch (normalizeActivityLevel(level)) {
+      case "sedentary":
+        return 4;
+      case "lightly_active":
+        return 5;
+      case "moderately_active":
+        return 6;
+      case "active":
+        return 7;
+      case "very_active":
+        return 8;
+      default:
+        return 6;
+    }
+  }
+
+  const providedExercisesPerDay =
+    req.query.exercises_per_day || req.body.exercises_per_day;
   let exercisesPerDay = parseInt(
-    req.query.exercises_per_day || req.body.exercises_per_day || "6",
+    providedExercisesPerDay ||
+      String(defaultExercisesPerDayForActivity(activityLevel)),
     10
   );
   if (!Number.isFinite(exercisesPerDay) || isNaN(exercisesPerDay))
-    exercisesPerDay = 6;
+    exercisesPerDay = defaultExercisesPerDayForActivity(activityLevel);
   exercisesPerDay = Math.max(4, Math.min(8, exercisesPerDay));
 
   // Ensure we have enough Core/Abs candidates available when one or more days
@@ -751,6 +886,8 @@ If constraints cannot be satisfied (for example the provided exercise list is to
       plannedFocuses[d] ||
       plannedFocuses[plannedFocuses.length - 1] ||
       "Full Body";
+    const desiredCardioPerDay = isEnduranceGoal ? 1 : 0;
+    let cardioCount = 0;
 
     // first pass: pick exercises that match the day's planned focus
     const seenIds = new Set();
@@ -802,6 +939,7 @@ If constraints cannot be satisfied (for example the provided exercise list is to
             dayMatchedTargets.add(t);
             seenIds.add(candidate.id);
             remaining.splice(i, 1);
+            if (isCardioLikeExercise(candidate)) cardioCount++;
             break;
           }
         }
@@ -850,6 +988,7 @@ If constraints cannot be satisfied (for example the provided exercise list is to
           secondary_muscles: candidate.secondary_muscles || null,
           external_id: candidate.external_id || null,
         });
+        if (isCardioLikeExercise(candidate)) cardioCount++;
         // record a normalized matched target for traceability
         try {
           const candNorm = normalizeToken(
@@ -913,6 +1052,26 @@ If constraints cannot be satisfied (for example the provided exercise list is to
       const isCoreDay =
         focus.toLowerCase().includes("core") ||
         focus.toLowerCase().includes("abs");
+      // Endurance bias: try to include at least one cardio item per day on non-core days
+      if (
+        idx === -1 &&
+        !isCoreDay &&
+        isEnduranceGoal &&
+        cardioCount < desiredCardioPerDay
+      ) {
+        // Prefer cardio item that also matches the day focus
+        idx = remaining.findIndex(
+          (c) =>
+            !seenIds.has(c.id) &&
+            isCardioLikeExercise(c) &&
+            exerciseMatchesFocus(c, focus)
+        );
+        if (idx === -1) {
+          idx = remaining.findIndex(
+            (c) => !seenIds.has(c.id) && isCardioLikeExercise(c)
+          );
+        }
+      }
       if (idx === -1 && !isCoreDay) {
         idx = remaining.findIndex(
           (c) => !seenIds.has(c.id) && looseMatchesFocus(c, focus)
@@ -980,6 +1139,7 @@ If constraints cannot be satisfied (for example the provided exercise list is to
         secondary_muscles: candidate.secondary_muscles || null,
         external_id: candidate.external_id || null,
       });
+      if (isCardioLikeExercise(candidate)) cardioCount++;
       // record normalized matched target from fallback pick
       try {
         const candNorm = normalizeToken(
@@ -1255,6 +1415,15 @@ If constraints cannot be satisfied (for example the provided exercise list is to
             const candIsAbs = (cand?.target || "").toLowerCase() === "abs";
             if (isCoreDay && !candIsAbs) {
               continue; // skip modifying core days with non-abs replacements
+            }
+            // Also: never insert core/abs into non-core days
+            if (m === "core" && !isCoreDay) {
+              continue;
+            }
+            // Candidate must match the day's focus (prevents abs into pull days)
+            const dayFocus = day.focus || "";
+            if (!exerciseMatchesFocus(cand, dayFocus)) {
+              continue;
             }
             const dayHas = day.exercises.some((ex) => {
               const eid = Number(ex.exercise_id);

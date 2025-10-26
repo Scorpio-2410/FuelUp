@@ -22,6 +22,7 @@ import {
   apiSignup,
   storeToken,
 } from "../constants/api";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import ProfileForm from "../components/User/ProfileForm";
 import FitnessStep from "../components/Onboarding/FitnessStep";
@@ -55,7 +56,8 @@ function Header({
           backgroundColor: "#000",
           flexDirection: "row",
           alignItems: "center",
-        }}>
+        }}
+      >
         {canGoBack ? (
           <Pressable onPress={onBack} hitSlop={12} style={{ marginRight: 12 }}>
             <ArrowLeft size={24} color="white" />
@@ -325,6 +327,24 @@ export default function Onboarding() {
           heightCm: Number.isNaN(heightCm) ? null : heightCm,
           weightKg: Number.isNaN(weightKg) ? null : weightKg,
         });
+
+        // Save user's unit preference so Fitness Profile remembers it
+        try {
+          console.log("[Onboarding] Saving unit prefs:", {
+            heightUnit: fitness.heightUnit || "cm",
+            weightUnit: fitness.weightUnit || "kg",
+          });
+          await AsyncStorage.setItem(
+            "fu_pref_height_unit",
+            fitness.heightUnit || "cm"
+          );
+          await AsyncStorage.setItem(
+            "fu_pref_weight_unit",
+            fitness.weightUnit || "kg"
+          );
+        } catch (e) {
+          console.warn("[Onboarding] Failed to save unit prefs:", e);
+        }
       } catch (e: any) {
         redirectToStart(e?.message || "Failed to save fitness details");
         return;
@@ -395,7 +415,8 @@ export default function Onboarding() {
               disabled={!!validateProfile(user)}
               className={`rounded-xl p-3 my-8 bg-green-600 ${
                 validateProfile(user) ? "opacity-50" : ""
-              }`}>
+              }`}
+            >
               <Text className="text-white text-center font-semibold">
                 Continue
               </Text>
@@ -417,7 +438,8 @@ export default function Onboarding() {
               disabled={!!validateFitness()}
               className={`rounded-xl p-3 my-8 bg-green-600 ${
                 validateFitness() ? "opacity-50" : ""
-              }`}>
+              }`}
+            >
               <Text className="text-white text-center font-semibold">
                 Continue
               </Text>

@@ -403,7 +403,7 @@ export async function apiSuggestWorkout(payload: {
   const res = await fetch(`${BASE_URL}/api/ai/suggest-workout`, {
     method: "POST",
     headers: await authHeaders(),
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ ...(payload ?? {}), use_all: true }),
   });
   return asJson<any>(res);
 }
@@ -584,7 +584,7 @@ export async function apiPlanAndScheduleAi(payload?: {
   const res = await fetch(`${BASE_URL}${EP.planAndScheduleAi}`, {
     method: "POST",
     headers: await authHeaders(),
-    body: JSON.stringify(payload ?? {}),
+    body: JSON.stringify({ ...(payload ?? {}), use_all: true }),
   });
   return asJson<{
     success: boolean;
