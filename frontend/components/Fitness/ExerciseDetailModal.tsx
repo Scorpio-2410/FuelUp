@@ -160,7 +160,7 @@ export default function ExerciseDetailModal({
         style={{
           flex: 1,
           backgroundColor: "#000",
-          paddingTop: insets.top + 6, // ⬅️ extra gap under the HUD
+          paddingTop: insets.top + 16, // ⬅️ extra gap under the HUD
           paddingBottom: insets.bottom, // safe bottom
         }}
       >

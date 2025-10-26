@@ -1,6 +1,8 @@
 // backend/controllers/scheduleController.js
 const Schedule = require("../models/schedule");
 const Event = require("../models/event");
+const FitnessPlan = require("../models/fitnessPlan");
+const axios = require("axios");
 const { pool } = require("../config/database");
 
 const ensureSchedule = async (userId) => Schedule.getOrCreate(userId);
@@ -261,7 +263,7 @@ const ScheduleController = {
 
       const daysPerWeek = Math.max(
         1,
-        Math.min(6, Number(fitness.days_per_week ?? prefs.days_per_week ?? 3))
+        Math.min(7, Number(fitness.days_per_week ?? prefs.days_per_week ?? 3)) // Allow up to 7 days
       );
 
       // Use preference if provided, otherwise default to 45 minutes.
@@ -340,7 +342,7 @@ const ScheduleController = {
       // How many days we *want* this week
       const targetPerWeek = Math.max(
         1,
-        Math.min(6, Number(prefs.days_per_week ?? fitness.days_per_week ?? 3))
+        Math.min(7, Number(prefs.days_per_week ?? fitness.days_per_week ?? 3)) // Allow up to 7 days
       );
 
       // Session length: default 120 minutes unless explicitly configured
@@ -470,6 +472,485 @@ const ScheduleController = {
     } catch (e) {
       console.error("autoPlanWorkouts error:", e);
       res.status(500).json({ error: "Failed to auto-plan workouts" });
+    }
+  },
+
+  /* --------- AI: CREATE PLAN (IF MISSING) AND SCHEDULE DAYS WEEKLY --------- */
+  async planAndScheduleAi(req, res) {
+    try {
+      const schedule = await ensureSchedule(req.userId);
+      // Read preferences early so we can honor days_per_week when generating AI plan
+      const prefsEarly = await readSchedulePrefs(schedule.id);
+
+      // 1) Check for existing non-archived fitness plan
+      const { rows: existingPlans } = await pool.query(
+        `SELECT id, name FROM fitness_plans WHERE user_id=$1 AND status <> 'archived' ORDER BY created_at DESC LIMIT 1`,
+        [req.userId]
+      );
+
+      let plan = null;
+      let aiPlan = null;
+
+      if (!existingPlans || existingPlans.length === 0) {
+        // Generate an AI plan via internal HTTP to our own endpoint
+        const { rows: fRows } = await pool.query(
+          `SELECT goal, activity_level, days_per_week, height_cm, weight_kg FROM fitness_profiles WHERE user_id=$1 LIMIT 1`,
+          [req.userId]
+        );
+        const prof = fRows[0] || {};
+
+        // Resolve desired days per week: request override > schedule prefs > fitness profile > default
+        const desiredDays = Math.max(
+          1,
+          Math.min(
+            7, // Allow up to 7 days per week
+            Number(
+              req.body?.days_per_week ??
+                req.body?.daysPerWeek ??
+                prefsEarly.days_per_week ??
+                prof.days_per_week ??
+                4
+            )
+          )
+        );
+
+        console.log("[planAndScheduleAi] Days per week resolution:", {
+          from_request_body:
+            req.body?.days_per_week ?? req.body?.daysPerWeek ?? null,
+          from_schedule_prefs: prefsEarly.days_per_week ?? null,
+          from_fitness_profile: prof.days_per_week ?? null,
+          final_desired_days: desiredDays,
+        });
+
+        // Base URL of this server
+        const baseUrl =
+          process.env.BASE_URL ||
+          `http://localhost:${process.env.PORT || 4000}`;
+        const resp = await axios.post(
+          `${baseUrl}/api/ai/suggest-workout`,
+          {
+            goal: prof.goal || null,
+            activityLevel: prof.activity_level || null,
+            daysPerWeek: desiredDays,
+            height: prof.height_cm || null,
+            weight: prof.weight_kg || null,
+            exercises_per_day: req.body?.exercises_per_day || undefined,
+          },
+          {
+            timeout: 30000,
+            headers: { Authorization: req.headers.authorization || "" },
+          }
+        );
+
+        // The AI endpoint returns { workout: { plan_name, days } }, extract the workout object
+        aiPlan = resp.data?.workout || resp.data;
+        if (!aiPlan || !aiPlan.days || !Array.isArray(aiPlan.days)) {
+          console.error(
+            "[planAndScheduleAi] AI plan generation failed or returned invalid data:",
+            resp.data
+          );
+          return res
+            .status(500)
+            .json({
+              error: "AI plan generation failed - no workout data returned",
+            });
+        }
+
+        console.log("[planAndScheduleAi] AI plan generated successfully:", {
+          plan_name: aiPlan.plan_name,
+          days_count: aiPlan.days?.length,
+          exercises_per_day: aiPlan.days?.map((d) => d.exercises?.length || 0),
+        });
+
+        // We don't create a single master plan anymore - we'll create individual plans per day below
+        plan = null;
+      } else {
+        // Use the existing plan; we can still generate sessions from AI if requested
+        plan = new FitnessPlan({
+          id: existingPlans[0].id,
+          user_id: req.userId,
+          name: existingPlans[0].name,
+          status: "active",
+          notes: null,
+          created_at: new Date(),
+          updated_at: new Date(),
+        });
+
+        // If caller explicitly asked to regenerate schedule from AI even when plan exists
+        if (req.body?.force_ai) {
+          const baseUrl =
+            process.env.BASE_URL ||
+            `http://localhost:${process.env.PORT || 4000}`;
+          const { rows: fRows } = await pool.query(
+            `SELECT goal, activity_level, days_per_week, height_cm, weight_kg FROM fitness_profiles WHERE user_id=$1 LIMIT 1`,
+            [req.userId]
+          );
+          const prof = fRows[0] || {};
+
+          const desiredDays = Math.max(
+            1,
+            Math.min(
+              7, // Allow up to 7 days per week
+              Number(
+                req.body?.days_per_week ??
+                  req.body?.daysPerWeek ??
+                  prefsEarly.days_per_week ??
+                  prof.days_per_week ??
+                  4
+              )
+            )
+          );
+
+          console.log(
+            "[planAndScheduleAi force_ai] Days per week resolution:",
+            {
+              from_request_body:
+                req.body?.days_per_week ?? req.body?.daysPerWeek ?? null,
+              from_schedule_prefs: prefsEarly.days_per_week ?? null,
+              from_fitness_profile: prof.days_per_week ?? null,
+              final_desired_days: desiredDays,
+            }
+          );
+
+          const resp = await axios.post(
+            `${baseUrl}/api/ai/suggest-workout`,
+            {
+              goal: prof.goal || null,
+              activityLevel: prof.activity_level || null,
+              daysPerWeek: desiredDays,
+              height: prof.height_cm || null,
+              weight: prof.weight_kg || null,
+              exercises_per_day: req.body?.exercises_per_day || undefined,
+            },
+            {
+              timeout: 30000,
+              headers: { Authorization: req.headers.authorization || "" },
+            }
+          );
+          // Extract workout object from response
+          aiPlan = resp.data?.workout || resp.data;
+        } else {
+          return res.status(200).json({
+            success: true,
+            created_count: 0,
+            message: "A fitness plan already exists. No new plan created.",
+          });
+        }
+      }
+
+      const planned = aiPlan?.days || [];
+      if (!planned.length) {
+        console.error("[planAndScheduleAi] No days in AI plan");
+        return res.status(400).json({ error: "AI plan has no workout days" });
+      }
+
+      // Verify each day has exercises
+      const emptyDays = planned.filter(
+        (d) => !d.exercises || d.exercises.length === 0
+      );
+      if (emptyDays.length > 0) {
+        console.warn("[planAndScheduleAi] Some days have no exercises:", {
+          total_days: planned.length,
+          empty_days: emptyDays.length,
+        });
+      }
+
+      // Preferences for time/duration and preferred weekdays
+      const prefs = await readSchedulePrefs(schedule.id);
+      const sessionMinPref = Number(prefs.workout_session_minutes);
+      const sessionMin = Math.max(
+        20,
+        isNaN(sessionMinPref) ? 60 : sessionMinPref
+      );
+      const preferredDays = Array.isArray(prefs.preferred_workout_days)
+        ? prefs.preferred_workout_days
+            .map(Number)
+            .filter((n) => n >= 0 && n <= 6)
+        : [1, 3, 5, 2, 4, 6, 0]; // spread across week
+
+      // Anchor at the upcoming Monday
+      const today = new Date();
+      const weekStart = mondayOfLocal(today);
+
+      // Map each plan day to a weekday (repeat weekly)
+      const pickWeekdayForIndex = (idx) => preferredDays[idx] ?? (1 + idx) % 7;
+
+      // First compute all target datetimes, then assign sequential day numbers by chronological order
+      const pre = [];
+      for (let i = 0; i < planned.length; i++) {
+        const day = planned[i];
+        const weekday = pickWeekdayForIndex(i);
+
+        const base = new Date(weekStart);
+        base.setDate(weekStart.getDate() + ((weekday + 7 - base.getDay()) % 7));
+        base.setHours(7, 0, 0, 0); // 07:00 local default
+        const end = new Date(base.getTime() + sessionMin * 60000);
+
+        // derive quick summary bits for later UI
+        const rests = (day.exercises || [])
+          .map((ex) => Number(ex?.rest_seconds) || 0)
+          .filter((n) => n > 0);
+        const rest_min = rests.length ? Math.min(...rests) : null;
+        const rest_max = rests.length ? Math.max(...rests) : null;
+        const exercise_count = (day.exercises || []).length;
+
+        pre.push({
+          plannedIndex: i + 1,
+          base,
+          end,
+          focus: day.focus,
+          rest_min,
+          rest_max,
+          exercise_count,
+          exercises: (day.exercises || []).map((ex) => ({
+            id: ex.exercise_id,
+            externalId: String(ex.exercise_id),
+            source: "local",
+            name: ex.name,
+            sets: ex.sets,
+            reps: ex.reps,
+            rest_seconds: ex.rest_seconds,
+            estimated_seconds: ex.estimated_seconds,
+            external_id: ex.external_id || null,
+            secondary_muscles: ex.secondary_muscles || null,
+          })),
+        });
+      }
+
+      // Sort by date ascending so Day 1 is the earliest in the week, then Day 2, etc.
+      pre.sort((a, b) => a.base.getTime() - b.base.getTime());
+
+      const created = [];
+      for (let order = 0; order < pre.length; order++) {
+        const s = pre[order];
+
+        // Create a separate plan for each day so "My Plans" shows them organized
+        const dayPlanName = `Day ${order + 1} - ${s.focus || "Workout"}`;
+        const dayPlan = await FitnessPlan.create(req.userId, {
+          name: dayPlanName,
+          status: "active",
+          notes: `Auto-created from AI suggestion (${
+            aiPlan.plan_name || "AI Weekly Plan"
+          })`,
+        });
+
+        // Save this day's exercises to its own plan
+        for (const ex of s.exercises || []) {
+          try {
+            await pool.query(
+              `INSERT INTO fitness_plan_exercises
+                 (plan_id, source, external_id, name, gif_url, body_part, target, equipment)
+               VALUES ($1,'local',$2,$3,NULL,NULL,NULL,NULL)
+               ON CONFLICT (plan_id, source, external_id) DO NOTHING`,
+              [dayPlan.id, String(ex.id), ex.name]
+            );
+          } catch (e) {
+            console.warn(`Failed to add exercise ${ex.name} to plan:`, e);
+          }
+        }
+
+        const summaryParts = [
+          s.focus || "Workout",
+          `${s.exercise_count} exercise${s.exercise_count === 1 ? "" : "s"}`,
+        ];
+        if (s.rest_min != null) {
+          summaryParts.push(
+            s.rest_min === s.rest_max
+              ? `${s.rest_min}s rest`
+              : `${s.rest_min}–${s.rest_max}s rest`
+          );
+        }
+        const notesObj = {
+          type: "workout_session",
+          plan_id: dayPlan.id,
+          plan_name: dayPlan.name,
+          day_index: order + 1, // chronological day number
+          planned_day_index: s.plannedIndex, // original index within plan
+          focus: s.focus,
+          summary: summaryParts.join(" • "),
+          exercise_count: s.exercise_count,
+          rest_min: s.rest_min,
+          rest_max: s.rest_max,
+          exercises: s.exercises,
+        };
+
+        const ev = await Event.create({
+          scheduleId: schedule.id,
+          category: "workout",
+          title: `${s.focus || "Workout"} (Day ${order + 1})`,
+          startAt: s.base.toISOString(),
+          endAt: s.end.toISOString(),
+          notes: JSON.stringify(notesObj),
+          recurrence_rule: "weekly",
+          recurrence_until: null,
+        });
+        created.push(ev);
+      }
+
+      return res.status(201).json({
+        success: true,
+        plan_id: created.length > 0 ? created[0].id : null,
+        created_count: created.length,
+        events: created,
+      });
+    } catch (e) {
+      console.error("planAndScheduleAi error:", e);
+      res.status(500).json({ error: "Failed to create and schedule AI plan" });
+    }
+  },
+
+  /* --------- SCHEDULE EXISTING PLANS WEEKLY (ONGOING) --------- */
+  async schedulePlansWeekly(req, res) {
+    try {
+      const schedule = await ensureSchedule(req.userId);
+
+      // Fetch active plans for user
+      const { rows: plans } = await pool.query(
+        `SELECT id, name FROM fitness_plans WHERE user_id=$1 AND status <> 'archived' ORDER BY created_at ASC`,
+        [req.userId]
+      );
+      if (!plans || plans.length === 0) {
+        return res.status(400).json({ error: "No active plans to schedule" });
+      }
+
+      // Read preferences (preferred_workout_days, session length)
+      const prefs = await readSchedulePrefs(schedule.id);
+      const sessionMinPref = Number(prefs.workout_session_minutes);
+      const sessionMin = Math.max(
+        20,
+        isNaN(sessionMinPref) ? 60 : sessionMinPref
+      );
+      const preferredDays = Array.isArray(prefs.preferred_workout_days)
+        ? prefs.preferred_workout_days
+            .map(Number)
+            .filter((n) => n >= 0 && n <= 6)
+        : [1, 3, 5, 2, 4, 6, 0];
+
+      // Anchor to current week's Monday (local)
+      const today = new Date();
+      const weekStart = mondayOfLocal(today);
+
+      // Existing events: pull all to avoid duplicates per plan_id
+      const existingEvents = await Event.listForSchedule(schedule.id);
+      const hasEventForPlan = new Set();
+      for (const ev of existingEvents) {
+        try {
+          const notes = ev.notes;
+          if (!notes) continue;
+          const obj = typeof notes === "string" ? JSON.parse(notes) : notes;
+          if (
+            obj &&
+            (obj.type === "plan_session" || obj.type === "workout_session") &&
+            obj.plan_id
+          ) {
+            hasEventForPlan.add(Number(obj.plan_id));
+          }
+        } catch {}
+      }
+
+      const created = [];
+
+      // Helper to get first occurrence date for a given weekday and week offset
+      const dateForWeekday = (baseMonday, weekday, weekOffset) => {
+        const d = new Date(baseMonday);
+        d.setDate(d.getDate() + weekOffset * 7);
+        const dow = d.getDay();
+        const delta = (weekday + 7 - dow) % 7;
+        d.setDate(d.getDate() + delta);
+        d.setHours(7, 0, 0, 0); // default 07:00 local
+        return d;
+      };
+
+      // For each plan, schedule one weekly event, distributing across current and subsequent weeks if >7 plans
+      for (let i = 0; i < plans.length; i++) {
+        const plan = plans[i];
+        if (hasEventForPlan.has(Number(plan.id))) continue; // skip if already scheduled
+
+        const weekday = preferredDays[i % preferredDays.length];
+        const weekOffset = Math.floor(i / preferredDays.length);
+        const start = dateForWeekday(weekStart, weekday, weekOffset);
+        const end = new Date(start.getTime() + sessionMin * 60000);
+
+        // Fetch exercises saved to this plan (optional metadata)
+        let exercises = [];
+        try {
+          const exq = await pool.query(
+            `SELECT source, external_id, name, gif_url, body_part, target, equipment
+               FROM fitness_plan_exercises
+              WHERE plan_id=$1
+              ORDER BY added_at ASC`,
+            [plan.id]
+          );
+          exercises = (exq.rows || []).map((r) => ({
+            id: r.external_id || null,
+            externalId: r.external_id || null,
+            source: r.source || "local",
+            name: r.name || null,
+            gif_url: r.gif_url || null,
+            bodyPart: r.body_part || null,
+            target: r.target || null,
+            equipment: r.equipment || null,
+            external_id: r.external_id || null,
+            // Add default training parameters so exercises are clickable
+            sets: 3,
+            reps: "10",
+            rest_seconds: 60,
+            estimated_seconds: 120,
+          }));
+        } catch {}
+
+        // Compute rest range for summary
+        const rests = exercises
+          .map((e) => Number(e.rest_seconds) || 0)
+          .filter((n) => n > 0);
+        const rest_min = rests.length ? Math.min(...rests) : null;
+        const rest_max = rests.length ? Math.max(...rests) : null;
+        const exercise_count = exercises.length;
+
+        const summaryParts = [
+          plan.name || "Workout",
+          `${exercise_count} exercise${exercise_count === 1 ? "" : "s"}`,
+        ];
+        if (rest_min != null) {
+          summaryParts.push(
+            rest_min === rest_max
+              ? `${rest_min}s rest`
+              : `${rest_min}–${rest_max}s rest`
+          );
+        }
+
+        const notesObj = {
+          type: "plan_session",
+          plan_id: plan.id,
+          plan_name: plan.name,
+          summary: summaryParts.join(" • "),
+          exercise_count,
+          rest_min,
+          rest_max,
+          exercises,
+        };
+
+        const ev = await Event.create({
+          scheduleId: schedule.id,
+          category: "workout",
+          title: plan.name || "Workout",
+          startAt: start.toISOString(),
+          endAt: end.toISOString(),
+          notes: JSON.stringify(notesObj),
+          recurrence_rule: "weekly",
+          recurrence_until: null,
+        });
+        created.push(ev);
+      }
+
+      return res.status(201).json({
+        success: true,
+        created_count: created.length,
+        events: created,
+      });
+    } catch (e) {
+      console.error("schedulePlansWeekly error:", e);
+      res.status(500).json({ error: "Failed to schedule existing plans" });
     }
   },
 };

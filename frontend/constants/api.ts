@@ -98,6 +98,8 @@ const EP = {
   events: "/api/schedule/events",
   suggestTimes: "/api/schedule/suggest",
   eventsAutoPlan: "/api/schedule/auto-plan",
+  planAndScheduleAi: "/api/schedule/ai/plan-and-schedule",
+  schedulePlansWeekly: "/api/schedule/schedule-plans",
 
   // Motivational Quotes
   quotesDaily: "/api/quotes/daily",
@@ -551,6 +553,37 @@ export async function apiAutoPlanWorkouts() {
     body: JSON.stringify({}), // backend uses current week + fitness profile
   });
   // match backend: { success, created_count, events }
+  return asJson<{ success: boolean; created_count: number; events: any[] }>(
+    res
+  );
+}
+
+// AI: Create a plan (if missing) and schedule weekly workout sessions with embedded exercises
+export async function apiPlanAndScheduleAi(payload?: {
+  exercises_per_day?: number;
+  force_ai?: boolean; // if true and a plan exists, regenerate sessions from AI
+}) {
+  const res = await fetch(`${BASE_URL}${EP.planAndScheduleAi}`, {
+    method: "POST",
+    headers: await authHeaders(),
+    body: JSON.stringify(payload ?? {}),
+  });
+  return asJson<{
+    success: boolean;
+    plan_id?: number;
+    created_count: number;
+    events?: any[];
+    message?: string;
+  }>(res);
+}
+
+// Schedule existing plans across the week with weekly recurrence
+export async function apiSchedulePlansWeekly() {
+  const res = await fetch(`${BASE_URL}${EP.schedulePlansWeekly}`, {
+    method: "POST",
+    headers: await authHeaders(),
+    body: JSON.stringify({}),
+  });
   return asJson<{ success: boolean; created_count: number; events: any[] }>(
     res
   );

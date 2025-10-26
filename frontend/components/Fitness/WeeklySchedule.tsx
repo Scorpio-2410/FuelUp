@@ -13,7 +13,10 @@ import {
   Alert,
   Modal,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import {
@@ -22,7 +25,10 @@ import {
   apiUpdateEvent,
   apiDeleteEvent,
   apiAutoPlanWorkouts,
+  apiSchedulePlansWeekly,
+  apiPlanAndScheduleAi,
 } from "../../constants/api";
+import ExerciseDetailModal from "./ExerciseDetailModal";
 
 type Category = "work" | "workout" | "meal" | "other";
 type Repeat = "none" | "daily" | "weekday" | "weekly";
@@ -125,14 +131,16 @@ function WheelPickerSheet(props: {
           flex: 1,
           justifyContent: "flex-end",
           backgroundColor: "rgba(0,0,0,0.5)",
-        }}>
+        }}
+      >
         <View
           style={{
             backgroundColor: "white",
             borderTopLeftRadius: 16,
             borderTopRightRadius: 16,
             paddingBottom: 10,
-          }}>
+          }}
+        >
           <View
             style={{
               flexDirection: "row",
@@ -140,7 +148,8 @@ function WheelPickerSheet(props: {
               paddingHorizontal: 12,
               paddingTop: 8,
               paddingBottom: 4,
-            }}>
+            }}
+          >
             <TouchableOpacity onPress={onCancel}>
               <Text style={{ color: "#EF4444", fontWeight: "700" }}>
                 Cancel
@@ -167,6 +176,7 @@ function WheelPickerSheet(props: {
 }
 
 export default function WeeklySchedule({ onClose }: Props) {
+  const insets = useSafeAreaInsets();
   const todayKey = ymd(new Date());
   const [selectedDateKey, setSelectedDateKey] = useState<string>(todayKey);
   const [monday, setMonday] = useState<Date>(mondayOfWeek(todayKey));
@@ -225,6 +235,17 @@ export default function WeeklySchedule({ onClose }: Props) {
 
   // NEW: auto-plan button state
   const [planning, setPlanning] = useState(false);
+
+  // Session viewer and exercise detail modals
+  const [sessionOpen, setSessionOpen] = useState(false);
+  const [sessionData, setSessionData] = useState<{
+    title: string;
+    focus?: string;
+    dayIndex?: number | null;
+    exercises: any[];
+  } | null>(null);
+  const [exerciseModalOpen, setExerciseModalOpen] = useState(false);
+  const [selectedExercise, setSelectedExercise] = useState<any | null>(null);
 
   // keep start/end aligned with selected date if user taps another day
   useEffect(() => {
@@ -354,16 +375,78 @@ export default function WeeklySchedule({ onClose }: Props) {
     if (planning) return;
     setPlanning(true);
     try {
-      const { created_count } = await apiAutoPlanWorkouts();
+      // Prefer scheduling existing plans weekly; if nothing is created, try AI plan-and-schedule;
+      // only fall back to legacy auto-plan if AI completely fails (not just returns 0)
+      let created_count = 0;
+      let infoMsg: string | undefined;
+      let shouldTryAutoPlan = false;
+
+      try {
+        const r0 = await apiSchedulePlansWeekly();
+        created_count = r0?.created_count ?? 0;
+        infoMsg = (r0 as any)?.message;
+        console.log("[Suggest] schedulePlansWeekly result:", {
+          created_count,
+          message: infoMsg,
+        });
+      } catch (e: any) {
+        console.log("[Suggest] schedulePlansWeekly failed:", e?.message);
+        // Expected if no plans exist - not an error, just try AI next
+      }
+
+      // If no existing plans were scheduled, try AI generation
+      if (!created_count) {
+        try {
+          console.log("[Suggest] Trying AI plan generation with force_ai=true");
+          const r1 = await apiPlanAndScheduleAi({ force_ai: true });
+          created_count = r1?.created_count ?? 0;
+          infoMsg = infoMsg || (r1 as any)?.message;
+          console.log("[Suggest] AI plan result:", {
+            created_count,
+            message: infoMsg,
+          });
+        } catch (e: any) {
+          console.error("[Suggest] AI plan generation failed:", e?.message);
+          // Only try auto-plan if AI completely failed (500 error), not if it just returned 0 events
+          if (
+            e?.message?.includes("AI plan") ||
+            e?.message?.includes("generation failed")
+          ) {
+            shouldTryAutoPlan = true;
+          }
+        }
+      }
+
+      // Only use legacy auto-planner as absolute last resort
+      if (!created_count && shouldTryAutoPlan) {
+        try {
+          console.log("[Suggest] Falling back to legacy auto-planner");
+          const r2 = await apiAutoPlanWorkouts();
+          created_count = r2?.created_count ?? 0;
+          infoMsg = infoMsg || (r2 as any)?.message;
+          console.log("[Suggest] Auto-plan result:", {
+            created_count,
+            message: infoMsg,
+          });
+        } catch (e: any) {
+          console.error("[Suggest] Auto-plan also failed:", e?.message);
+        }
+      }
+
       await loadWeek();
-      Alert.alert(
-        "Workout suggestions",
-        created_count && created_count > 0
-          ? `Added ${created_count} workout${
-              created_count > 1 ? "s" : ""
-            } based on your schedule.`
-          : "No suitable free slots found in the current week."
-      );
+      if (created_count && created_count > 0) {
+        Alert.alert(
+          "Workout suggestions",
+          `Added ${created_count} workout${
+            created_count > 1 ? "s" : ""
+          } based on your schedule.`
+        );
+      } else {
+        Alert.alert(
+          "Workout suggestions",
+          infoMsg || "No suitable free slots found in the current week."
+        );
+      }
     } catch (e: any) {
       Alert.alert("Suggestion failed", e?.message || "Please try again.");
     } finally {
@@ -452,7 +535,8 @@ export default function WeeklySchedule({ onClose }: Props) {
     <SafeAreaView style={{ flex: 1, backgroundColor: "black" }}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
         <View style={{ flex: 1, backgroundColor: "black" }}>
           {/* Header */}
           <View
@@ -463,10 +547,12 @@ export default function WeeklySchedule({ onClose }: Props) {
               alignItems: "center",
               flexDirection: "row",
               justifyContent: "center",
-            }}>
+            }}
+          >
             <TouchableOpacity
               onPress={goPrevWeek}
-              style={{ position: "absolute", left: 12 }}>
+              style={{ position: "absolute", left: 12 }}
+            >
               <Ionicons name="chevron-back-circle" size={24} color={GREEN} />
             </TouchableOpacity>
 
@@ -476,20 +562,23 @@ export default function WeeklySchedule({ onClose }: Props) {
                 fontSize: 22,
                 fontWeight: "800",
                 textAlign: "center",
-              }}>
+              }}
+            >
               Weekly Schedule
             </Text>
 
             <TouchableOpacity
               onPress={goNextWeek}
-              style={{ position: "absolute", right: 44 }}>
+              style={{ position: "absolute", right: 44 }}
+            >
               <Ionicons name="chevron-forward-circle" size={24} color={GREEN} />
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={onClose}
               style={{ position: "absolute", right: 12, padding: 4 }}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
               <Ionicons name="close-circle" size={22} color={GREEN} />
             </TouchableOpacity>
           </View>
@@ -503,7 +592,8 @@ export default function WeeklySchedule({ onClose }: Props) {
               paddingTop: 6,
               paddingBottom: 10,
               justifyContent: "center",
-            }}>
+            }}
+          >
             {week.map((d) => {
               const selected = d.key === selectedDateKey;
               const capsuleColor = selected ? GREEN : "#111";
@@ -521,9 +611,11 @@ export default function WeeklySchedule({ onClose }: Props) {
                     alignItems: "center",
                     borderWidth: todayRing ? 2 : 0,
                     borderColor: todayRing ? GREEN : "transparent",
-                  }}>
+                  }}
+                >
                   <Text
-                    style={{ color: textColor, fontSize: 12, opacity: 0.8 }}>
+                    style={{ color: textColor, fontSize: 12, opacity: 0.8 }}
+                  >
                     {d.label}
                   </Text>
                   <Text
@@ -532,7 +624,8 @@ export default function WeeklySchedule({ onClose }: Props) {
                       fontSize: 14,
                       fontWeight: "700",
                       marginTop: 2,
-                    }}>
+                    }}
+                  >
                     {d.num}
                   </Text>
                 </TouchableOpacity>
@@ -543,7 +636,8 @@ export default function WeeklySchedule({ onClose }: Props) {
           {/* Month label */}
           <View style={{ paddingHorizontal: 16, marginTop: 2 }}>
             <Text
-              style={{ color: TEXT_MUTED, textAlign: "center", fontSize: 13 }}>
+              style={{ color: TEXT_MUTED, textAlign: "center", fontSize: 13 }}
+            >
               {monthYear(new Date(selectedDateKey + "T00:00:00"))}
             </Text>
           </View>
@@ -554,7 +648,8 @@ export default function WeeklySchedule({ onClose }: Props) {
               paddingHorizontal: 16,
               alignItems: "center",
               marginVertical: 8,
-            }}>
+            }}
+          >
             <TouchableOpacity
               disabled={planning}
               onPress={handleAutoPlan}
@@ -566,7 +661,8 @@ export default function WeeklySchedule({ onClose }: Props) {
                 borderColor: GREEN,
                 backgroundColor: "#E7F9EE",
                 opacity: planning ? 0.6 : 1,
-              }}>
+              }}
+            >
               <Text style={{ color: "#065F46", fontWeight: "700" }}>
                 {planning ? "Suggesting…" : "Suggest workout times"}
               </Text>
@@ -586,7 +682,8 @@ export default function WeeklySchedule({ onClose }: Props) {
                     color: TEXT_MUTED,
                     textAlign: "center",
                     marginTop: 24,
-                  }}>
+                  }}
+                >
                   No tasks scheduled for this day
                 </Text>
               }
@@ -596,7 +693,30 @@ export default function WeeklySchedule({ onClose }: Props) {
                 paddingTop: 6,
               }}
               renderItem={({ item }) => (
-                <TouchableOpacity onPress={() => openEditFor(item)}>
+                <TouchableOpacity
+                  onPress={() => {
+                    // If this is a workout with embedded exercises in notes JSON, open session viewer
+                    try {
+                      const data = item?.notes ? JSON.parse(item.notes) : null;
+                      if (
+                        item.category === "workout" &&
+                        data &&
+                        Array.isArray(data.exercises) &&
+                        data.exercises.length > 0
+                      ) {
+                        setSessionData({
+                          title: item.title,
+                          focus: data.focus || "Workout",
+                          dayIndex: data.day_index || null,
+                          exercises: data.exercises,
+                        });
+                        setSessionOpen(true);
+                        return;
+                      }
+                    } catch {}
+                    openEditFor(item);
+                  }}
+                >
                   <View
                     style={{
                       backgroundColor: CARD,
@@ -605,20 +725,23 @@ export default function WeeklySchedule({ onClose }: Props) {
                       padding: 14,
                       borderWidth: 1,
                       borderColor: "#1F2937",
-                    }}>
+                    }}
+                  >
                     <View
                       style={{
                         flexDirection: "row",
                         justifyContent: "space-between",
                         alignItems: "center",
                         marginBottom: 4,
-                      }}>
+                      }}
+                    >
                       <Text
                         style={{
                           color: "white",
                           fontWeight: "700",
                           fontSize: 16,
-                        }}>
+                        }}
+                      >
                         {item.title}
                       </Text>
                       <View
@@ -627,7 +750,8 @@ export default function WeeklySchedule({ onClose }: Props) {
                           borderRadius: 8,
                           paddingHorizontal: 8,
                           paddingVertical: 3,
-                        }}>
+                        }}
+                      >
                         <Text style={{ fontSize: 11, color: "black" }}>
                           {item.category}
                         </Text>
@@ -636,18 +760,230 @@ export default function WeeklySchedule({ onClose }: Props) {
                     <Text style={{ color: TEXT_MUTED, fontSize: 12 }}>
                       {item.start} – {item.end}
                     </Text>
-                    {!!item.notes && (
-                      <Text
-                        style={{ color: "#D1D5DB", marginTop: 6, fontSize: 13 }}
-                        numberOfLines={3}>
-                        {item.notes}
-                      </Text>
-                    )}
+                    {/* Description: if workout + JSON notes, show a friendly summary; else show raw notes */}
+                    {(() => {
+                      if (item.category === "workout" && item.notes) {
+                        try {
+                          const data = JSON.parse(item.notes);
+                          if (data && Array.isArray(data.exercises)) {
+                            const focus = data.focus || "Workout";
+                            const count = data.exercises.length;
+                            // rest seconds range among exercises
+                            const rests = data.exercises
+                              .map((e: any) => Number(e?.rest_seconds) || 0)
+                              .filter((n: number) => n > 0);
+                            let restStr = "";
+                            if (rests.length) {
+                              const min = Math.min(...rests);
+                              const max = Math.max(...rests);
+                              restStr =
+                                min === max
+                                  ? `${min}s rest`
+                                  : `${min}–${max}s rest`;
+                            }
+                            const parts = [
+                              focus,
+                              `${count} exercise${count === 1 ? "" : "s"}`,
+                            ];
+                            if (restStr) parts.push(restStr);
+                            return (
+                              <Text
+                                style={{
+                                  color: "#D1D5DB",
+                                  marginTop: 6,
+                                  fontSize: 13,
+                                }}
+                                numberOfLines={3}
+                              >
+                                {parts.join(" • ")}
+                              </Text>
+                            );
+                          }
+                        } catch {}
+                      }
+                      if (item.notes) {
+                        return (
+                          <Text
+                            style={{
+                              color: "#D1D5DB",
+                              marginTop: 6,
+                              fontSize: 13,
+                            }}
+                            numberOfLines={3}
+                          >
+                            {item.notes}
+                          </Text>
+                        );
+                      }
+                      return null;
+                    })()}
                   </View>
                 </TouchableOpacity>
               )}
             />
           )}
+
+          {/* Workout Session viewer (list of exercises) */}
+          {sessionOpen && (
+            <Modal
+              visible={sessionOpen}
+              animationType="slide"
+              transparent={false}
+            >
+              <View
+                style={{
+                  flex: 1,
+                  backgroundColor: "#000",
+                  paddingTop: insets.top + 14,
+                }}
+              >
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                    borderBottomWidth: 1,
+                    borderBottomColor: "#222",
+                  }}
+                >
+                  <TouchableOpacity
+                    onPress={() => setSessionOpen(false)}
+                    style={{ marginRight: 10, padding: 6 }}
+                  >
+                    <Ionicons name="arrow-back" size={24} color="#fff" />
+                  </TouchableOpacity>
+                  <Text
+                    style={{
+                      color: "#fff",
+                      fontSize: 18,
+                      fontWeight: "800",
+                      flex: 1,
+                    }}
+                    numberOfLines={1}
+                  >
+                    {sessionData?.title || "Workout"}
+                  </Text>
+                </View>
+
+                {/* Build an interleaved list: exercise, rest, exercise, ... */}
+                {(() => {
+                  const exs = sessionData?.exercises || [];
+                  const rows: Array<{
+                    type: "exercise" | "rest";
+                    key: string;
+                    data?: any;
+                    rest?: number;
+                  }> = [];
+                  for (let i = 0; i < exs.length; i++) {
+                    const ex = exs[i];
+                    rows.push({
+                      type: "exercise",
+                      key: `ex-${i}-${ex?.externalId || ex?.id || i}`,
+                      data: ex,
+                    });
+                    const restSec = Number(ex?.rest_seconds) || 0;
+                    if (i < exs.length - 1 && restSec > 0) {
+                      rows.push({
+                        type: "rest",
+                        key: `rest-${i}`,
+                        rest: restSec,
+                      });
+                    }
+                  }
+                  return (
+                    <FlatList
+                      data={rows}
+                      keyExtractor={(row) => row.key}
+                      contentContainerStyle={{
+                        padding: 16,
+                        paddingBottom: 120,
+                      }}
+                      renderItem={({ item: row }) => {
+                        if (row.type === "rest") {
+                          return (
+                            <View
+                              style={{
+                                backgroundColor: "#0a0a0a",
+                                borderRadius: 10,
+                                paddingVertical: 8,
+                                paddingHorizontal: 12,
+                                marginBottom: 10,
+                                borderWidth: 1,
+                                borderColor: "#1F2937",
+                              }}
+                            >
+                              <Text
+                                style={{
+                                  color: TEXT_MUTED,
+                                  textAlign: "center",
+                                }}
+                              >
+                                Rest {row.rest}s
+                              </Text>
+                            </View>
+                          );
+                        }
+                        const ex = row.data;
+                        return (
+                          <TouchableOpacity
+                            onPress={() => {
+                              // First set the exercise data
+                              setSelectedExercise({
+                                id: ex?.externalId || ex?.id,
+                                name: ex?.name,
+                                source: ex?.source || "local",
+                                externalId: ex?.externalId || ex?.id,
+                              });
+                              // Close session modal
+                              setSessionOpen(false);
+                              // Small delay before opening detail modal to ensure clean transition
+                              setTimeout(() => {
+                                setExerciseModalOpen(true);
+                              }, 100);
+                            }}
+                          >
+                            <View
+                              style={{
+                                backgroundColor: CARD,
+                                borderRadius: 12,
+                                padding: 12,
+                                marginBottom: 10,
+                                borderWidth: 1,
+                                borderColor: "#1F2937",
+                              }}
+                            >
+                              <Text
+                                style={{
+                                  color: "#fff",
+                                  fontWeight: "700",
+                                  marginBottom: 4,
+                                }}
+                              >
+                                {ex?.name}
+                              </Text>
+                              {ex?.sets && ex?.reps ? (
+                                <Text style={{ color: TEXT_MUTED }}>
+                                  {ex.sets} sets × {String(ex.reps)}
+                                </Text>
+                              ) : null}
+                            </View>
+                          </TouchableOpacity>
+                        );
+                      }}
+                    />
+                  );
+                })()}
+              </View>
+            </Modal>
+          )}
+
+          {/* Exercise detail modal */}
+          <ExerciseDetailModal
+            visible={exerciseModalOpen}
+            exercise={selectedExercise}
+            onClose={() => setExerciseModalOpen(false)}
+          />
 
           {/* FAB */}
           <TouchableOpacity
@@ -663,7 +999,8 @@ export default function WeeklySchedule({ onClose }: Props) {
               alignItems: "center",
               justifyContent: "center",
               elevation: 5,
-            }}>
+            }}
+          >
             <Ionicons name="add" size={28} color="white" />
           </TouchableOpacity>
 
@@ -671,7 +1008,8 @@ export default function WeeklySchedule({ onClose }: Props) {
           <Modal
             visible={createOpen}
             animationType="slide"
-            onRequestClose={() => setCreateOpen(false)}>
+            onRequestClose={() => setCreateOpen(false)}
+          >
             <SafeAreaView style={{ flex: 1, backgroundColor: "white" }}>
               {/* Top bar */}
               <View
@@ -682,15 +1020,18 @@ export default function WeeklySchedule({ onClose }: Props) {
                   flexDirection: "row",
                   alignItems: "center",
                   justifyContent: "center",
-                }}>
+                }}
+              >
                 <Text
-                  style={{ fontSize: 18, fontWeight: "800", color: "black" }}>
+                  style={{ fontSize: 18, fontWeight: "800", color: "black" }}
+                >
                   Create Event
                 </Text>
                 <TouchableOpacity
                   onPress={() => setCreateOpen(false)}
                   hitSlop={{ top: 10, left: 10, right: 10, bottom: 10 }}
-                  style={{ position: "absolute", right: 10 }}>
+                  style={{ position: "absolute", right: 10 }}
+                >
                   <Ionicons name="close-circle" size={28} color={GREEN} />
                 </TouchableOpacity>
               </View>
@@ -700,7 +1041,8 @@ export default function WeeklySchedule({ onClose }: Props) {
                 contentContainerStyle={{
                   paddingHorizontal: 16,
                   paddingBottom: 24,
-                }}>
+                }}
+              >
                 {/* title */}
                 <TextInput
                   placeholder="Event name*"
@@ -745,11 +1087,13 @@ export default function WeeklySchedule({ onClose }: Props) {
                     marginBottom: 6,
                     fontWeight: "700",
                     color: "#065F46",
-                  }}>
+                  }}
+                >
                   Category
                 </Text>
                 <View
-                  style={{ flexDirection: "row", gap: 10, flexWrap: "wrap" }}>
+                  style={{ flexDirection: "row", gap: 10, flexWrap: "wrap" }}
+                >
                   {(["work", "workout", "meal", "other"] as Category[]).map(
                     (c) => {
                       const active = category === c;
@@ -764,13 +1108,15 @@ export default function WeeklySchedule({ onClose }: Props) {
                             borderWidth: 1,
                             borderColor: active ? GREEN : "#d1d5db",
                             backgroundColor: active ? "#E7F9EE" : "white",
-                          }}>
+                          }}
+                        >
                           <Text
                             style={{
                               color: active ? "#065F46" : "#111827",
                               fontWeight: "600",
                               textTransform: "lowercase",
-                            }}>
+                            }}
+                          >
                             {c}
                           </Text>
                         </TouchableOpacity>
@@ -786,7 +1132,8 @@ export default function WeeklySchedule({ onClose }: Props) {
                     marginBottom: 6,
                     fontWeight: "700",
                     color: "#065F46",
-                  }}>
+                  }}
+                >
                   Start
                 </Text>
                 <TouchableOpacity
@@ -797,7 +1144,8 @@ export default function WeeklySchedule({ onClose }: Props) {
                     borderRadius: 12,
                     paddingHorizontal: 12,
                     paddingVertical: 12,
-                  }}>
+                  }}
+                >
                   <Text style={{ color: "#065F46", fontWeight: "600" }}>
                     {fmtLong(startDT)}
                   </Text>
@@ -810,7 +1158,8 @@ export default function WeeklySchedule({ onClose }: Props) {
                     marginBottom: 6,
                     fontWeight: "700",
                     color: "#065F46",
-                  }}>
+                  }}
+                >
                   End
                 </Text>
                 <TouchableOpacity
@@ -821,7 +1170,8 @@ export default function WeeklySchedule({ onClose }: Props) {
                     borderRadius: 12,
                     paddingHorizontal: 12,
                     paddingVertical: 12,
-                  }}>
+                  }}
+                >
                   <Text style={{ color: "#065F46", fontWeight: "600" }}>
                     {fmtLong(endDT)}
                   </Text>
@@ -834,7 +1184,8 @@ export default function WeeklySchedule({ onClose }: Props) {
                     marginBottom: 6,
                     fontWeight: "700",
                     color: "#065F46",
-                  }}>
+                  }}
+                >
                   Repeat
                 </Text>
                 <View
@@ -843,7 +1194,8 @@ export default function WeeklySchedule({ onClose }: Props) {
                     gap: 10,
                     marginBottom: 8,
                     flexWrap: "wrap",
-                  }}>
+                  }}
+                >
                   {(["none", "daily", "weekday", "weekly"] as Repeat[]).map(
                     (r) => {
                       const active = repeat === r;
@@ -858,13 +1210,15 @@ export default function WeeklySchedule({ onClose }: Props) {
                             borderWidth: 1,
                             borderColor: active ? GREEN : "#d1d5db",
                             backgroundColor: active ? "#E7F9EE" : "white",
-                          }}>
+                          }}
+                        >
                           <Text
                             style={{
                               color: active ? "#065F46" : "#111827",
                               fontWeight: "600",
                               textTransform: "lowercase",
-                            }}>
+                            }}
+                          >
                             {r}
                           </Text>
                         </TouchableOpacity>
@@ -887,7 +1241,8 @@ export default function WeeklySchedule({ onClose }: Props) {
                     alignItems: "center",
                     marginTop: 12,
                     opacity: saving ? 0.6 : 1,
-                  }}>
+                  }}
+                >
                   {saving ? (
                     <ActivityIndicator color="black" />
                   ) : (
@@ -904,7 +1259,8 @@ export default function WeeklySchedule({ onClose }: Props) {
                     alignItems: "center",
                     marginTop: 12,
                     marginBottom: 8,
-                  }}>
+                  }}
+                >
                   <Text style={{ color: "#EF4444" }}>Cancel</Text>
                 </TouchableOpacity>
               </ScrollView>
@@ -953,11 +1309,14 @@ export default function WeeklySchedule({ onClose }: Props) {
                 paddingBottom: 24,
                 paddingHorizontal: 16,
                 maxHeight: "88%",
-              }}>
+              }}
+            >
               <View
-                style={{ alignItems: "center", marginBottom: 6, marginTop: 4 }}>
+                style={{ alignItems: "center", marginBottom: 6, marginTop: 4 }}
+              >
                 <Text
-                  style={{ fontSize: 18, fontWeight: "800", color: "black" }}>
+                  style={{ fontSize: 18, fontWeight: "800", color: "black" }}
+                >
                   Edit Event
                 </Text>
                 <TouchableOpacity
@@ -967,14 +1326,16 @@ export default function WeeklySchedule({ onClose }: Props) {
                     right: 6,
                     top: -2,
                     padding: 6,
-                  }}>
+                  }}
+                >
                   <Ionicons name="close-circle" size={20} color={GREEN} />
                 </TouchableOpacity>
               </View>
 
               <ScrollView
                 style={{ maxHeight: 520 }}
-                keyboardShouldPersistTaps="handled">
+                keyboardShouldPersistTaps="handled"
+              >
                 <TextInput
                   placeholder="Event name*"
                   value={editTitle}
@@ -1016,7 +1377,8 @@ export default function WeeklySchedule({ onClose }: Props) {
                     marginBottom: 6,
                     fontWeight: "700",
                     color: "#065F46",
-                  }}>
+                  }}
+                >
                   Category
                 </Text>
                 <View style={{ flexDirection: "row", gap: 10 }}>
@@ -1034,13 +1396,15 @@ export default function WeeklySchedule({ onClose }: Props) {
                             borderWidth: 1,
                             borderColor: active ? GREEN : "#d1d5db",
                             backgroundColor: active ? "#E7F9EE" : "white",
-                          }}>
+                          }}
+                        >
                           <Text
                             style={{
                               color: active ? "#065F46" : "#111827",
                               fontWeight: "600",
                               textTransform: "lowercase",
-                            }}>
+                            }}
+                          >
                             {c}
                           </Text>
                         </TouchableOpacity>
@@ -1056,7 +1420,8 @@ export default function WeeklySchedule({ onClose }: Props) {
                     marginBottom: 6,
                     fontWeight: "700",
                     color: "#065F46",
-                  }}>
+                  }}
+                >
                   Start
                 </Text>
                 <TouchableOpacity
@@ -1067,7 +1432,8 @@ export default function WeeklySchedule({ onClose }: Props) {
                     borderRadius: 12,
                     paddingHorizontal: 12,
                     paddingVertical: 12,
-                  }}>
+                  }}
+                >
                   <Text style={{ color: "#065F46", fontWeight: "600" }}>
                     {fmtLong(editStartDT)}
                   </Text>
@@ -1080,7 +1446,8 @@ export default function WeeklySchedule({ onClose }: Props) {
                     marginBottom: 6,
                     fontWeight: "700",
                     color: "#065F46",
-                  }}>
+                  }}
+                >
                   End
                 </Text>
                 <TouchableOpacity
@@ -1091,7 +1458,8 @@ export default function WeeklySchedule({ onClose }: Props) {
                     borderRadius: 12,
                     paddingHorizontal: 12,
                     paddingVertical: 12,
-                  }}>
+                  }}
+                >
                   <Text style={{ color: "#065F46", fontWeight: "600" }}>
                     {fmtLong(editEndDT)}
                   </Text>
@@ -1106,7 +1474,8 @@ export default function WeeklySchedule({ onClose }: Props) {
                       borderRadius: 12,
                       alignItems: "center",
                       flex: 1,
-                    }}>
+                    }}
+                  >
                     <Text style={{ fontWeight: "800", color: "black" }}>
                       Save Changes
                     </Text>
@@ -1120,7 +1489,8 @@ export default function WeeklySchedule({ onClose }: Props) {
                       borderRadius: 12,
                       alignItems: "center",
                       flex: 1,
-                    }}>
+                    }}
+                  >
                     <Text style={{ fontWeight: "800", color: "black" }}>
                       Delete
                     </Text>
@@ -1129,7 +1499,8 @@ export default function WeeklySchedule({ onClose }: Props) {
 
                 <TouchableOpacity
                   onPress={() => setEditOpen(false)}
-                  style={{ alignItems: "center", marginTop: 12 }}>
+                  style={{ alignItems: "center", marginTop: 12 }}
+                >
                   <Text style={{ color: "#EF4444" }}>Cancel</Text>
                 </TouchableOpacity>
               </ScrollView>
