@@ -55,6 +55,9 @@ app.use("/api/questions", targetQuestionRoutes);
 // Motivational Quotes
 app.use("/api/quotes", quotesRoutes);
 
+app.use("/api/foodRecommendation", foodRecommendationRoutes);
+
+
 /* ---- NEW mounts ----
    foodRoutes defines:
      GET  /foods/search

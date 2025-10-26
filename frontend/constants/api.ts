@@ -104,6 +104,9 @@ const EP = {
   foodsSearch: "/api/foods/search",
   foodDetail: (id: string | number) => `/api/foods/${id}`,
 
+  // AI-driven food recommendations (inventory -> recipe recommendations)
+  foodRecommendation: "/api/foodRecommendation/recommend",
+
   // FatSecret recipes
   recipesSearch: "/api/recipes/search", // v3 under the hood
   recipeDetail: (id: string | number) => `/api/recipes/${id}`, // v2 detail
@@ -276,6 +279,24 @@ export async function apiGetExerciseDetail(id: string | number) {
 
 export function getExerciseImageUri(id: string | number, res = "180") {
   return `${BASE_URL}${EP.exerciseImage(id, res)}`;
+}
+
+/* -------------------- AI Food recommendations -------------------- */
+export async function apiRecommendFood(
+  payload: { inventory: Array<any>; prefs?: Record<string, any>; topK?: number },
+  overrideToken?: string
+) {
+  const url = `${BASE_URL}${EP.foodRecommendation}`;
+  const headers = overrideToken
+    ? { "Content-Type": "application/json", Authorization: `Bearer ${overrideToken}` }
+    : await authHeaders();
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(payload),
+  });
+  return asJson<any>(res);
 }
 
 /* -------------------- Fitness plan APIs -------------------- */

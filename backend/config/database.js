@@ -274,7 +274,7 @@ const initializeDatabase = async () => {
       BEFORE UPDATE ON fitness_plans FOR EACH ROW EXECUTE FUNCTION set_updated_at();
     `);
 
-    /* =========== EXERCISES =========== */
+        /* =========== EXERCISES =========== */
     await client.query(`
       CREATE TABLE IF NOT EXISTS exercise_categories (
         id              INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -305,7 +305,19 @@ const initializeDatabase = async () => {
         updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
 
-      CREATE INDEX IF NOT EXISTS idx_exercises_category ON exercises(category_id);
+      -- ✅ SAFE BLOCK: only create index if category_id exists
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'exercises' AND column_name = 'category_id'
+        ) THEN
+          CREATE INDEX IF NOT EXISTS idx_exercises_category ON exercises (category_id);
+        ELSE
+          RAISE NOTICE 'Skipping idx_exercises_category: column does not exist.';
+        END IF;
+      END
+      $$;
 
       DROP TRIGGER IF EXISTS trg_exercises_updated_at ON exercises;
       CREATE TRIGGER trg_exercises_updated_at

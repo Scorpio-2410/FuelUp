@@ -1,5 +1,7 @@
 {
   "dependencies": {
-    "react-native-dropdown-picker": "^5.4.6"
+    "openai": "^6.6.0",
+    "react-native-dropdown-picker": "^5.4.6",
+    "zod": "^4.1.12"
   }
 }

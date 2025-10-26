@@ -6,6 +6,7 @@ import { useRouter } from "expo-router";
 import TopSearchBar from "../../components/TopSearchBar";
 import ScrollableMealGrid from "../../components/Meal/ScrollableMealGrid";
 import LogMealButton from "../../components/Meal/LogMealButton";
+import RecommendMealButton from "../../components/Meal/RecommendMealButton";
 import LoggedMealsList, {
   LoggedMealsListRef,
 } from "../../components/Meal/LoggedMealsList";
@@ -263,6 +264,19 @@ export default function MealScreen() {
               setToastType("error");
               setToastMessage(error);
               setShowToast(true);
+            }}
+          />
+
+          {/* Recommend Meal Button (opens modal with AI recommendations) */}
+          <RecommendMealButton
+            onOpen={() => {
+              setToastType("info");
+              setToastMessage("Generating recommendations...");
+              setShowToast(true);
+            }}
+            onClose={() => {
+              // clear the info toast when modal closes
+              setShowToast(false);
             }}
           />
 

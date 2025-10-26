@@ -4,7 +4,10 @@ const FoodRecommendationController = require("../controllers/foodRecommendationC
 
 const router = express.Router();
 
-// POST /api/food/recommendations
-router.post("/recommendations", authenticateToken, FoodRecommendationController.getRecommendations);
+/**
+ * POST /api/foodRecommendation/recommend
+ * Body: { inventory: [{name, quantity?, unit?, tags?}], prefs: {...}, topK?: number }
+ */
+router.post("/recommend", authenticateToken, FoodRecommendationController.foodRecommendation);
 
 module.exports = router;
