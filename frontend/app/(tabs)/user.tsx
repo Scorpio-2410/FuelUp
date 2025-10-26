@@ -1,11 +1,14 @@
 // app/(tabs)/user.tsx
 import { useEffect, useState } from "react";
 import { View, Text, KeyboardAvoidingView, Platform } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 
 import RefreshScroll from "../../components/RefreshScroll";
 import { useGlobalRefresh } from "../../components/useGlobalRefresh";
 import SaveRow from "../../components/User/SaveButton";
 import ProfileForm from "../../components/User/ProfileForm";
+import { useTheme } from "../../contexts/ThemeContext";
 
 import {
   apiGetMe,
@@ -78,6 +81,7 @@ export default function UserTabProfile() {
   const [profile, setProfile] = useState<Profile>(defaultProfile);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const { theme } = useTheme();
 
   // Pull-to-refresh now fetches from backend
   const { refreshing, handleRefresh } = useGlobalRefresh({
@@ -124,29 +128,61 @@ export default function UserTabProfile() {
 
   if (loading) {
     return (
-      <View className="flex-1 bg-black items-center justify-center">
-        <Text className="text-white">Loading…</Text>
-      </View>
+      <SafeAreaView className="flex-1" edges={["top"]}>
+        <View className="flex-1 items-center justify-center">
+          <Animated.View
+            entering={FadeIn.duration(800)}
+            className="w-16 h-16 rounded-full bg-purple-600/20 items-center justify-center mb-4"
+          >
+            <Text className="text-4xl">💪</Text>
+          </Animated.View>
+          <Text className="text-white text-lg font-semibold">
+            Loading your profile...
+          </Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      className="flex-1 bg-black">
-      <RefreshScroll refreshing={refreshing} onRefresh={handleRefresh}>
-        <View className="flex-1 px-5 pt-8" style={{ paddingBottom: 120 }}>
-          <Text className="text-2xl font-semibold text-white mb-4">
-            Your Profile
-          </Text>
-          <ProfileForm profile={profile} setProfile={setProfile} />
-        </View>
-      </RefreshScroll>
+    <Animated.View entering={FadeIn.duration(250)} style={{ flex: 1 }}>
+      <SafeAreaView className="flex-1" edges={["top"]}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          className="flex-1"
+        >
+          <RefreshScroll refreshing={refreshing} onRefresh={handleRefresh}>
+            <View className="flex-1" style={{ paddingBottom: 40 }}>
+              {/* Simple Header */}
+              <Animated.View
+                entering={FadeInDown.duration(600).springify()}
+                className="pt-6 pb-4 px-6"
+              >
+                <Text className="text-white text-3xl font-black tracking-tight">
+                  Your Profile
+                </Text>
+              </Animated.View>
 
-      <View className="px-5 pb-6">
-        {/* Save + Logout side by side */}
-        <SaveRow profile={profile} saving={saving} setSaving={setSaving} />
-      </View>
-    </KeyboardAvoidingView>
+              {/* Profile Form */}
+              <Animated.View
+                entering={FadeIn.delay(200).duration(800)}
+                className="px-5 mt-2"
+              >
+                <ProfileForm profile={profile} setProfile={setProfile} />
+              </Animated.View>
+
+              {/* Save and Logout Buttons - At bottom of form */}
+              <View className="px-5 mt-6 mb-8">
+                <SaveRow
+                  profile={profile}
+                  saving={saving}
+                  setSaving={setSaving}
+                />
+              </View>
+            </View>
+          </RefreshScroll>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </Animated.View>
   );
 }

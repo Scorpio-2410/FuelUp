@@ -6,52 +6,101 @@ require("dotenv").config();
 const { testConnection, initializeDatabase } = require("./config/database");
 const { verifySmtp } = require("./utils/mailer");
 
-// Route groups (files you already have)
+/* ---------------- Route groups ---------------- */
 const userRoutes = require("./routes/userRoutes");
 const fitnessProfileRoutes = require("./routes/fitnessProfileRoutes");
+const nutritionProfileRoutes = require("./routes/nutritionProfileRoutes");
 const fitnessPlanRoutes = require("./routes/fitnessPlanRoutes");
-const exerciseRoutes = require("./routes/exerciseRoutes");
-const nutritionRoutes = require("./routes/nutritionRoutes");
-const mealPlanRoutes = require("./routes/mealPlanRoutes");
-const mealRoutes = require("./routes/mealRoutes");
+const planExerciseRoutes = require("./routes/planExerciseRoutes"); // exercises saved to a plan
+const exerciseSearchRoutes = require("./routes/exerciseSearchRoutes"); // ExerciseDB proxy
+const localExerciseRoutes = require("./routes/localExerciseRoutes");
 const scheduleRoutes = require("./routes/scheduleRoutes");
-const exerciseInstructionRoutes = require("./routes/exerciseInstructionRoutes");
+const targetQuestionRoutes = require("./routes/targetQuestionRoutes");
+const quotesRoutes = require("./routes/quotesRoutes");
+const foodRecommendationRoutes = require("./routes/foodRecommendationRoutes");
 
+const aiWorkoutRoutes = require("./routes/aiWorkoutRoutes");
+
+/* ---- NEW: FatSecret catalogs + Meal Planner ---- */
+const foodRoutes = require("./routes/foodRoutes"); // foods/recipes browse + save
+const mealPlanRoutes = require("./routes/mealPlanRoutes"); // create plan, add meal, summary
+
+/* ---- Step Tracking ---- */
+const stepStreakRoutes = require("./routes/stepStreakRoutes");
+const fitnessActivityRoutes = require("./routes/fitnessActivityRoutes"); // step tracking and analytics
+
+/* ---- Workout Sessions ---- */
+const workoutSessionRoutes = require("./routes/workoutSessionRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// Middleware
+/* ---------------- Middleware ---------------- */
 app.use(cors()); // configure origins if needed
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use('/api/exercises', exerciseRoutes);
 
 
-// ---------------- API routes ----------------
+/* ---------------- API routes ---------------- */
 
 // Users
 app.use("/api/users", userRoutes);
 
-// Fitness namespace (matches frontend: /api/fitness/**)
-app.use("/api/fitness", fitnessProfileRoutes); // expects internal routes like /profile
-app.use("/api/fitness/plans", fitnessPlanRoutes);// expects internal routes like /plans, /plans/current, /plans/recommend
-// Removed duplicate mount; /api/exercises is the canonical path.
+// Fitness namespace
+app.use("/api/fitness", fitnessProfileRoutes); // /api/fitness/profile (GET/PUT)
+// Nutrition namespace (preferences + targets)
+app.use("/api/nutrition", nutritionProfileRoutes); // /api/nutrition/profile (GET/PUT)
+app.use("/api/fitness/plans", fitnessPlanRoutes); // CRUD plans
+app.use("/api/fitness/plans/:id/exercises", planExerciseRoutes); // list/add/remove exercises for a plan
+app.use("/api", aiWorkoutRoutes); // <-- Mount the AI route with other /api routes
 
-// Nutrition (matches frontend: /api/nutrition/profile)
-app.use("/api/nutrition", nutritionRoutes); // expects internal routes like /profile
+// ExerciseDB proxy (public catalog; no caching)
+app.use("/api/exercises", exerciseSearchRoutes); // GET / (search via q/target), GET /:id, GET /:id/image
+// Local DB-backed exercise details (by numeric DB id)
+app.use("/api/exercises/local", localExerciseRoutes);
 
-// Meals namespace (matches frontend: /api/meals, /api/meals/plans, /api/meals/daily)
-app.use("/api/meals", mealRoutes); // expects internal routes like / (CRUD), /daily
-app.use("/api/meals", mealPlanRoutes); // expects internal routes like /plans, /plans/current, /plans/recommend
+// Schedule
+app.use("/api/schedule", scheduleRoutes); // /, /events, /events/:id
 
-// Schedule namespace (matches frontend: /api/schedule and /api/schedule/events)
-app.use("/api/schedule", scheduleRoutes); // expects internal routes like / (GET/POST/PUT), /events, /events/:id
-// Exercise instructions
-app.use("/api", exerciseInstructionRoutes);
+// Workout Sessions (tracking completed workouts)
+app.use("/api/workout-sessions", workoutSessionRoutes);
+
+// Target Questions
+app.use("/api/questions", targetQuestionRoutes);
+
+// Motivational Quotes
+app.use("/api/quotes", quotesRoutes);
+
+app.use("/api/foodRecommendation", foodRecommendationRoutes);
 
 
-// ---------------- Root + health ----------------
+/* ---- NEW mounts ----
+   foodRoutes defines:
+     GET  /foods/search
+     GET  /foods/:id
+     GET  /recipes/search
+     GET  /recipes/:id
+     POST /recipes/save
+   mealPlanRoutes defines:
+     POST /plans
+     POST /plans/add
+     GET  /plans/:planId/summary
+*/
+app.use("/api", foodRoutes);
+app.use("/api", mealPlanRoutes);
+
+// Step Tracking
+app.use("/api/steps", stepStreakRoutes);
+
+//Ai Food Recommendations
+app.use("/api/food", foodRecommendationRoutes);
+
+
+// Fitness Activities
+app.use("/api/fitness/activities", fitnessActivityRoutes);
+
+/* ---------------- Root + health ---------------- */
 app.get("/", (req, res) => {
   res.json({
     message: "FuelUp Backend API",
@@ -61,23 +110,59 @@ app.get("/", (req, res) => {
       fitness: {
         profile: "/api/fitness/profile",
         plans: "/api/fitness/plans",
-        plansCurrent: "/api/fitness/plans/current",
-        plansRecommend: "/api/fitness/plans/recommend",
-        exercises: "/api/fitness/exercises",
+        planExercises: "/api/fitness/plans/:id/exercises",
+      },
+      exercises: {
+        search: "/api/exercises?q=&target=&limit=&offset=",
+        detail: "/api/exercises/:id",
+        image: "/api/exercises/:id/image?resolution=180",
       },
       nutrition: {
         profile: "/api/nutrition/profile",
       },
-      meals: {
-        base: "/api/meals",
-        daily: "/api/meals/daily",
-        plans: "/api/meals/plans",
-        plansCurrent: "/api/meals/plans/current",
-        plansRecommend: "/api/meals/plans/recommend",
-      },
       schedule: {
         base: "/api/schedule",
         events: "/api/schedule/events",
+      },
+      questions: {
+        base: "/api/questions",
+        userQuestions: "/api/questions/user/:userId",
+        userResponses: "/api/questions/user/:userId/responses",
+        userHistory: "/api/questions/user/:userId/history",
+        userInsights: "/api/questions/user/:userId/insights",
+        byType: "/api/questions/type/:type",
+      },
+      quotes: {
+        all: "/api/quotes",
+        random: "/api/quotes/random",
+        daily: "/api/quotes/daily",
+        byId: "/api/quotes/:id",
+        authors: "/api/quotes/authors",
+      },
+
+      /* --- NEW docs for clients --- */
+      catalog: {
+        foodsSearch: "/api/foods/search?q=&page=",
+        foodDetail: "/api/foods/:id",
+        recipesSearch: "/api/recipes/search?q=&page=",
+        recipeDetail: "/api/recipes/:id",
+        recipeSave: "/api/recipes/save",
+      },
+      mealPlanner: {
+        createPlan: "/api/plans",
+        addMeal: "/api/plans/add",
+        planSummary: "/api/plans/:planId/summary",
+      },
+      steps: {
+        upsert: "POST /api/steps",
+        getByDate: "/api/steps/:date",
+        getRange: "/api/steps/range?start=&end=",
+        getStats: "/api/steps/stats?start=&end=&period=",
+        getWeekly: "/api/steps/weekly?start=&end=",
+        getMonthly: "/api/steps/monthly?start=&end=",
+        getStreak: "/api/steps/streak",
+        getChart: "/api/steps/chart?start=&end=",
+        delete: "DELETE /api/steps/:date",
       },
     },
   });
@@ -91,12 +176,11 @@ app.get("/health", (req, res) => {
   });
 });
 
-// 404
+/* ---------------- 404 + error handling ---------------- */
 app.use("*", (req, res) =>
   res.status(404).json({ error: "Endpoint not found", path: req.originalUrl })
 );
 
-// Global error handler
 app.use((error, req, res, next) => {
   console.error("Global error handler:", error);
   res.status(500).json({
@@ -108,12 +192,12 @@ app.use((error, req, res, next) => {
   });
 });
 
-// Bootstrap
+/* ---------------- Bootstrap ---------------- */
 const startServer = async () => {
   try {
     await testConnection();
-    await initializeDatabase(); // creates/ensures unified schema + triggers
-    await verifySmtp(); // logs SMTP status; non-fatal
+    await initializeDatabase();
+    await verifySmtp(); // non-fatal if it fails
     app.listen(PORT, () =>
       console.log(`Server running at http://localhost:${PORT}`)
     );

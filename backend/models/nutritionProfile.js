@@ -1,3 +1,4 @@
+// models/nutritionProfile.js
 const { pool } = require("../config/database");
 
 class NutritionProfile {
@@ -11,8 +12,6 @@ class NutritionProfile {
         : row.macros || null;
     this.prefCuisines = row.pref_cuisines;
     this.dietRestrictions = row.diet_restrictions;
-    this.dislikedFoods = row.disliked_foods;
-    this.allergies = row.allergies;
     this.updatedAt = row.updated_at;
   }
 
@@ -20,15 +19,13 @@ class NutritionProfile {
     const r = await pool.query(
       `
       INSERT INTO nutrition_profiles
-        (user_id, daily_calorie_target, macros, pref_cuisines, diet_restrictions, disliked_foods, allergies)
-      VALUES ($1,$2,$3,$4,$5,$6,$7)
+        (user_id, daily_calorie_target, macros, pref_cuisines, diet_restrictions)
+      VALUES ($1,$2,$3,$4,$5)
       ON CONFLICT (user_id) DO UPDATE SET
         daily_calorie_target = COALESCE(EXCLUDED.daily_calorie_target, nutrition_profiles.daily_calorie_target),
-        macros = COALESCE(EXCLUDED.macros, nutrition_profiles.macros),
-        pref_cuisines = COALESCE(EXCLUDED.pref_cuisines, nutrition_profiles.pref_cuisines),
-        diet_restrictions = COALESCE(EXCLUDED.diet_restrictions, nutrition_profiles.diet_restrictions),
-        disliked_foods = COALESCE(EXCLUDED.disliked_foods, nutrition_profiles.disliked_foods),
-        allergies = COALESCE(EXCLUDED.allergies, nutrition_profiles.allergies),
+        macros             = COALESCE(EXCLUDED.macros, nutrition_profiles.macros),
+        pref_cuisines      = COALESCE(EXCLUDED.pref_cuisines, nutrition_profiles.pref_cuisines),
+        diet_restrictions  = COALESCE(EXCLUDED.diet_restrictions, nutrition_profiles.diet_restrictions),
         updated_at = NOW()
       RETURNING *`,
       [
@@ -37,8 +34,6 @@ class NutritionProfile {
         data.macros ? JSON.stringify(data.macros) : null,
         data.prefCuisines ?? null,
         data.dietRestrictions ?? null,
-        data.dislikedFoods ?? null,
-        data.allergies ?? null,
       ]
     );
     return new NutritionProfile(r.rows[0]);
@@ -53,17 +48,17 @@ class NutritionProfile {
   }
 
   async update(patch) {
-    const sets = [];
-    const vals = [];
-    let i = 1;
     const allowed = [
       "daily_calorie_target",
       "macros",
       "pref_cuisines",
       "diet_restrictions",
-      "disliked_foods",
-      "allergies",
     ];
+
+    const sets = [];
+    const vals = [];
+    let i = 1;
+
     for (const col of allowed) {
       if (Object.prototype.hasOwnProperty.call(patch, col)) {
         const v =
@@ -75,6 +70,7 @@ class NutritionProfile {
         i++;
       }
     }
+
     if (!sets.length) throw new Error("No valid fields to update");
     vals.push(this.userId);
 
@@ -95,8 +91,6 @@ class NutritionProfile {
       macros: this.macros,
       prefCuisines: this.prefCuisines,
       dietRestrictions: this.dietRestrictions,
-      dislikedFoods: this.dislikedFoods,
-      allergies: this.allergies,
       updatedAt: this.updatedAt,
     };
   }

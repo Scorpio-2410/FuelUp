@@ -69,6 +69,23 @@ type Props = {
 };
 
 export default function ProfileForm({ profile, setProfile }: Props) {
+  // Validation logic for each field
+  const errors: { [key: string]: string } = {};
+  if (!profile.username || profile.username.trim().length < 1) {
+    errors.username = "Username is required.";
+  }
+  if (!profile.fullName || profile.fullName.trim().length < 2) {
+    errors.fullName = "Full name is required.";
+  }
+  if (!profile.dob || !/^\d{4}-\d{2}-\d{2}$/.test(profile.dob)) {
+    errors.dob = "Date of birth is required.";
+  }
+  if (!profile.gender) {
+    errors.gender = "Gender is required.";
+  }
+  if (!profile.ethnicity || profile.ethnicity === "not_specified") {
+    errors.ethnicity = "Ethnicity is required.";
+  }
   // DOB local draft
   const initial = parseISO(profile.dob);
   const [dobDay, setDobDay] = useState<string>(initial ? pad2(initial.d) : "");
@@ -109,7 +126,12 @@ export default function ProfileForm({ profile, setProfile }: Props) {
 
   return (
     <>
-      <ProfileAvatar profile={profile as any} setProfile={setProfile as any} />
+      <View style={{ paddingHorizontal: 0 }}>
+        <ProfileAvatar
+          profile={profile as any}
+          setProfile={setProfile as any}
+        />
+      </View>
 
       <ProfileField
         label="Username"
@@ -120,6 +142,18 @@ export default function ProfileForm({ profile, setProfile }: Props) {
           onChangeText: (v) => setProfile({ ...profile, username: v }),
         }}
       />
+      {errors.username && (
+        <Text
+          style={{
+            color: "#ef4444",
+            marginBottom: 8,
+            marginLeft: 4,
+            fontSize: 13,
+          }}
+        >
+          {errors.username}
+        </Text>
+      )}
 
       <ProfileField
         label="Full name"
@@ -129,6 +163,18 @@ export default function ProfileForm({ profile, setProfile }: Props) {
           onChangeText: (v) => setProfile({ ...profile, fullName: v }),
         }}
       />
+      {errors.fullName && (
+        <Text
+          style={{
+            color: "#ef4444",
+            marginBottom: 8,
+            marginLeft: 4,
+            fontSize: 13,
+          }}
+        >
+          {errors.fullName}
+        </Text>
+      )}
 
       {/* Email (view-only) */}
       <View className="opacity-60">
@@ -171,26 +217,62 @@ export default function ProfileForm({ profile, setProfile }: Props) {
             />
           </View>
         </View>
+        {errors.dob && (
+          <Text
+            style={{
+              color: "#ef4444",
+              marginBottom: 8,
+              marginLeft: 4,
+              fontSize: 13,
+            }}
+          >
+            {errors.dob}
+          </Text>
+        )}
       </ProfileField>
 
       {/* Gender */}
       <ProfileField label="Gender">
         <ProfileDropdown
-          value={profile.gender ?? "prefer_not_to_say"}
+          value={profile.gender ?? ""}
           items={GENDER_ITEMS}
-          placeholderLabel="Select gender"
+          placeholderLabel="Select Gender"
           onChange={(v) => setProfile({ ...profile, gender: v })}
         />
+        {errors.gender && (
+          <Text
+            style={{
+              color: "#ef4444",
+              marginBottom: 8,
+              marginLeft: 4,
+              fontSize: 13,
+            }}
+          >
+            {errors.gender}
+          </Text>
+        )}
       </ProfileField>
 
       {/* Ethnicity */}
       <ProfileField label="Ethnicity">
         <ProfileDropdown
           value={profile.ethnicity ?? "not_specified"}
-          items={ETHNICITY_ITEMS}
+          items={ETHNICITY_ITEMS.filter((i) => i.value !== "not_specified")}
           placeholderLabel="Select ethnicity"
           onChange={(v) => setProfile({ ...profile, ethnicity: v })}
         />
+        {errors.ethnicity && (
+          <Text
+            style={{
+              color: "#ef4444",
+              marginBottom: 8,
+              marginLeft: 4,
+              fontSize: 13,
+            }}
+          >
+            {errors.ethnicity}
+          </Text>
+        )}
       </ProfileField>
 
       {/* Follow-up frequency */}

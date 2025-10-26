@@ -36,10 +36,10 @@ export const FITNESS_GOAL_ITEMS = [
 ] as const;
 
 export const GENDER_ITEMS = [
-  { label: "Prefer not to say", value: "prefer_not_to_say" },
   { label: "Female", value: "female" },
   { label: "Male", value: "male" },
   { label: "Non-binary", value: "non_binary" },
+  { label: "Prefer not to say", value: "prefer_not_to_say" },
 ] as const;
 
 export const ACTIVITY_LEVEL_ITEMS = [

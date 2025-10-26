@@ -1,18 +1,13 @@
+// backend/routes/mealPlanRoutes.js
 const express = require("express");
-const MealPlanController = require("../controllers/mealPlanController");
-const { authenticateToken } = require("../middleware/auth");
-
+const ctrl = require("../controllers/mealPlanController");
 const router = express.Router();
 
-// Create a new meal plan
-router.post("/", authenticateToken, MealPlanController.createPlan);
+router.get("/plans", ctrl.listMealPlans);
+router.post("/plans", ctrl.createMealPlan);
+router.post("/plans/add", ctrl.addMealToPlan);
+router.get("/plans/:planId/summary", ctrl.getPlanSummary);
+router.delete("/plans/:planId", ctrl.deleteMealPlan);
 
-// List my meal plans (?status=&limit=&offset=)
-router.get("/", authenticateToken, MealPlanController.listPlans);
-
-// CRUD for a single plan
-router.get("/:id", authenticateToken, MealPlanController.getPlan);
-router.put("/:id", authenticateToken, MealPlanController.updatePlan);
-router.delete("/:id", authenticateToken, MealPlanController.deletePlan);
 
 module.exports = router;

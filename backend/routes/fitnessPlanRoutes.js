@@ -3,16 +3,15 @@ const FitnessPlanController = require("../controllers/fitnessPlanController");
 const { authenticateToken } = require("../middleware/auth");
 
 const router = express.Router();
+router.use(authenticateToken);
 
-// Create a new plan
-router.post("/", authenticateToken, FitnessPlanController.createPlan);
+// Create + list
+router.post("/", FitnessPlanController.createPlan);
+router.get("/", FitnessPlanController.listPlans);
 
-// List my plans (optional ?status=draft|active|archived&limit=&offset=)
-router.get("/", authenticateToken, FitnessPlanController.listPlans);
-
-// Plan CRUD
-router.get("/:id", authenticateToken, FitnessPlanController.getPlan);
-router.put("/:id", authenticateToken, FitnessPlanController.updatePlan);
-router.delete("/:id", authenticateToken, FitnessPlanController.deletePlan);
+// CRUD one
+router.get("/:id", FitnessPlanController.getPlan);
+router.put("/:id", FitnessPlanController.updatePlan);
+router.delete("/:id", FitnessPlanController.deletePlan);
 
 module.exports = router;

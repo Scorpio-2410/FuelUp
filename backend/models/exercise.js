@@ -1,153 +1,100 @@
-// backend/models/exercise.js
 const { pool } = require("../config/database");
 
 class Exercise {
   constructor(row) {
     this.id = row.id;
-    this.fitnessPlanId = row.fitness_plan_id;
-
     this.name = row.name;
-    this.muscleGroup = row.muscle_group;
+    this.muscle_group = row.muscle_group;
     this.equipment = row.equipment;
     this.difficulty = row.difficulty;
-
-    this.durationMin = row.duration_min;
-    this.sets = row.sets;
-    this.reps = row.reps;
-    this.restSeconds = row.rest_seconds;
-
+    this.secondary_muscles = row.secondary_muscles;
+    this.target = row.target;
+    this.category = row.category;
+    this.external_id = row.external_id;
+    this.gif_url = row.gif_url;
+    this.video_url = row.video_url;
+    this.image_url = row.image_url;
     this.notes = row.notes;
-    this.createdAt = row.created_at;
-    this.updatedAt = row.updated_at;
+    this.created_at = row.created_at;
+    this.updated_at = row.updated_at;
   }
 
-  // ---- CREATE ----
-  static async create(planId, data) {
-    const r = await pool.query(
-      `INSERT INTO exercises
-        (fitness_plan_id, name, muscle_group, equipment, difficulty,
-         duration_min, sets, reps, rest_seconds, notes)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-       RETURNING *`,
-      [
-        planId,
-        data.name,
-        data.muscleGroup || null,
-        data.equipment || null,
-        data.difficulty || null,
-        data.durationMin ?? null,
-        data.sets ?? null,
-        data.reps ?? null,
-        data.restSeconds ?? null,
-        data.notes || null,
-      ]
-    );
-    return new Exercise(r.rows[0]);
-  }
-
-  // ---- READ ----
-  static async listByPlan(planId) {
-    const r = await pool.query(
-      `SELECT * FROM exercises WHERE fitness_plan_id=$1 ORDER BY id ASC`,
-      [planId]
-    );
+  static async findAll(limit = 1000) {
+    const r = await pool.query(`SELECT * FROM exercises ORDER BY id LIMIT $1`, [
+      limit,
+    ]);
     return r.rows.map((row) => new Exercise(row));
   }
 
   static async findById(id) {
-    const r = await pool.query(`SELECT * FROM exercises WHERE id=$1`, [id]);
+    const r = await pool.query(`SELECT * FROM exercises WHERE id=$1 LIMIT 1`, [
+      id,
+    ]);
     return r.rows[0] ? new Exercise(r.rows[0]) : null;
   }
 
-  // NEW: user-scoped getter for ownership checks (used by instruction controller)
-  static async getById(id, userId) {
+  static async findByNameAndGroup(name, muscle_group) {
     const r = await pool.query(
-      `SELECT e.*
-         FROM exercises e
-         JOIN fitness_plans fp ON fp.id = e.fitness_plan_id
-        WHERE e.id = $1 AND fp.user_id = $2
-        LIMIT 1`,
-      [id, userId]
+      `SELECT * FROM exercises WHERE name=$1 AND COALESCE(muscle_group,'')=COALESCE($2,'') LIMIT 1`,
+      [name, muscle_group]
     );
     return r.rows[0] ? new Exercise(r.rows[0]) : null;
   }
 
-  // Optional: list all exercises for a user with paging
-  static async listForUser(userId, { limit = 50, offset = 0 } = {}) {
+  // Find exercises by target token (case-insensitive partial match), limit results
+  static async findByTarget(token, limit = 10) {
+    if (!token) return [];
+    const pattern = `%${token.toLowerCase()}%`;
     const r = await pool.query(
-      `SELECT e.*
-         FROM exercises e
-         JOIN fitness_plans fp ON fp.id = e.fitness_plan_id
-        WHERE fp.user_id = $1
-        ORDER BY e.id ASC
-        LIMIT $2 OFFSET $3`,
-      [userId, limit, offset]
+      `SELECT * FROM exercises WHERE lower(coalesce(target,'')) LIKE $1 OR lower(coalesce(muscle_group,'')) LIKE $1 LIMIT $2`,
+      [pattern, limit]
     );
     return r.rows.map((row) => new Exercise(row));
   }
 
-  // ---- UPDATE ----
-  async update(patch) {
-    const allowed = [
-      "name",
-      "muscle_group",
-      "equipment",
-      "difficulty",
-      "duration_min",
-      "sets",
-      "reps",
-      "rest_seconds",
-      "notes",
-    ];
-
-    const sets = [];
-    const vals = [];
-    let i = 1;
-
-    for (const col of allowed) {
-      if (Object.prototype.hasOwnProperty.call(patch, col)) {
-        sets.push(`${col}=$${i}`);
-        vals.push(patch[col]);
-        i++;
-      }
-    }
-    if (!sets.length) throw new Error("No valid fields to update");
-
-    vals.push(this.id);
+  static async create(ex) {
     const r = await pool.query(
-      `UPDATE exercises
-          SET ${sets.join(", ")}, updated_at=NOW()
-        WHERE id=$${i}
-        RETURNING *`,
-      vals
+      `INSERT INTO exercises (name, muscle_group, equipment, difficulty, secondary_muscles, category, target, external_id, gif_url, video_url, image_url, notes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+       RETURNING *`,
+      [
+        ex.name,
+        ex.muscle_group || null,
+        ex.equipment || null,
+        ex.difficulty || null,
+        ex.secondary_muscles || null,
+        ex.category || null,
+        ex.target || null,
+        ex.external_id || null,
+        ex.gif_url || null,
+        ex.video_url || null,
+        ex.image_url || null,
+        ex.notes || null,
+      ]
     );
-    Object.assign(this, new Exercise(r.rows[0]));
-    return this;
+    return r.rows[0] ? new Exercise(r.rows[0]) : null;
   }
 
-  // ---- DELETE ----
-  async delete() {
-    await pool.query(`DELETE FROM exercises WHERE id=$1`, [this.id]);
-    return true;
-  }
-
-  // ---- JSON SHAPE ----
-  toJSON() {
-    return {
-      id: this.id,
-      fitnessPlanId: this.fitnessPlanId,
-      name: this.name,
-      muscleGroup: this.muscleGroup,
-      equipment: this.equipment,
-      difficulty: this.difficulty,
-      durationMin: this.durationMin,
-      sets: this.sets,
-      reps: this.reps,
-      restSeconds: this.restSeconds,
-      notes: this.notes,
-      createdAt: this.createdAt,
-      updatedAt: this.updatedAt,
-    };
+  static async updateById(id, ex) {
+    const r = await pool.query(
+      `UPDATE exercises SET name=$1, muscle_group=$2, equipment=$3, difficulty=$4, secondary_muscles=$5, category=$6, target=$7, external_id=$8, gif_url=$9, video_url=$10, image_url=$11, notes=$12 WHERE id=$13 RETURNING *`,
+      [
+        ex.name,
+        ex.muscle_group || null,
+        ex.equipment || null,
+        ex.difficulty || null,
+        ex.secondary_muscles || null,
+        ex.category || null,
+        ex.target || null,
+        ex.external_id || null,
+        ex.gif_url || null,
+        ex.video_url || null,
+        ex.image_url || null,
+        ex.notes || null,
+        id,
+      ]
+    );
+    return r.rows[0] ? new Exercise(r.rows[0]) : null;
   }
 }
 

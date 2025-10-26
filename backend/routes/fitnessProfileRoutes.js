@@ -1,3 +1,4 @@
+// routes/fitnessProfileRoutes.js
 const express = require("express");
 const FitnessProfileController = require("../controllers/fitnessProfileController");
 const { authenticateToken } = require("../middleware/auth");

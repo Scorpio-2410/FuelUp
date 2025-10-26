@@ -14,25 +14,15 @@ class FitnessProfileController {
     }
   }
 
-  // POST /api/fitness/profile  (create or update - upsert)
+  // PUT /api/fitness/profile  (create or update - upsert)
   static async upsertMyProfile(req, res) {
     try {
       const data = {
         heightCm: req.body.heightCm ?? null,
         weightKg: req.body.weightKg ?? null,
-        activityLevel: req.body.activityLevel ?? "moderate",
-        experienceLevel: req.body.experienceLevel ?? null,
+        goal: req.body.goal || "general_health",
+        activityLevel: req.body.activityLevel || "moderate",
         daysPerWeek: req.body.daysPerWeek ?? null,
-        sessionLengthMin: req.body.sessionLengthMin ?? null,
-        trainingLocation: req.body.trainingLocation ?? null,
-        equipmentAvailable: Array.isArray(req.body.equipmentAvailable)
-          ? req.body.equipmentAvailable
-          : req.body.equipmentAvailable || [],
-        preferredActivities: Array.isArray(req.body.preferredActivities)
-          ? req.body.preferredActivities
-          : req.body.preferredActivities || [],
-        injuriesOrLimitations: req.body.injuriesOrLimitations ?? null,
-        coachingStyle: req.body.coachingStyle ?? null,
       };
 
       const profile = await FitnessProfile.upsert(req.userId, data);
@@ -43,7 +33,7 @@ class FitnessProfileController {
     }
   }
 
-  // PATCH /api/fitness/profile
+  // PATCH /api/fitness/profile (optional)
   static async updateMyProfile(req, res) {
     try {
       const profile = await FitnessProfile.findByUserId(req.userId);
@@ -52,16 +42,11 @@ class FitnessProfileController {
       const allowed = [
         "heightCm",
         "weightKg",
+        "goal",
         "activityLevel",
-        "experienceLevel",
         "daysPerWeek",
-        "sessionLengthMin",
-        "trainingLocation",
-        "equipmentAvailable",
-        "preferredActivities",
-        "injuriesOrLimitations",
-        "coachingStyle",
       ];
+
       const patch = {};
       for (const k of allowed) {
         if (Object.prototype.hasOwnProperty.call(req.body, k)) {
