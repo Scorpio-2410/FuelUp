@@ -1,5 +1,11 @@
 // frontend/components/Fitness/WeeklySchedule.tsx
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+  useCallback,
+  useRef,
+} from "react";
 import {
   View,
   Text,
@@ -236,6 +242,15 @@ export default function WeeklySchedule({ onClose }: Props) {
   // NEW: auto-plan button state
   const [planning, setPlanning] = useState(false);
 
+  // Workout time picker for AI suggestions
+  const [showWorkoutTimePicker, setShowWorkoutTimePicker] = useState(false);
+  const [workoutTime, setWorkoutTime] = useState<Date>(() => {
+    const d = new Date();
+    d.setHours(7, 0, 0, 0); // Default to 7:00 AM
+    return d;
+  });
+  const [isEditingExisting, setIsEditingExisting] = useState(false); // Track if editing or creating new
+
   // Session viewer and exercise detail modals
   const [sessionOpen, setSessionOpen] = useState(false);
   const [sessionData, setSessionData] = useState<{
@@ -246,6 +261,90 @@ export default function WeeklySchedule({ onClose }: Props) {
   } | null>(null);
   const [exerciseModalOpen, setExerciseModalOpen] = useState(false);
   const [selectedExercise, setSelectedExercise] = useState<any | null>(null);
+
+  // Workout tracker: completed exercises and rest timer
+  const [completedExercises, setCompletedExercises] = useState<Set<number>>(
+    new Set()
+  );
+  const [restTimerActive, setRestTimerActive] = useState(false);
+  const [restTimeRemaining, setRestTimeRemaining] = useState(0);
+  const [currentRestDuration, setCurrentRestDuration] = useState(0);
+  const restIntervalRef = useRef<any>(null);
+
+  // Clean up timer on unmount or when session closes
+  useEffect(() => {
+    if (!sessionOpen) {
+      setCompletedExercises(new Set());
+      setRestTimerActive(false);
+      setRestTimeRemaining(0);
+      if (restIntervalRef.current) {
+        clearInterval(restIntervalRef.current);
+        restIntervalRef.current = null;
+      }
+    }
+  }, [sessionOpen]);
+
+  // Rest timer countdown
+  useEffect(() => {
+    if (restTimerActive && restTimeRemaining > 0) {
+      restIntervalRef.current = setInterval(() => {
+        setRestTimeRemaining((prev) => {
+          if (prev <= 1) {
+            setRestTimerActive(false);
+            if (restIntervalRef.current) {
+              clearInterval(restIntervalRef.current);
+              restIntervalRef.current = null;
+            }
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      return () => {
+        if (restIntervalRef.current) {
+          clearInterval(restIntervalRef.current);
+          restIntervalRef.current = null;
+        }
+      };
+    }
+  }, [restTimerActive, restTimeRemaining]);
+
+  const startRestTimer = (durationSeconds: number) => {
+    setRestTimeRemaining(durationSeconds);
+    setCurrentRestDuration(durationSeconds);
+    setRestTimerActive(true);
+  };
+
+  const skipRest = () => {
+    setRestTimerActive(false);
+    setRestTimeRemaining(0);
+    if (restIntervalRef.current) {
+      clearInterval(restIntervalRef.current);
+      restIntervalRef.current = null;
+    }
+  };
+
+  const adjustRestTime = (seconds: number) => {
+    setRestTimeRemaining((prev) => Math.max(0, prev + seconds));
+    setCurrentRestDuration((prev) => Math.max(0, prev + seconds));
+  };
+
+  const toggleExerciseComplete = (index: number, restSeconds?: number) => {
+    setCompletedExercises((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(index)) {
+        newSet.delete(index);
+      } else {
+        newSet.add(index);
+        // Start rest timer if exercise has rest time
+        if (restSeconds && restSeconds > 0) {
+          startRestTimer(restSeconds);
+        }
+      }
+      return newSet;
+    });
+  };
 
   // keep start/end aligned with selected date if user taps another day
   useEffect(() => {
@@ -323,6 +422,13 @@ export default function WeeklySchedule({ onClose }: Props) {
     loadWeek();
   }, [loadWeek]);
 
+  // Check if there are any workout events in the current week
+  const hasWorkoutEvents = useMemo(() => {
+    return Object.values(eventsByDay).some((events) =>
+      events.some((evt) => evt.category === "workout")
+    );
+  }, [eventsByDay]);
+
   const clearForm = () => {
     setTitle("");
     setNotes("");
@@ -373,86 +479,220 @@ export default function WeeklySchedule({ onClose }: Props) {
   /* ---------------- Auto-plan workouts button ---------------- */
   const handleAutoPlan = useCallback(async () => {
     if (planning) return;
-    setPlanning(true);
-    try {
-      // Prefer scheduling existing plans weekly; if nothing is created, try AI plan-and-schedule;
-      // only fall back to legacy auto-plan if AI completely fails (not just returns 0)
-      let created_count = 0;
-      let infoMsg: string | undefined;
-      let shouldTryAutoPlan = false;
+
+    // First, show the time picker to let user select their preferred workout time
+    setIsEditingExisting(false);
+    setShowWorkoutTimePicker(true);
+  }, [planning]);
+
+  const handleEditWorkoutEvents = useCallback(async () => {
+    if (planning) return;
+
+    // Show time picker for editing existing workouts
+    setIsEditingExisting(true);
+    setShowWorkoutTimePicker(true);
+  }, [planning]);
+
+  const handleConfirmWorkoutTime = useCallback(
+    async (selectedTime: Date) => {
+      setShowWorkoutTimePicker(false);
+      setWorkoutTime(selectedTime);
+      setPlanning(true);
 
       try {
-        const r0 = await apiSchedulePlansWeekly();
-        created_count = r0?.created_count ?? 0;
-        infoMsg = (r0 as any)?.message;
-        console.log("[Suggest] schedulePlansWeekly result:", {
-          created_count,
-          message: infoMsg,
-        });
-      } catch (e: any) {
-        console.log("[Suggest] schedulePlansWeekly failed:", e?.message);
-        // Expected if no plans exist - not an error, just try AI next
-      }
+        // Extract hour and minute from the selected time
+        const workoutHour = selectedTime.getHours();
+        const workoutMinute = selectedTime.getMinutes();
 
-      // If no existing plans were scheduled, try AI generation
-      if (!created_count) {
-        try {
-          console.log("[Suggest] Trying AI plan generation with force_ai=true");
-          const r1 = await apiPlanAndScheduleAi({ force_ai: true });
-          created_count = r1?.created_count ?? 0;
-          infoMsg = infoMsg || (r1 as any)?.message;
-          console.log("[Suggest] AI plan result:", {
-            created_count,
-            message: infoMsg,
-          });
-        } catch (e: any) {
-          console.error("[Suggest] AI plan generation failed:", e?.message);
-          // Only try auto-plan if AI completely failed (500 error), not if it just returned 0 events
-          if (
-            e?.message?.includes("AI plan") ||
-            e?.message?.includes("generation failed")
-          ) {
-            shouldTryAutoPlan = true;
+        if (isEditingExisting) {
+          // Update existing workout events
+          const { fromISO, toISO } = weekWindowISO(monday);
+          const { events } = await apiListEvents({ from: fromISO, to: toISO });
+
+          const workoutEvents = events.filter(
+            (ev: any) => ev.category === "workout" || ev.category === "Workout"
+          );
+
+          let updated = 0;
+          for (const evt of workoutEvents) {
+            try {
+              const startStr = (evt as any).startAt ?? (evt as any).start_at;
+              const endStr = (evt as any).endAt ?? (evt as any).end_at;
+              if (!startStr) continue;
+
+              const oldStart = new Date(startStr);
+              const oldEnd = endStr
+                ? new Date(endStr)
+                : new Date(oldStart.getTime() + 60 * 60 * 1000);
+              const duration = oldEnd.getTime() - oldStart.getTime();
+
+              // Create new start time with selected hour/minute but same date
+              const newStart = new Date(oldStart);
+              newStart.setHours(workoutHour, workoutMinute, 0, 0);
+              const newEnd = new Date(newStart.getTime() + duration);
+
+              const dbId = (evt as any).db_id ?? (evt as any).dbId ?? evt.id;
+              await apiUpdateEvent(Number(dbId), {
+                start_at: newStart.toISOString(),
+                end_at: newEnd.toISOString(),
+              });
+              updated++;
+            } catch (e) {
+              console.warn("Failed to update workout event:", e);
+            }
+          }
+
+          await loadWeek();
+          Alert.alert(
+            "Workouts Updated",
+            `Updated ${updated} workout${
+              updated === 1 ? "" : "s"
+            } to ${selectedTime.toLocaleTimeString(undefined, {
+              hour: "numeric",
+              minute: "2-digit",
+            })}`
+          );
+        } else {
+          // Create new workouts (original logic)
+          let created_count = 0;
+          let infoMsg: string | undefined;
+          let shouldTryAutoPlan = false;
+
+          try {
+            const r0 = await apiSchedulePlansWeekly({
+              workoutHour,
+              workoutMinute,
+            });
+            created_count = r0?.created_count ?? 0;
+            infoMsg = (r0 as any)?.message;
+            console.log("[Suggest] schedulePlansWeekly result:", {
+              created_count,
+              message: infoMsg,
+            });
+          } catch (e: any) {
+            console.log("[Suggest] schedulePlansWeekly failed:", e?.message);
+          }
+
+          if (!created_count) {
+            try {
+              console.log(
+                "[Suggest] Trying AI plan generation with force_ai=true"
+              );
+              const r1 = await apiPlanAndScheduleAi({
+                force_ai: true,
+                workoutHour,
+                workoutMinute,
+              });
+              created_count = r1?.created_count ?? 0;
+              infoMsg = infoMsg || (r1 as any)?.message;
+              console.log("[Suggest] AI plan result:", {
+                created_count,
+                message: infoMsg,
+              });
+            } catch (e: any) {
+              console.error("[Suggest] AI plan generation failed:", e?.message);
+              if (
+                e?.message?.includes("AI plan") ||
+                e?.message?.includes("generation failed")
+              ) {
+                shouldTryAutoPlan = true;
+              }
+            }
+          }
+
+          if (!created_count && shouldTryAutoPlan) {
+            try {
+              console.log("[Suggest] Falling back to legacy auto-planner");
+              const r2 = await apiAutoPlanWorkouts();
+              created_count = r2?.created_count ?? 0;
+              infoMsg = infoMsg || (r2 as any)?.message;
+              console.log("[Suggest] Auto-plan result:", {
+                created_count,
+                message: infoMsg,
+              });
+            } catch (e: any) {
+              console.error("[Suggest] Auto-plan also failed:", e?.message);
+            }
+          }
+
+          await loadWeek();
+          if (created_count && created_count > 0) {
+            Alert.alert(
+              "Workout suggestions",
+              `Added ${created_count} workout${
+                created_count > 1 ? "s" : ""
+              } based on your schedule.`
+            );
+          } else {
+            Alert.alert(
+              "Workout suggestions",
+              infoMsg || "No suitable free slots found in the current week."
+            );
           }
         }
-      }
-
-      // Only use legacy auto-planner as absolute last resort
-      if (!created_count && shouldTryAutoPlan) {
-        try {
-          console.log("[Suggest] Falling back to legacy auto-planner");
-          const r2 = await apiAutoPlanWorkouts();
-          created_count = r2?.created_count ?? 0;
-          infoMsg = infoMsg || (r2 as any)?.message;
-          console.log("[Suggest] Auto-plan result:", {
-            created_count,
-            message: infoMsg,
-          });
-        } catch (e: any) {
-          console.error("[Suggest] Auto-plan also failed:", e?.message);
-        }
-      }
-
-      await loadWeek();
-      if (created_count && created_count > 0) {
+      } catch (e: any) {
         Alert.alert(
-          "Workout suggestions",
-          `Added ${created_count} workout${
-            created_count > 1 ? "s" : ""
-          } based on your schedule.`
+          isEditingExisting ? "Update failed" : "Suggestion failed",
+          e?.message || "Please try again."
         );
-      } else {
-        Alert.alert(
-          "Workout suggestions",
-          infoMsg || "No suitable free slots found in the current week."
-        );
+      } finally {
+        setPlanning(false);
       }
-    } catch (e: any) {
-      Alert.alert("Suggestion failed", e?.message || "Please try again.");
-    } finally {
-      setPlanning(false);
-    }
-  }, [planning, loadWeek]);
+    },
+    [isEditingExisting, loadWeek, monday]
+  );
+
+  const handleDeleteAllWorkouts = useCallback(async () => {
+    Alert.alert(
+      "Delete All Workouts",
+      "Are you sure you want to delete all workout events? This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            setShowWorkoutTimePicker(false);
+            setPlanning(true);
+            try {
+              const { fromISO, toISO } = weekWindowISO(monday);
+              const { events } = await apiListEvents({
+                from: fromISO,
+                to: toISO,
+              });
+
+              const workoutEvents = events.filter(
+                (ev: any) =>
+                  ev.category === "workout" || ev.category === "Workout"
+              );
+
+              let deleted = 0;
+              for (const evt of workoutEvents) {
+                try {
+                  const dbId =
+                    (evt as any).db_id ?? (evt as any).dbId ?? evt.id;
+                  await apiDeleteEvent(Number(dbId));
+                  deleted++;
+                } catch (e) {
+                  console.warn("Failed to delete workout event:", e);
+                }
+              }
+
+              await loadWeek();
+              Alert.alert(
+                "Workouts Deleted",
+                `Deleted ${deleted} workout${deleted === 1 ? "" : "s"}`
+              );
+            } catch (e: any) {
+              Alert.alert("Delete failed", e?.message || "Please try again.");
+            } finally {
+              setPlanning(false);
+            }
+          },
+        },
+      ]
+    );
+  }, [loadWeek, monday]);
 
   /* ---------------- Edit/Delete ---------------- */
   const openEditFor = (evt: LocalEvent) => {
@@ -648,6 +888,8 @@ export default function WeeklySchedule({ onClose }: Props) {
               paddingHorizontal: 16,
               alignItems: "center",
               marginVertical: 8,
+              flexDirection: hasWorkoutEvents ? "row" : "column",
+              gap: hasWorkoutEvents ? 10 : 0,
             }}
           >
             <TouchableOpacity
@@ -661,12 +903,46 @@ export default function WeeklySchedule({ onClose }: Props) {
                 borderColor: GREEN,
                 backgroundColor: "#E7F9EE",
                 opacity: planning ? 0.6 : 1,
+                flex: hasWorkoutEvents ? 1 : 0,
               }}
             >
-              <Text style={{ color: "#065F46", fontWeight: "700" }}>
+              <Text
+                style={{
+                  color: "#065F46",
+                  fontWeight: "700",
+                  textAlign: "center",
+                }}
+              >
                 {planning ? "Suggesting…" : "Suggest workout times"}
               </Text>
             </TouchableOpacity>
+
+            {hasWorkoutEvents && (
+              <TouchableOpacity
+                disabled={planning}
+                onPress={handleEditWorkoutEvents}
+                style={{
+                  paddingVertical: 8,
+                  paddingHorizontal: 14,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: "#F59E0B",
+                  backgroundColor: "#FEF3C7",
+                  opacity: planning ? 0.6 : 1,
+                  flex: 1,
+                }}
+              >
+                <Text
+                  style={{
+                    color: "#92400E",
+                    fontWeight: "700",
+                    textAlign: "center",
+                  }}
+                >
+                  Edit workout events
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Events list */}
@@ -874,6 +1150,7 @@ export default function WeeklySchedule({ onClose }: Props) {
                     key: string;
                     data?: any;
                     rest?: number;
+                    exerciseIndex?: number;
                   }> = [];
                   for (let i = 0; i < exs.length; i++) {
                     const ex = exs[i];
@@ -881,6 +1158,7 @@ export default function WeeklySchedule({ onClose }: Props) {
                       type: "exercise",
                       key: `ex-${i}-${ex?.externalId || ex?.id || i}`,
                       data: ex,
+                      exerciseIndex: i,
                     });
                     const restSec = Number(ex?.rest_seconds) || 0;
                     if (i < exs.length - 1 && restSec > 0) {
@@ -892,57 +1170,140 @@ export default function WeeklySchedule({ onClose }: Props) {
                     }
                   }
                   return (
-                    <FlatList
-                      data={rows}
-                      keyExtractor={(row) => row.key}
-                      contentContainerStyle={{
-                        padding: 16,
-                        paddingBottom: 120,
-                      }}
-                      renderItem={({ item: row }) => {
-                        if (row.type === "rest") {
-                          return (
-                            <View
+                    <>
+                      {/* Rest Timer Banner */}
+                      {restTimerActive && (
+                        <View
+                          style={{
+                            backgroundColor: "#F59E0B",
+                            padding: 16,
+                            alignItems: "center",
+                          }}
+                        >
+                          <Text
+                            style={{
+                              color: "#000",
+                              fontSize: 16,
+                              fontWeight: "700",
+                              marginBottom: 8,
+                            }}
+                          >
+                            Rest Time
+                          </Text>
+                          <Text
+                            style={{
+                              color: "#000",
+                              fontSize: 48,
+                              fontWeight: "800",
+                              marginBottom: 12,
+                            }}
+                          >
+                            {Math.floor(restTimeRemaining / 60)}:
+                            {String(restTimeRemaining % 60).padStart(2, "0")}
+                          </Text>
+                          <View
+                            style={{
+                              flexDirection: "row",
+                              gap: 10,
+                              marginBottom: 8,
+                            }}
+                          >
+                            <TouchableOpacity
+                              onPress={() => adjustRestTime(-10)}
                               style={{
-                                backgroundColor: "#0a0a0a",
-                                borderRadius: 10,
+                                backgroundColor: "#FCA5A5",
                                 paddingVertical: 8,
-                                paddingHorizontal: 12,
-                                marginBottom: 10,
-                                borderWidth: 1,
-                                borderColor: "#1F2937",
+                                paddingHorizontal: 16,
+                                borderRadius: 8,
                               }}
                             >
                               <Text
                                 style={{
-                                  color: TEXT_MUTED,
-                                  textAlign: "center",
+                                  color: "#000",
+                                  fontWeight: "700",
                                 }}
                               >
-                                Rest {row.rest}s
+                                -10s
                               </Text>
-                            </View>
-                          );
-                        }
-                        const ex = row.data;
-                        return (
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              onPress={() => adjustRestTime(10)}
+                              style={{
+                                backgroundColor: "#D1FAE5",
+                                paddingVertical: 8,
+                                paddingHorizontal: 16,
+                                borderRadius: 8,
+                              }}
+                            >
+                              <Text
+                                style={{
+                                  color: "#000",
+                                  fontWeight: "700",
+                                }}
+                              >
+                                +10s
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
                           <TouchableOpacity
-                            onPress={() => {
-                              // First set the exercise data
-                              setSelectedExercise({
-                                id: ex?.externalId || ex?.id,
-                                name: ex?.name,
-                                source: ex?.source || "local",
-                                externalId: ex?.externalId || ex?.id,
-                              });
-                              // Close session modal
-                              setSessionOpen(false);
-                              // Small delay before opening detail modal to ensure clean transition
-                              setTimeout(() => {
-                                setExerciseModalOpen(true);
-                              }, 100);
+                            onPress={skipRest}
+                            style={{
+                              backgroundColor: "#000",
+                              paddingVertical: 10,
+                              paddingHorizontal: 20,
+                              borderRadius: 8,
                             }}
                           >
+                            <Text
+                              style={{
+                                color: "#F59E0B",
+                                fontWeight: "700",
+                              }}
+                            >
+                              Skip Rest
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+
+                      <FlatList
+                        data={rows}
+                        keyExtractor={(row) => row.key}
+                        contentContainerStyle={{
+                          padding: 16,
+                          paddingBottom: 120,
+                        }}
+                        renderItem={({ item: row }) => {
+                          if (row.type === "rest") {
+                            return (
+                              <View
+                                style={{
+                                  backgroundColor: "#0a0a0a",
+                                  borderRadius: 10,
+                                  paddingVertical: 8,
+                                  paddingHorizontal: 12,
+                                  marginBottom: 10,
+                                  borderWidth: 1,
+                                  borderColor: "#1F2937",
+                                }}
+                              >
+                                <Text
+                                  style={{
+                                    color: TEXT_MUTED,
+                                    textAlign: "center",
+                                  }}
+                                >
+                                  Rest {row.rest}s
+                                </Text>
+                              </View>
+                            );
+                          }
+                          const ex = row.data;
+                          const exerciseIndex = row.exerciseIndex ?? 0;
+                          const isCompleted =
+                            completedExercises.has(exerciseIndex);
+
+                          return (
                             <View
                               style={{
                                 backgroundColor: CARD,
@@ -950,40 +1311,91 @@ export default function WeeklySchedule({ onClose }: Props) {
                                 padding: 12,
                                 marginBottom: 10,
                                 borderWidth: 1,
-                                borderColor: "#1F2937",
+                                borderColor: isCompleted ? GREEN : "#1F2937",
+                                flexDirection: "row",
+                                alignItems: "center",
                               }}
                             >
-                              <Text
+                              {/* Checkbox */}
+                              <TouchableOpacity
+                                onPress={() =>
+                                  toggleExerciseComplete(
+                                    exerciseIndex,
+                                    Number(ex?.rest_seconds) || 0
+                                  )
+                                }
                                 style={{
-                                  color: "#fff",
-                                  fontWeight: "700",
-                                  marginBottom: 4,
+                                  width: 32,
+                                  height: 32,
+                                  borderRadius: 16,
+                                  borderWidth: 2,
+                                  borderColor: isCompleted ? GREEN : TEXT_MUTED,
+                                  backgroundColor: isCompleted
+                                    ? GREEN
+                                    : "transparent",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  marginRight: 12,
                                 }}
                               >
-                                {ex?.name}
-                              </Text>
-                              {ex?.sets && ex?.reps ? (
-                                <Text style={{ color: TEXT_MUTED }}>
-                                  {ex.sets} sets × {String(ex.reps)}
+                                {isCompleted && (
+                                  <Ionicons
+                                    name="checkmark"
+                                    size={20}
+                                    color="#000"
+                                  />
+                                )}
+                              </TouchableOpacity>
+
+                              {/* Exercise Info */}
+                              <TouchableOpacity
+                                style={{ flex: 1 }}
+                                onPress={() => {
+                                  setSelectedExercise({
+                                    id: ex?.externalId || ex?.id,
+                                    name: ex?.name,
+                                    source: ex?.source || "local",
+                                    externalId: ex?.externalId || ex?.id,
+                                  });
+                                  // Don't close session modal - just open exercise detail on top
+                                  setExerciseModalOpen(true);
+                                }}
+                              >
+                                <Text
+                                  style={{
+                                    color: isCompleted ? TEXT_MUTED : "#fff",
+                                    fontWeight: "700",
+                                    marginBottom: 4,
+                                    textDecorationLine: isCompleted
+                                      ? "line-through"
+                                      : "none",
+                                  }}
+                                >
+                                  {ex?.name}
                                 </Text>
-                              ) : null}
+                                {ex?.sets && ex?.reps ? (
+                                  <Text style={{ color: TEXT_MUTED }}>
+                                    {ex.sets} sets × {String(ex.reps)}
+                                  </Text>
+                                ) : null}
+                              </TouchableOpacity>
                             </View>
-                          </TouchableOpacity>
-                        );
-                      }}
-                    />
+                          );
+                        }}
+                      />
+                    </>
                   );
                 })()}
               </View>
+
+              {/* Exercise detail modal - INSIDE session modal so it appears on top */}
+              <ExerciseDetailModal
+                visible={exerciseModalOpen}
+                exercise={selectedExercise}
+                onClose={() => setExerciseModalOpen(false)}
+              />
             </Modal>
           )}
-
-          {/* Exercise detail modal */}
-          <ExerciseDetailModal
-            visible={exerciseModalOpen}
-            exercise={selectedExercise}
-            onClose={() => setExerciseModalOpen(false)}
-          />
 
           {/* FAB */}
           <TouchableOpacity
@@ -1535,6 +1947,144 @@ export default function WeeklySchedule({ onClose }: Props) {
           )}
         </View>
       </KeyboardAvoidingView>
+
+      {/* Workout Time Picker for AI Suggestions */}
+      <Modal visible={showWorkoutTimePicker} transparent animationType="slide">
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={() => setShowWorkoutTimePicker(false)}
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: "rgba(0,0,0,0.5)",
+            paddingBottom: 280,
+          }}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: "white",
+              borderRadius: 16,
+              padding: 24,
+              width: "85%",
+              maxWidth: 400,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 20,
+                fontWeight: "700",
+                color: "#065F46",
+                marginBottom: 8,
+                textAlign: "center",
+              }}
+            >
+              {isEditingExisting
+                ? "Edit Workout Times"
+                : "What time would you like to workout?"}
+            </Text>
+            <Text
+              style={{
+                fontSize: 14,
+                color: TEXT_MUTED,
+                marginBottom: 20,
+                textAlign: "center",
+              }}
+            >
+              {isEditingExisting
+                ? "Change all workout times or delete them"
+                : "Select your preferred workout time"}
+            </Text>
+
+            <DateTimePicker
+              value={workoutTime}
+              mode="time"
+              display={Platform.OS === "ios" ? "spinner" : "default"}
+              onChange={(_: any, d?: Date) => {
+                if (d) setWorkoutTime(d);
+              }}
+              style={{ alignSelf: "center" }}
+              textColor="#000000"
+              themeVariant="light"
+            />
+
+            {isEditingExisting ? (
+              // Editing existing workouts: show Update Time and Delete All buttons
+              <View style={{ gap: 10, marginTop: 24 }}>
+                <TouchableOpacity
+                  onPress={() => handleConfirmWorkoutTime(workoutTime)}
+                  style={{
+                    backgroundColor: LEMON,
+                    paddingVertical: 12,
+                    borderRadius: 12,
+                    alignItems: "center",
+                  }}
+                >
+                  <Text style={{ fontWeight: "800", color: "black" }}>
+                    Update All Workout Times
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={handleDeleteAllWorkouts}
+                  style={{
+                    backgroundColor: "#FCA5A5",
+                    paddingVertical: 12,
+                    borderRadius: 12,
+                    alignItems: "center",
+                  }}
+                >
+                  <Text style={{ fontWeight: "800", color: "black" }}>
+                    Delete All Workouts
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => setShowWorkoutTimePicker(false)}
+                  style={{ alignItems: "center", marginTop: 4 }}
+                >
+                  <Text style={{ color: "#6B7280" }}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              // Creating new workouts: show Cancel and Confirm buttons
+              <View style={{ flexDirection: "row", gap: 10, marginTop: 24 }}>
+                <TouchableOpacity
+                  onPress={() => setShowWorkoutTimePicker(false)}
+                  style={{
+                    backgroundColor: "#FCA5A5",
+                    paddingVertical: 12,
+                    borderRadius: 12,
+                    alignItems: "center",
+                    flex: 1,
+                  }}
+                >
+                  <Text style={{ fontWeight: "800", color: "black" }}>
+                    Cancel
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => handleConfirmWorkoutTime(workoutTime)}
+                  style={{
+                    backgroundColor: LEMON,
+                    paddingVertical: 12,
+                    borderRadius: 12,
+                    alignItems: "center",
+                    flex: 1,
+                  }}
+                >
+                  <Text style={{ fontWeight: "800", color: "black" }}>
+                    Confirm
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }

@@ -7,11 +7,15 @@ import {
   Modal,
   ActivityIndicator,
   Alert,
+  TouchableOpacity,
+  Platform,
 } from "react-native";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import FitnessStep, { Fitness } from "../Onboarding/FitnessStep";
 import {
   apiGetFitnessProfile,
   apiUpsertFitnessProfile,
+  apiPlanAndScheduleAi,
 } from "../../constants/api";
 
 interface FitnessProfileModalProps {
@@ -118,6 +122,15 @@ export default function FitnessProfile({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [initialFitness, setInitialFitness] = useState<Fitness>(defaultFitness);
+  const [showWorkoutUpdatePrompt, setShowWorkoutUpdatePrompt] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [workoutTime, setWorkoutTime] = useState<Date>(() => {
+    const d = new Date();
+    d.setHours(7, 0, 0, 0);
+    return d;
+  });
+  const [updatingSchedule, setUpdatingSchedule] = useState(false);
+
   const hasUnsavedChanges =
     JSON.stringify(fitness) !== JSON.stringify(initialFitness);
 
@@ -161,15 +174,85 @@ export default function FitnessProfile({
         goal: fitness.goal ?? null,
         activityLevel: fitness.activityLevel ?? null,
         daysPerWeek: fitness.daysPerWeek ? Number(fitness.daysPerWeek) : null,
-        heightCm: fitness.heightUnit === "cm" ? Number(fitness.height) : null, // TODO: convert ft/in to cm if needed
-        weightKg: fitness.weightUnit === "kg" ? Number(fitness.weight) : null, // TODO: convert lb to kg if needed
+        heightCm: fitness.heightUnit === "cm" ? Number(fitness.height) : null,
+        weightKg: fitness.weightUnit === "kg" ? Number(fitness.weight) : null,
       };
+
+      // Check if days per week or goal changed
+      const daysChanged = initialFitness.daysPerWeek !== fitness.daysPerWeek;
+      const goalChanged = initialFitness.goal !== fitness.goal;
+      const fitnessChanged = daysChanged || goalChanged;
+
       await apiUpsertFitnessProfile(payload);
-      setInitialFitness(fitness); // update initial state after save
-      // Optionally, show a success message
-    } finally {
+      setInitialFitness(fitness);
+
+      // Show prompt if fitness-related settings changed
+      if (fitnessChanged) {
+        setSaving(false);
+        Alert.alert(
+          "Fitness Preferences Updated",
+          "You've changed your fitness preferences. Would you like us to adjust your workout plan and workout times for you as well?",
+          [
+            {
+              text: "No",
+              style: "cancel",
+              onPress: () => onClose(),
+            },
+            {
+              text: "Yes",
+              onPress: () => {
+                setShowWorkoutUpdatePrompt(true);
+              },
+            },
+          ]
+        );
+      } else {
+        setSaving(false);
+        onClose();
+      }
+    } catch (e: any) {
       setSaving(false);
-      onClose();
+      Alert.alert("Save failed", e?.message || "Please try again.");
+    }
+  };
+
+  const handleUpdateWorkoutSchedule = async () => {
+    setShowTimePicker(false);
+    setShowWorkoutUpdatePrompt(false);
+    setUpdatingSchedule(true);
+
+    try {
+      const workoutHour = workoutTime.getHours();
+      const workoutMinute = workoutTime.getMinutes();
+
+      // Call the AI plan generation with force_ai to regenerate
+      const result = await apiPlanAndScheduleAi({
+        force_ai: true,
+        workoutHour,
+        workoutMinute,
+      });
+
+      const created_count = result?.created_count ?? 0;
+
+      if (created_count > 0) {
+        Alert.alert(
+          "Workout Schedule Updated",
+          `Successfully created ${created_count} new workout${
+            created_count > 1 ? "s" : ""
+          } based on your updated preferences.`,
+          [{ text: "OK", onPress: () => onClose() }]
+        );
+      } else {
+        Alert.alert(
+          "Update Complete",
+          "Your preferences have been saved, but no new workouts were scheduled.",
+          [{ text: "OK", onPress: () => onClose() }]
+        );
+      }
+    } catch (e: any) {
+      Alert.alert("Update failed", e?.message || "Please try again.");
+    } finally {
+      setUpdatingSchedule(false);
     }
   };
 
@@ -239,6 +322,99 @@ export default function FitnessProfile({
           )}
         </View>
       </View>
+
+      {/* Workout Schedule Update Time Picker Modal */}
+      <Modal visible={showWorkoutUpdatePrompt} transparent animationType="fade">
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={() => {
+            setShowWorkoutUpdatePrompt(false);
+            onClose();
+          }}
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: "rgba(0,0,0,0.5)",
+            paddingBottom: 280,
+          }}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: "white",
+              borderRadius: 16,
+              padding: 24,
+              width: "85%",
+              maxWidth: 400,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 20,
+                fontWeight: "700",
+                color: "#065F46",
+                marginBottom: 8,
+                textAlign: "center",
+              }}
+            >
+              Update Workout Schedule
+            </Text>
+            <Text
+              style={{
+                fontSize: 14,
+                color: "#6B7280",
+                marginBottom: 20,
+                textAlign: "center",
+              }}
+            >
+              Select your preferred workout time
+            </Text>
+
+            <DateTimePicker
+              value={workoutTime}
+              mode="time"
+              display={Platform.OS === "ios" ? "spinner" : "default"}
+              onChange={(_: any, d?: Date) => {
+                if (d) setWorkoutTime(d);
+              }}
+              style={{ alignSelf: "center" }}
+              textColor="#000000"
+              themeVariant="light"
+            />
+
+            <View style={{ gap: 10, marginTop: 24 }}>
+              <TouchableOpacity
+                onPress={handleUpdateWorkoutSchedule}
+                disabled={updatingSchedule}
+                style={{
+                  backgroundColor: updatingSchedule ? "#D1FAE5" : "#F9FF6E",
+                  paddingVertical: 12,
+                  borderRadius: 12,
+                  alignItems: "center",
+                  opacity: updatingSchedule ? 0.7 : 1,
+                }}
+              >
+                <Text style={{ fontWeight: "800", color: "black" }}>
+                  {updatingSchedule ? "Updating..." : "Update Workout Schedule"}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => {
+                  setShowWorkoutUpdatePrompt(false);
+                  onClose();
+                }}
+                disabled={updatingSchedule}
+                style={{ alignItems: "center", marginTop: 4 }}
+              >
+                <Text style={{ color: "#6B7280" }}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </Modal>
   );
 }

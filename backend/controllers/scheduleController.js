@@ -644,14 +644,60 @@ const ScheduleController = {
         ? prefs.preferred_workout_days
             .map(Number)
             .filter((n) => n >= 0 && n <= 6)
-        : [1, 3, 5, 2, 4, 6, 0]; // spread across week
+        : [1, 2, 3, 4, 5, 6, 0]; // sequential: Mon, Tue, Wed, Thu, Fri, Sat, Sun
+
+      // Get workout time from request, default to 7:00 AM if not provided
+      const workoutHour = Number(req.body?.workoutHour);
+      const workoutMinute = Number(req.body?.workoutMinute);
+      const preferredHour =
+        !isNaN(workoutHour) && workoutHour >= 0 && workoutHour <= 23
+          ? workoutHour
+          : 7;
+      const preferredMinute =
+        !isNaN(workoutMinute) && workoutMinute >= 0 && workoutMinute <= 59
+          ? workoutMinute
+          : 0;
+
+      console.log("[planAndScheduleAi] Workout time:", {
+        from_request: {
+          hour: req.body?.workoutHour,
+          minute: req.body?.workoutMinute,
+        },
+        final: { hour: preferredHour, minute: preferredMinute },
+      });
 
       // Anchor at the upcoming Monday
       const today = new Date();
       const weekStart = mondayOfLocal(today);
 
-      // Map each plan day to a weekday (repeat weekly)
-      const pickWeekdayForIndex = (idx) => preferredDays[idx] ?? (1 + idx) % 7;
+      // Map each plan day to a weekday with rest days if 5 or fewer workout days
+      const numWorkoutDays = planned.length;
+      let workoutWeekdays = [];
+
+      if (numWorkoutDays <= 5) {
+        // Add rest days between workouts for better recovery
+        // Strategy: Spread workouts across the week with at least 1 rest day between
+        if (numWorkoutDays === 1) {
+          workoutWeekdays = [1]; // Monday
+        } else if (numWorkoutDays === 2) {
+          workoutWeekdays = [1, 4]; // Mon, Thu (2 rest days between)
+        } else if (numWorkoutDays === 3) {
+          workoutWeekdays = [1, 3, 5]; // Mon, Wed, Fri (1 rest day between each)
+        } else if (numWorkoutDays === 4) {
+          workoutWeekdays = [1, 3, 5, 0]; // Mon, Wed, Fri, Sun (rest days: Tue, Thu, Sat)
+        } else if (numWorkoutDays === 5) {
+          workoutWeekdays = [1, 2, 4, 5, 0]; // Mon, Tue, Thu, Fri, Sun (rest: Wed, Sat)
+        }
+      } else {
+        // 6-7 days: sequential days (minimal rest)
+        workoutWeekdays = Array.from(
+          { length: numWorkoutDays },
+          (_, i) => preferredDays[i] ?? (1 + i) % 7
+        );
+      }
+
+      const pickWeekdayForIndex = (idx) =>
+        workoutWeekdays[idx] ?? (1 + idx) % 7;
 
       // First compute all target datetimes, then assign sequential day numbers by chronological order
       const pre = [];
@@ -661,7 +707,7 @@ const ScheduleController = {
 
         const base = new Date(weekStart);
         base.setDate(weekStart.getDate() + ((weekday + 7 - base.getDay()) % 7));
-        base.setHours(7, 0, 0, 0); // 07:00 local default
+        base.setHours(preferredHour, preferredMinute, 0, 0); // Use user-selected time
         const end = new Date(base.getTime() + sessionMin * 60000);
 
         // derive quick summary bits for later UI
@@ -802,7 +848,27 @@ const ScheduleController = {
         ? prefs.preferred_workout_days
             .map(Number)
             .filter((n) => n >= 0 && n <= 6)
-        : [1, 3, 5, 2, 4, 6, 0];
+        : [1, 2, 3, 4, 5, 6, 0]; // sequential: Mon, Tue, Wed, Thu, Fri, Sat, Sun
+
+      // Get workout time from request, default to 7:00 AM if not provided
+      const workoutHour = Number(req.body?.workoutHour);
+      const workoutMinute = Number(req.body?.workoutMinute);
+      const preferredHour =
+        !isNaN(workoutHour) && workoutHour >= 0 && workoutHour <= 23
+          ? workoutHour
+          : 7;
+      const preferredMinute =
+        !isNaN(workoutMinute) && workoutMinute >= 0 && workoutMinute <= 59
+          ? workoutMinute
+          : 0;
+
+      console.log("[schedulePlansWeekly] Workout time:", {
+        from_request: {
+          hour: req.body?.workoutHour,
+          minute: req.body?.workoutMinute,
+        },
+        final: { hour: preferredHour, minute: preferredMinute },
+      });
 
       // Anchor to current week's Monday (local)
       const today = new Date();
@@ -828,6 +894,31 @@ const ScheduleController = {
 
       const created = [];
 
+      // Determine weekdays with rest days for 5 or fewer plans
+      const numPlans = plans.length;
+      let workoutWeekdays = [];
+
+      if (numPlans <= 5) {
+        // Add rest days between workouts for better recovery
+        if (numPlans === 1) {
+          workoutWeekdays = [1]; // Monday
+        } else if (numPlans === 2) {
+          workoutWeekdays = [1, 4]; // Mon, Thu (2 rest days between)
+        } else if (numPlans === 3) {
+          workoutWeekdays = [1, 3, 5]; // Mon, Wed, Fri (1 rest day between each)
+        } else if (numPlans === 4) {
+          workoutWeekdays = [1, 3, 5, 0]; // Mon, Wed, Fri, Sun (rest days: Tue, Thu, Sat)
+        } else if (numPlans === 5) {
+          workoutWeekdays = [1, 2, 4, 5, 0]; // Mon, Tue, Thu, Fri, Sun (rest: Wed, Sat)
+        }
+      } else {
+        // 6-7 days: use preferredDays or sequential
+        workoutWeekdays = Array.from(
+          { length: Math.min(numPlans, 7) },
+          (_, i) => preferredDays[i % preferredDays.length]
+        );
+      }
+
       // Helper to get first occurrence date for a given weekday and week offset
       const dateForWeekday = (baseMonday, weekday, weekOffset) => {
         const d = new Date(baseMonday);
@@ -835,17 +926,17 @@ const ScheduleController = {
         const dow = d.getDay();
         const delta = (weekday + 7 - dow) % 7;
         d.setDate(d.getDate() + delta);
-        d.setHours(7, 0, 0, 0); // default 07:00 local
+        d.setHours(preferredHour, preferredMinute, 0, 0); // Use user-selected time
         return d;
       };
 
-      // For each plan, schedule one weekly event, distributing across current and subsequent weeks if >7 plans
+      // For each plan, schedule one weekly event with rest days
       for (let i = 0; i < plans.length; i++) {
         const plan = plans[i];
         if (hasEventForPlan.has(Number(plan.id))) continue; // skip if already scheduled
 
-        const weekday = preferredDays[i % preferredDays.length];
-        const weekOffset = Math.floor(i / preferredDays.length);
+        const weekday = workoutWeekdays[i % workoutWeekdays.length];
+        const weekOffset = Math.floor(i / workoutWeekdays.length);
         const start = dateForWeekday(weekStart, weekday, weekOffset);
         const end = new Date(start.getTime() + sessionMin * 60000);
 

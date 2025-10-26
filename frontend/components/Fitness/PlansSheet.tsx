@@ -109,6 +109,55 @@ export default function PlansSheet({ visible, onClose }: Props) {
     }
   }
 
+  async function deleteAllAIPlans() {
+    if (busy) return;
+
+    // Delete ALL plans (not just AI-generated ones)
+    if (plans.length === 0) {
+      Alert.alert("No Plans", "There are no workout plans to delete.");
+      return;
+    }
+
+    Alert.alert(
+      "Delete All Workout Plans",
+      `Are you sure you want to delete all ${plans.length} workout plan${
+        plans.length > 1 ? "s" : ""
+      }? This cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            setBusy(true);
+            try {
+              let deleted = 0;
+              for (const plan of plans) {
+                try {
+                  await apiDeletePlan(plan.id);
+                  deleted++;
+                } catch (e) {
+                  console.warn("Failed to delete plan:", plan.id, e);
+                }
+              }
+              await load();
+              Alert.alert(
+                "Plans Deleted",
+                `Successfully deleted ${deleted} workout plan${
+                  deleted > 1 ? "s" : ""
+                }.`
+              );
+            } catch (e: any) {
+              Alert.alert("Delete failed", e?.message || "Please try again.");
+            } finally {
+              setBusy(false);
+            }
+          },
+        },
+      ]
+    );
+  }
+
   async function saveEdit() {
     if (!editing) return;
     setBusy(true);
@@ -235,7 +284,10 @@ export default function PlansSheet({ visible, onClose }: Props) {
                     for (const day of daysToCreate) {
                       const name = `${day.day} - ${day.focus}`;
                       try {
-                        const created = await apiCreatePlan({ name });
+                        const created = await apiCreatePlan({
+                          name,
+                          notes: "Auto-created from AI suggestion",
+                        });
                         const plan = created?.plan;
                         if (!plan) continue;
                         createdAny = true;
@@ -295,16 +347,16 @@ export default function PlansSheet({ visible, onClose }: Props) {
 
           {plans.length > 0 && (
             <TouchableOpacity
-              onPress={() => deletePlan(plans[0].id)}
+              onPress={deleteAllAIPlans}
               disabled={busy}
               style={{
                 paddingHorizontal: 10,
                 paddingVertical: 6,
                 borderRadius: 10,
-                backgroundColor: "#1f2937",
+                backgroundColor: "#991b1b",
               }}
             >
-              <Ionicons name="trash" size={18} color="#94a3b8" />
+              <Ionicons name="trash" size={18} color="#fff" />
             </TouchableOpacity>
           )}
         </View>

@@ -562,6 +562,8 @@ export async function apiAutoPlanWorkouts() {
 export async function apiPlanAndScheduleAi(payload?: {
   exercises_per_day?: number;
   force_ai?: boolean; // if true and a plan exists, regenerate sessions from AI
+  workoutHour?: number;
+  workoutMinute?: number;
 }) {
   const res = await fetch(`${BASE_URL}${EP.planAndScheduleAi}`, {
     method: "POST",
@@ -578,11 +580,14 @@ export async function apiPlanAndScheduleAi(payload?: {
 }
 
 // Schedule existing plans across the week with weekly recurrence
-export async function apiSchedulePlansWeekly() {
+export async function apiSchedulePlansWeekly(payload?: {
+  workoutHour?: number;
+  workoutMinute?: number;
+}) {
   const res = await fetch(`${BASE_URL}${EP.schedulePlansWeekly}`, {
     method: "POST",
     headers: await authHeaders(),
-    body: JSON.stringify({}),
+    body: JSON.stringify(payload ?? {}),
   });
   return asJson<{ success: boolean; created_count: number; events: any[] }>(
     res
