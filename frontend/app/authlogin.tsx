@@ -142,7 +142,7 @@ export default function AuthLogin() {
             {stage === "landing" ? (
               <View className="flex-1">
                 {/* Animated Background */}
-                <AnimatedBackground />
+                <AnimatedBackground stage={stage} />
                 
                 {/* ScrollView for full content */}
                 <ScrollView 
@@ -252,11 +252,15 @@ export default function AuthLogin() {
                 </ScrollView>
               </View>
             ) : (
-              <ScrollView
-                keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}
-                className="flex-1"
-              >
+              <View className="flex-1">
+                {/* Animated Background */}
+                <AnimatedBackground stage={stage} />
+                
+                <ScrollView
+                  keyboardShouldPersistTaps="handled"
+                  showsVerticalScrollIndicator={false}
+                  className="flex-1"
+                >
                 <Animated.View 
                   entering={ZoomIn.duration(400).springify()}
                   className="px-5 pt-4"
@@ -399,7 +403,8 @@ export default function AuthLogin() {
                     </Animated.View>
                   </TouchableWithoutFeedback>
                 </Animated.View>
-              </ScrollView>
+                </ScrollView>
+              </View>
             )}
         </SafeAreaView>
       </GestureHandlerRootView>
