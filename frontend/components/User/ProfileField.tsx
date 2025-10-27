@@ -37,19 +37,19 @@ export default function ProfileField({
   // Get field-specific styling based on variant and focus state
   const getFieldStyles = () => {
     const baseContainer = isFocused 
-      ? "bg-neutral-800/95 rounded-xl border-2 border-blue-500"
-      : "bg-neutral-800/95 rounded-xl border-2 border-neutral-600";
+      ? "bg-gray-900/50 rounded-xl border border-blue-500"
+      : "bg-gray-900/50 rounded-xl border border-gray-800/50";
     
     return {
       container: baseContainer,
-      input: "bg-transparent text-white rounded-xl px-5 py-4",
+      input: "bg-transparent text-white rounded-xl px-4 py-4",
       label: "text-gray-200 mb-3 font-semibold text-sm tracking-wide",
       shadow: {
         shadowColor: isFocused ? "#3B82F6" : "#000",
-        shadowOffset: { width: 0, height: isFocused ? 4 : 2 },
-        shadowOpacity: isFocused ? 0.3 : 0.1,
-        shadowRadius: isFocused ? 8 : 4,
-        elevation: isFocused ? 4 : 2,
+        shadowOffset: { width: 0, height: isFocused ? 2 : 1 },
+        shadowOpacity: isFocused ? 0.2 : 0.1,
+        shadowRadius: isFocused ? 4 : 2,
+        elevation: isFocused ? 2 : 1,
       }
     };
   };
@@ -57,7 +57,7 @@ export default function ProfileField({
   const fieldStyles = getFieldStyles();
 
   return (
-    <View className="mb-6" style={containerStyle}>
+    <View className="mb-5" style={containerStyle}>
       {textInputProps ? (
         // TextInput mode with clean label above field
         <View>
